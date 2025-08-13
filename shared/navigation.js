@@ -189,7 +189,8 @@ class ExhibitionNavigator {
         
         // Show loading screen if we're on metal-slab.html
         if (this.currentPage === 'metal-slab.html') {
-            this.showLoadingScreen();
+            // Ensure the loading screen is visible
+            this.showPersistentLoadingScreen();
             
             // For AR pages, don't preload with iframe (prevents duplicate camera permission)
             if (currentPageInfo && currentPageInfo.next) {
@@ -199,15 +200,13 @@ class ExhibitionNavigator {
                 const isARPage = nextPage.includes('artwork');
                 
                 if (isARPage) {
-                    // For AR pages, navigate directly but keep loading screen visible
+                    // For AR pages, just show loading screen and navigate directly after a delay
                     // This prevents duplicate camera permission requests
-                    // The loading screen will be hidden by the AR page when it's fully loaded
-                    
-                    // Store that we're in a persistent loading transition
-                    window.inPersistentARTransition = true;
-                    
-                    // Navigate immediately to the AR page
-                    this.navigateTo(nextPage);
+                    setTimeout(() => {
+                        // Set a flag to indicate we're coming from a loading screen
+                        sessionStorage.setItem('loadingScreenActive', 'true');
+                        this.navigateTo(nextPage);
+                    }, 1500); // 1.5 second delay for loading animation
                 } else {
                     // For non-AR pages, use the preloading iframe approach
                     // Create a hidden iframe to preload the next page

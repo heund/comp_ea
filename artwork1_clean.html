@@ -1018,41 +1018,40 @@
         }
         
         let threeJSAnimation = null;
+        
+        // Check if we're coming from loading screen
         let cameraInitialized = false;
         let markerDetected = false;
-        let pageFullyLoaded = false;
         
-        // Function to check if camera is ready
+        // Function to check if camera is ready and hide loading screen
         function checkCameraReadyState() {
-            // Camera is initialized, ready for marker detection
-            console.log('Camera ready for marker detection');
-            
-            // Mark the page as fully loaded
-            pageFullyLoaded = true;
-            
-            // If we're not in a persistent AR transition or no marker is detected yet,
-            // hide the loading screen after a short delay
-            if (!window.inPersistentARTransition || !markerDetected) {
-                setTimeout(() => {
-                    if (window.persistentLoadingScreen) {
-                        window.persistentLoadingScreen.hide();
-                    }
-                }, 1000);
+            if (cameraInitialized) {
+                console.log('Camera is initialized');
+                // We don't hide the loading screen here anymore
+                // It will be hidden when the marker is found or after timeout
+                
+                // The persistent loading screen will handle this now
+                // No need to manipulate the local loading screen
             }
         }
         
         // Auto-start AR when page loads
         document.addEventListener('DOMContentLoaded', () => {
             const arStatus = document.getElementById('arStatus');
-            const loadingScreen = document.getElementById('cameraLoadingScreen');
             
             console.log('Auto-starting AR...');
             console.log('Viewport:', window.innerWidth, 'x', window.innerHeight);
             
             // Check if we're coming from the loading screen
-            if (sessionStorage.getItem('comingFromLoadingScreen') === 'true') {
-                console.log('Coming from loading screen, showing camera loading overlay');
-                loadingScreen.classList.add('visible');
+            if (sessionStorage.getItem('loadingScreenActive') === 'true') {
+                console.log('Coming from loading screen, ensuring persistent loading screen is visible');
+                // Use the persistent loading screen instead of the local one
+                if (window.persistentLoadingScreen) {
+                    window.persistentLoadingScreen.show();
+                    window.persistentLoadingScreen.setARMode(true);
+                }
+                // Clear the flag
+                sessionStorage.removeItem('loadingScreenActive');
             }
             
             // Initialize Three.js animation system
@@ -1080,9 +1079,6 @@
                     checkCameraReadyState();
                     console.log('Camera initialization complete');
                     
-                    // Reset the persistent AR transition flag now that we're loaded
-                    window.inPersistentARTransition = false;
-                    
                     // Note: We don't hide the loading screen here
                     // It will be hidden when the marker is found (in markerFound event)
                     // or after a timeout if no marker is found
@@ -1090,7 +1086,7 @@
             });
             
             marker.addEventListener('markerFound', () => {
-                console.log('AR Marker detected!');
+                console.log('AR Marker detected! Hiding loading screen.');
                 markerDetected = true;
                 
                 // Get the AR detection elements
@@ -1142,6 +1138,12 @@
                     window.persistentLoadingScreen.hide();
                 }
             }, 15000); // 15 seconds timeout
+            
+            // Make sure the persistent loading screen is visible during AR initialization
+            if (window.persistentLoadingScreen) {
+                window.persistentLoadingScreen.show();
+                window.persistentLoadingScreen.setARMode(true);
+            }
             
             // Data overlay event listeners - EXACT copy from artwork1.html
             const canvas = document.getElementById('visualizationCanvas');
@@ -1341,11 +1343,6 @@
         
         // Initialize on page load
         document.addEventListener('DOMContentLoaded', function() {
-            // If we're coming from a persistent AR transition, ensure the loading screen is visible
-            if (window.inPersistentARTransition && window.persistentLoadingScreen) {
-                window.persistentLoadingScreen.show();
-                window.persistentLoadingScreen.setARMode(true);
-            }
             // Initialize audio
             initializeAudio();
             
