@@ -100,6 +100,27 @@
             max-height: none !important;
         }
         
+        /* iOS Safari Video Viewport Fix - Force Container Method */
+        .ios-video-container {
+            position: fixed !important;
+            top: 0 !important;
+            left: 0 !important;
+            width: 100vw !important;
+            height: 100vh !important;
+            z-index: 1 !important;
+            overflow: hidden !important;
+        }
+        
+        .ios-video-container video {
+            position: absolute !important;
+            top: 0 !important;
+            left: 0 !important;
+            width: 100% !important;
+            height: 100% !important;
+            object-fit: cover !important;
+            object-position: center !important;
+        }
+        
         /* iOS-specific AR.js camera fix */
         @supports (-webkit-appearance: none) {
             a-scene video {
@@ -1941,19 +1962,24 @@
             // Wait for A-Frame to initialize
             scene.addEventListener('loaded', () => {
                 setTimeout(() => {
-                    // Force AR.js to use full viewport dimensions
-                    const viewportWidth = window.innerWidth;
-                    const viewportHeight = window.innerHeight;
-                    
-                    // Update AR.js source and display dimensions dynamically
-                    if (scene.systems && scene.systems.arjs) {
-                        const arjsSystem = scene.systems.arjs;
-                        if (arjsSystem.data) {
-                            arjsSystem.data.sourceWidth = viewportWidth;
-                            arjsSystem.data.sourceHeight = viewportHeight;
-                            arjsSystem.data.displayWidth = viewportWidth;
-                            arjsSystem.data.displayHeight = viewportHeight;
-                        }
+                    // iOS-specific camera constraint override
+                    if (isIOS) {
+                        console.log('Applying iOS camera constraints...');
+                        
+                        // Override getUserMedia for iOS to force proper camera resolution
+                        const originalGetUserMedia = navigator.mediaDevices.getUserMedia;
+                        navigator.mediaDevices.getUserMedia = function(constraints) {
+                            if (constraints && constraints.video) {
+                                // Force iOS to use device viewport dimensions
+                                constraints.video = {
+                                    width: { ideal: window.innerWidth },
+                                    height: { ideal: window.innerHeight },
+                                    facingMode: 'environment'
+                                };
+                                console.log('iOS camera constraints applied:', constraints.video);
+                            }
+                            return originalGetUserMedia.call(this, constraints);
+                        };
                     }
                     
                     applyPortraitFix();
@@ -1963,55 +1989,56 @@
             function applyPortraitFix() {
                 const isPortrait = window.innerHeight > window.innerWidth;
                 
-                if (isPortrait) {
-                    // Force camera video element to fill viewport in portrait mode
+                if (isIOS && isPortrait) {
+                    console.log('Applying iOS portrait AR camera fix...');
+                    
+                    // Find all video elements in the A-Frame scene
                     const videos = document.querySelectorAll('a-scene video');
-                    const canvases = document.querySelectorAll('a-scene canvas, a-scene .a-canvas');
                     
-                    const applyPortraitViewportFix = (elements) => {
-                        elements.forEach(element => {
-                            if (element) {
-                                // Critical iOS portrait mode fixes
-                                element.style.position = 'fixed';
-                                element.style.top = '0';
-                                element.style.left = '0';
-                                element.style.width = '100vw';
-                                element.style.height = '100vh';
-                                element.style.minWidth = '100vw';
-                                element.style.minHeight = '100vh';
-                                element.style.maxWidth = '100vw';
-                                element.style.maxHeight = '100vh';
-                                element.style.objectFit = 'cover';
-                                element.style.objectPosition = 'center center';
-                                element.style.transform = 'none';
-                                element.style.margin = '0';
-                                element.style.padding = '0';
-                                element.style.border = 'none';
-                                element.style.outline = 'none';
-                                element.style.zIndex = '1';
-                                
-                                // Additional iOS portrait fixes
-                                if (element.tagName === 'VIDEO') {
-                                    element.style.backgroundSize = 'cover';
-                                    element.style.backgroundPosition = 'center center';
-                                }
-                            }
-                        });
-                    };
+                    videos.forEach(video => {
+                        // Critical iOS video attributes for proper rendering
+                        video.setAttribute('autoplay', 'true');
+                        video.setAttribute('muted', 'true');
+                        video.setAttribute('playsinline', 'true');
+                        video.setAttribute('webkit-playsinline', 'true');
+                        
+                        // Force video dimensions
+                        video.style.position = 'fixed';
+                        video.style.top = '0';
+                        video.style.left = '0';
+                        video.style.width = '100vw';
+                        video.style.height = '100vh';
+                        video.style.objectFit = 'cover';
+                        video.style.objectPosition = 'center';
+                        video.style.transform = 'none';
+                        video.style.maxWidth = 'none';
+                        video.style.maxHeight = 'none';
+                        video.style.zIndex = '1';
+                        
+                        console.log('Applied iOS video fix with required attributes');
+                    });
                     
-                    applyPortraitViewportFix(videos);
-                    applyPortraitViewportFix(canvases);
+                    // Also apply to canvas elements
+                    const canvases = document.querySelectorAll('a-scene canvas');
+                    canvases.forEach(canvas => {
+                        canvas.style.position = 'fixed';
+                        canvas.style.top = '0';
+                        canvas.style.left = '0';
+                        canvas.style.width = '100vw';
+                        canvas.style.height = '100vh';
+                        canvas.style.objectFit = 'cover';
+                        canvas.style.zIndex = '2';
+                    });
                     
-                    // Also fix the scene itself in portrait mode
-                    scene.style.position = 'fixed';
-                    scene.style.top = '0';
-                    scene.style.left = '0';
-                    scene.style.width = '100vw';
-                    scene.style.height = '100vh';
-                    scene.style.minWidth = '100vw';
-                    scene.style.minHeight = '100vh';
-                    scene.style.maxWidth = '100vw';
-                    scene.style.maxHeight = '100vh';
+                    // Force A-Frame scene to use full viewport
+                    const scene = document.querySelector('a-scene');
+                    if (scene) {
+                        scene.style.width = '100vw';
+                        scene.style.height = '100vh';
+                        scene.style.position = 'fixed';
+                        scene.style.top = '0';
+                        scene.style.left = '0';
+                    }
                 }
             }
             
