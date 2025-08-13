@@ -1,0 +1,500 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>Camera + AR Test</title>
+    
+    <!-- A-Frame for AR -->
+    <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
+    <!-- AR.js for marker tracking -->
+    <script src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js@3.4.5/aframe/build/aframe-ar.js"></script>
+    <!-- Three.js for 3D visualization -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+            background: #000;
+            color: white;
+            overflow: hidden;
+        }
+        
+        .container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(45deg, #1e3c72, #2a5298);
+        }
+        
+        .button {
+            padding: 15px 30px;
+            background: rgba(255,255,255,0.2);
+            border: 1px solid rgba(255,255,255,0.3);
+            color: white;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 18px;
+            margin: 10px;
+            backdrop-filter: blur(10px);
+        }
+        
+        .button:hover {
+            background: rgba(255,255,255,0.3);
+        }
+        
+        #video {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            object-fit: cover;
+            z-index: 10;
+            display: none;
+            transition: none;
+        }
+        
+        .controls {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 20;
+            display: none;
+        }
+        
+        .info {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            background: rgba(0,0,0,0.7);
+            padding: 10px;
+            border-radius: 5px;
+            font-size: 12px;
+            z-index: 20;
+            display: none;
+        }
+        
+        /* AR Scene - minimal setup */
+        a-scene {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: 1;
+        }
+        
+        .ar-status {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            background: rgba(0,0,0,0.8);
+            padding: 15px;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: bold;
+            color: white;
+            z-index: 30;
+            display: block;
+            border: 2px solid rgba(255,255,255,0.3);
+        }
+        
+        /* Three.js Visualization Container - Only visible when marker detected */
+        .visualization-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: 100;
+            pointer-events: auto;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s ease;
+            overflow: hidden;
+        }
+        
+        .visualization-container.active {
+            opacity: 1;
+            visibility: visible;
+        }
+        
+        #visualizationCanvas {
+            width: 100%;
+            height: 100%;
+            background: transparent;
+            cursor: grab;
+        }
+        
+        #visualizationCanvas:active {
+            cursor: grabbing;
+        }
+    </style>
+</head>
+<body>
+    <div class="ar-status" id="arStatus">AR Ready</div>
+    
+    <!-- Three.js Visualization Container -->
+    <div class="visualization-container" id="visualizationContainer">
+        <canvas id="visualizationCanvas"></canvas>
+    </div>
+    
+    <!-- A-Frame AR Scene -->
+    <a-scene
+        embedded
+        arjs="sourceType: webcam; debugUIEnabled: false;"
+        vr-mode-ui="enabled: false"
+        id="arScene">
+        
+        <!-- AR Marker -->
+        <a-marker
+            type="pattern"
+            url="./pattern-ar_code_test1.patt"
+            id="marker"
+            smooth="true">
+            <!-- Just marker detection, no 3D objects -->
+        </a-marker>
+        
+        <!-- Camera -->
+        <a-camera></a-camera>
+    </a-scene>
+    
+    <script>
+        // Sample data from artwork1.html
+        const sampleData = [
+            {current_corrections_count: 2, data_integrity: 0.85, correction_effectiveness: 0.78, active_corrections_count: 5},
+            {current_corrections_count: 3, data_integrity: 0.92, correction_effectiveness: 0.81, active_corrections_count: 7},
+            {current_corrections_count: 1, data_integrity: 0.76, correction_effectiveness: 0.69, active_corrections_count: 3},
+            {current_corrections_count: 4, data_integrity: 0.88, correction_effectiveness: 0.85, active_corrections_count: 8},
+            {current_corrections_count: 2, data_integrity: 0.91, correction_effectiveness: 0.77, active_corrections_count: 6}
+        ];
+        
+        // Global Three.js variables
+        let scene, camera, renderer;
+        let networkNodes = [], networkEdges = [], centralCore = null;
+        let networkGraph = { nodes: [] };
+        let isAnimating = true;
+        let colorSchemeIndex = 0;
+        
+        const colorSchemes = [
+            { name: 'UserGreyGradient', colors: ['#E9EAEB', '#BEC3C5', '#989C9E', '#747779', '#525455', '#323334', '#151616'] }
+        ];
+        
+        // Three.js Animation System
+        class ThreeJSAnimation {
+            constructor() {
+                this.isInitialized = false;
+                this.mouse = new THREE.Vector2();
+                this.raycaster = new THREE.Raycaster();
+            }
+            
+            initialize() {
+                if (this.isInitialized) return;
+                
+                const canvas = document.getElementById('visualizationCanvas');
+                if (!canvas) return;
+                
+                const container = canvas.parentElement;
+                const width = container.clientWidth;
+                const height = container.clientHeight;
+                
+                // Scene setup - exact same as artwork1.html
+                scene = new THREE.Scene();
+                scene.background = null;
+                
+                // Camera setup
+                camera = new THREE.PerspectiveCamera(75, width / height, 0.1, 1000);
+                const baseDistance = 20;
+                camera.position.set(baseDistance, baseDistance * 0.6, baseDistance);
+                camera.lookAt(0, 0, 0);
+                
+                // Renderer setup
+                renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true, alpha: true });
+                renderer.setSize(width, height);
+                renderer.setClearColor(0x000000, 0);
+                renderer.shadowMap.enabled = true;
+                renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+                
+                // Lighting
+                const ambientLight = new THREE.AmbientLight(0x404040, 0.6);
+                scene.add(ambientLight);
+                const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+                directionalLight.position.set(50, 50, 50);
+                scene.add(directionalLight);
+                
+                this.setupMouseControls();
+                this.createCorrectionNetwork();
+                this.animate();
+                
+                window.addEventListener('resize', () => this.onWindowResize());
+                
+                this.isInitialized = true;
+            }
+            
+            createCorrectionNetwork() {
+                const n_nodes = 800;
+                const coreRadius = 1.5, sphereRadius = 15;
+                
+                networkGraph.nodes = [];
+                
+                // Create 800 nodes - exact same logic as artwork1.html
+                for (let i = 0; i < n_nodes; i++) {
+                    const row = sampleData[i % sampleData.length];
+                    const variation = (Math.random() - 0.5) * 0.2;
+                    
+                    const correctionIntensity = Math.min(1.0, (row.current_corrections_count + variation) / 5.0);
+                    const systemHealth = Math.min(1.0, ((row.data_integrity + row.correction_effectiveness) / 2.0) + variation * 0.1);
+                    const correctionBurden = Math.min(1.0, (row.active_corrections_count + Math.floor(variation * 3)) / 10.0);
+                    
+                    // Generate 3D position using rejection sampling
+                    let x, y, z, distanceSquared;
+                    do {
+                        x = (Math.random() - 0.5) * 2;
+                        y = (Math.random() - 0.5) * 2;
+                        z = (Math.random() - 0.5) * 2;
+                        distanceSquared = x*x + y*y + z*z;
+                    } while (distanceSquared > 1 || distanceSquared < 0.01);
+                    
+                    const unitDistance = Math.sqrt(distanceSquared);
+                    const minDistance = coreRadius + 0.5;
+                    const actualDistance = minDistance + (unitDistance * (sphereRadius - minDistance));
+                    
+                    x = (x / unitDistance) * actualDistance;
+                    y = (y / unitDistance) * actualDistance;
+                    z = (z / unitDistance) * actualDistance;
+                    
+                    networkGraph.nodes.push({
+                        id: i, intensity: correctionIntensity, health: systemHealth, burden: correctionBurden,
+                        x: x, y: y, z: z, vx: 0, vy: 0, vz: 0
+                    });
+                }
+                
+                this.createSolidCore();
+                this.createNetworkVisualization();
+            }
+            
+            createSolidCore() {
+                const coreGeometry = new THREE.SphereGeometry(1.5, 32, 32);
+                const currentScheme = colorSchemes[colorSchemeIndex];
+                const coreMaterial = new THREE.MeshLambertMaterial({
+                    color: new THREE.Color(currentScheme.colors[currentScheme.colors.length - 1])
+                });
+                
+                centralCore = new THREE.Mesh(coreGeometry, coreMaterial);
+                centralCore.castShadow = true;
+                scene.add(centralCore);
+            }
+            
+            createNetworkVisualization() {
+                // Clear existing
+                networkNodes.forEach(node => scene.remove(node));
+                networkEdges.forEach(edge => scene.remove(edge));
+                networkNodes.length = 0;
+                networkEdges.length = 0;
+                
+                const currentScheme = colorSchemes[colorSchemeIndex];
+                const edgeColor = new THREE.Color(currentScheme.colors[currentScheme.colors.length - 2]);
+                
+                networkGraph.nodes.forEach((node, i) => {
+                    // Create connection from center to node
+                    const geometry = new THREE.BufferGeometry();
+                    const positions = new Float32Array([0, 0, 0, node.x, node.y, node.z]);
+                    geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+                    
+                    const material = new THREE.LineBasicMaterial({
+                        color: edgeColor, transparent: true, opacity: 0.7
+                    });
+                    
+                    const edge = new THREE.Line(geometry, material);
+                    scene.add(edge);
+                    networkEdges.push(edge);
+                    
+                    // Create node sphere
+                    const nodeRadius = 0.08 + (node.intensity * 0.12);
+                    const nodeGeometry = new THREE.SphereGeometry(nodeRadius, 8, 8);
+                    const nodeColor = new THREE.Color().lerpColors(
+                        new THREE.Color(currentScheme.colors[0]),
+                        new THREE.Color(currentScheme.colors[Math.floor(currentScheme.colors.length * 0.7)]),
+                        node.health
+                    );
+                    const nodeMaterial = new THREE.MeshLambertMaterial({ color: nodeColor });
+                    
+                    const nodeMesh = new THREE.Mesh(nodeGeometry, nodeMaterial);
+                    nodeMesh.position.set(node.x, node.y, node.z);
+                    nodeMesh.userData = { nodeData: node, type: 'correction-node' };
+                    scene.add(nodeMesh);
+                    networkNodes.push(nodeMesh);
+                });
+            }
+            
+            setupMouseControls() {
+                const canvas = document.getElementById('visualizationCanvas');
+                let isDragging = false;
+                let previousMousePosition = { x: 0, y: 0 };
+                
+                canvas.addEventListener('mousedown', (event) => {
+                    isDragging = true;
+                    previousMousePosition = { x: event.clientX, y: event.clientY };
+                });
+                
+                canvas.addEventListener('mousemove', (event) => {
+                    if (!isDragging) return;
+                    
+                    const deltaMove = {
+                        x: event.clientX - previousMousePosition.x,
+                        y: event.clientY - previousMousePosition.y
+                    };
+                    
+                    const deltaRotationQuaternion = new THREE.Quaternion()
+                        .setFromEuler(new THREE.Euler(
+                            deltaMove.y * 0.01,
+                            deltaMove.x * 0.01,
+                            0,
+                            'XYZ'
+                        ));
+                    
+                    camera.quaternion.multiplyQuaternions(deltaRotationQuaternion, camera.quaternion);
+                    previousMousePosition = { x: event.clientX, y: event.clientY };
+                });
+                
+                canvas.addEventListener('mouseup', () => {
+                    isDragging = false;
+                });
+                
+                // Touch controls for mobile
+                canvas.addEventListener('touchstart', (event) => {
+                    if (event.touches.length === 1) {
+                        isDragging = true;
+                        const touch = event.touches[0];
+                        previousMousePosition = { x: touch.clientX, y: touch.clientY };
+                    }
+                });
+                
+                canvas.addEventListener('touchmove', (event) => {
+                    if (!isDragging || event.touches.length !== 1) return;
+                    
+                    const touch = event.touches[0];
+                    const deltaMove = {
+                        x: touch.clientX - previousMousePosition.x,
+                        y: touch.clientY - previousMousePosition.y
+                    };
+                    
+                    const deltaRotationQuaternion = new THREE.Quaternion()
+                        .setFromEuler(new THREE.Euler(
+                            deltaMove.y * 0.01,
+                            deltaMove.x * 0.01,
+                            0,
+                            'XYZ'
+                        ));
+                    
+                    camera.quaternion.multiplyQuaternions(deltaRotationQuaternion, camera.quaternion);
+                    previousMousePosition = { x: touch.clientX, y: touch.clientY };
+                });
+                
+                canvas.addEventListener('touchend', () => {
+                    isDragging = false;
+                });
+            }
+            
+            animate() {
+                if (!isAnimating) return;
+                
+                requestAnimationFrame(() => this.animate());
+                
+                // Rotate central core
+                if (centralCore) {
+                    centralCore.rotation.y += 0.005;
+                    centralCore.rotation.x += 0.002;
+                }
+                
+                renderer.render(scene, camera);
+            }
+            
+            onWindowResize() {
+                const canvas = document.getElementById('visualizationCanvas');
+                const container = canvas.parentElement;
+                const width = container.clientWidth;
+                const height = container.clientHeight;
+                
+                camera.aspect = width / height;
+                camera.updateProjectionMatrix();
+                renderer.setSize(width, height);
+            }
+            
+            show() {
+                const container = document.getElementById('visualizationContainer');
+                container.classList.add('active');
+            }
+            
+            hide() {
+                const container = document.getElementById('visualizationContainer');
+                container.classList.remove('active');
+            }
+        }
+        
+        let threeJSAnimation = null;
+        
+        // Auto-start AR when page loads
+        document.addEventListener('DOMContentLoaded', () => {
+            const arStatus = document.getElementById('arStatus');
+            
+            console.log('Auto-starting AR...');
+            console.log('Viewport:', window.innerWidth, 'x', window.innerHeight);
+            
+            // Initialize Three.js animation system
+            threeJSAnimation = new ThreeJSAnimation();
+            
+            // Setup marker detection
+            const marker = document.getElementById('marker');
+            
+            marker.addEventListener('markerFound', () => {
+                console.log('AR Marker detected!');
+                arStatus.innerHTML = '✅ AR Marker Found!';
+                arStatus.style.background = 'rgba(0,128,0,0.7)';
+                
+                // Initialize and show Three.js animation
+                threeJSAnimation.initialize();
+                threeJSAnimation.show();
+            });
+            
+            marker.addEventListener('markerLost', () => {
+                console.log('AR Marker lost');
+                arStatus.innerHTML = '🔍 Looking for AR Marker...';
+                arStatus.style.background = 'rgba(0,0,0,0.7)';
+                
+                // Keep animation visible once triggered
+            });
+            
+            // Initial status
+            arStatus.innerHTML = '🔍 Looking for AR Marker...';
+        });
+        
+        // Disable device motion/orientation permissions to prevent invasive prompts
+        if (typeof DeviceMotionEvent !== 'undefined' && DeviceMotionEvent.requestPermission) {
+            DeviceMotionEvent.requestPermission = () => Promise.resolve('denied');
+        }
+        if (typeof DeviceOrientationEvent !== 'undefined' && DeviceOrientationEvent.requestPermission) {
+            DeviceOrientationEvent.requestPermission = () => Promise.resolve('denied');
+        }
+        
+        // Log initial viewport info
+        console.log('Page loaded - Viewport:', window.innerWidth, 'x', window.innerHeight);
+        console.log('User Agent:', navigator.userAgent);
+    </script>
+</body>
+</html>
