@@ -17,7 +17,7 @@ class ExhibitionNavigator {
             'artwork2.html': {
                 title: 'Compression Spheres AR',
                 next: 'artwork3.html',
-                prev: 'artwork1.html'
+                prev: 'artwork1_clean.html'
             },
             'artwork3.html': {
                 title: 'Audio Wave Analysis AR',
