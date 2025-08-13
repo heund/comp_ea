@@ -5,7 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <title>Camera Test</title>
+    <title>Camera + AR Test</title>
+    
+    <!-- A-Frame for AR -->
+    <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
+    <!-- AR.js for marker tracking -->
+    <script src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js@3.4.5/aframe/build/aframe-ar.js"></script>
     
     <style>
         * {
@@ -81,97 +86,97 @@
             z-index: 20;
             display: none;
         }
+        
+        /* AR Scene - minimal setup */
+        a-scene {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: 1;
+        }
+        
+        .ar-status {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            background: rgba(0,0,0,0.7);
+            padding: 10px;
+            border-radius: 5px;
+            font-size: 14px;
+            color: white;
+            z-index: 30;
+            display: none;
+        }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>📹 Camera Viewport Test</h1>
-        <p>Testing iOS Safari camera fullscreen behavior</p>
-        <button class="button" onclick="startCamera()">Start Fullscreen Camera</button>
+        <h1>📹 Camera + AR Test</h1>
+        <p>Testing camera + AR marker detection</p>
+        <button class="button" onclick="startAR()">Start AR</button>
     </div>
     
-    <video id="video" autoplay muted playsinline webkit-playsinline></video>
+    <div class="ar-status" id="arStatus">AR Ready</div>
     
-    <div class="controls">
-        <button class="button" onclick="stopCamera()">Stop Camera</button>
-    </div>
-    
-    <div class="info" id="info"></div>
+    <!-- A-Frame AR Scene -->
+    <a-scene
+        embedded
+        arjs="sourceType: webcam; debugUIEnabled: false;"
+        vr-mode-ui="enabled: false"
+        id="arScene"
+        style="display: none;">
+        
+        <!-- AR Marker -->
+        <a-marker
+            type="pattern"
+            url="./pattern-ar_code_test1.patt"
+            id="marker"
+            smooth="true">
+            <!-- Just marker detection, no 3D objects -->
+        </a-marker>
+        
+        <!-- Camera -->
+        <a-camera></a-camera>
+    </a-scene>
     
     <script>
-        let stream = null;
-        
-        function startCamera() {
-            const video = document.getElementById('video');
-            const controls = document.querySelector('.controls');
-            const info = document.getElementById('info');
+        function startAR() {
             const container = document.querySelector('.container');
+            const arScene = document.getElementById('arScene');
+            const arStatus = document.getElementById('arStatus');
             
-            // Simple camera constraints - let CSS handle the fullscreen display
-            const constraints = {
-                video: {
-                    facingMode: 'environment'
-                }
-            };
+            // Hide menu, show AR scene
+            container.style.display = 'none';
+            arScene.style.display = 'block';
+            arStatus.style.display = 'block';
             
-            console.log('Starting camera with constraints:', constraints);
+            console.log('Starting AR...');
             console.log('Viewport:', window.innerWidth, 'x', window.innerHeight);
             
-            navigator.mediaDevices.getUserMedia(constraints)
-                .then(mediaStream => {
-                    stream = mediaStream;
-                    video.srcObject = stream;
-                    
-                    // Show video and controls
-                    container.style.display = 'none';
-                    video.style.display = 'block';
-                    controls.style.display = 'block';
-                    info.style.display = 'block';
-                    
-                    // Log video info when loaded
-                    video.addEventListener('loadedmetadata', () => {
-                        const infoText = `
-                            Video: ${video.videoWidth}x${video.videoHeight}<br>
-                            Viewport: ${window.innerWidth}x${window.innerHeight}<br>
-                            Device Pixel Ratio: ${window.devicePixelRatio}<br>
-                            User Agent: ${navigator.userAgent.includes('iPhone') ? 'iPhone' : navigator.userAgent.includes('iPad') ? 'iPad' : 'Other'}
-                        `;
-                        info.innerHTML = infoText;
-                        
-                        console.log('Video dimensions:', video.videoWidth, 'x', video.videoHeight);
-                        console.log('Video element size:', video.clientWidth, 'x', video.clientHeight);
-                    });
-                })
-                .catch(err => {
-                    console.error('Camera error:', err);
-                    alert('Camera failed: ' + err.message);
-                });
-        }
-        
-        function stopCamera() {
-            const video = document.getElementById('video');
-            const controls = document.querySelector('.controls');
-            const info = document.getElementById('info');
-            const container = document.querySelector('.container');
+            // Setup marker detection
+            const marker = document.getElementById('marker');
             
-            if (stream) {
-                stream.getTracks().forEach(track => track.stop());
-                stream = null;
-            }
+            marker.addEventListener('markerFound', () => {
+                console.log('AR Marker detected!');
+                arStatus.innerHTML = '✅ AR Marker Found!';
+                arStatus.style.background = 'rgba(0,128,0,0.7)';
+            });
             
-            video.srcObject = null;
-            video.style.display = 'none';
-            controls.style.display = 'none';
-            info.style.display = 'none';
-            container.style.display = 'flex';
+            marker.addEventListener('markerLost', () => {
+                console.log('AR Marker lost');
+                arStatus.innerHTML = '🔍 Looking for AR Marker...';
+                arStatus.style.background = 'rgba(0,0,0,0.7)';
+            });
+            
+            // Initial status
+            arStatus.innerHTML = '🔍 Looking for AR Marker...';
         }
         
         // Log initial viewport info
         console.log('Page loaded - Viewport:', window.innerWidth, 'x', window.innerHeight);
         console.log('User Agent:', navigator.userAgent);
-        
-        // No orientation change handling - let CSS handle everything automatically
-        // This prevents any JavaScript interference during iOS orientation transitions
     </script>
 </body>
 </html>
