@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>Camera Test</title>
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+            background: #000;
+            color: white;
+            overflow: hidden;
+        }
+        
+        .container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(45deg, #1e3c72, #2a5298);
+        }
+        
+        .button {
+            padding: 15px 30px;
+            background: rgba(255,255,255,0.2);
+            border: 1px solid rgba(255,255,255,0.3);
+            color: white;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 18px;
+            margin: 10px;
+            backdrop-filter: blur(10px);
+        }
+        
+        .button:hover {
+            background: rgba(255,255,255,0.3);
+        }
+        
+        #video {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            object-fit: cover;
+            z-index: 10;
+            display: none;
+        }
+        
+        .controls {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 20;
+            display: none;
+        }
+        
+        .info {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            background: rgba(0,0,0,0.7);
+            padding: 10px;
+            border-radius: 5px;
+            font-size: 12px;
+            z-index: 20;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📹 Camera Viewport Test</h1>
+        <p>Testing iOS Safari camera fullscreen behavior</p>
+        <button class="button" onclick="startCamera()">Start Fullscreen Camera</button>
+    </div>
+    
+    <video id="video" autoplay muted playsinline webkit-playsinline></video>
+    
+    <div class="controls">
+        <button class="button" onclick="stopCamera()">Stop Camera</button>
+    </div>
+    
+    <div class="info" id="info"></div>
+    
+    <script>
+        let stream = null;
+        
+        function startCamera() {
+            const video = document.getElementById('video');
+            const controls = document.querySelector('.controls');
+            const info = document.getElementById('info');
+            const container = document.querySelector('.container');
+            
+            // iOS portrait mode camera constraints
+            const isPortrait = window.innerHeight > window.innerWidth;
+            const constraints = {
+                video: {
+                    facingMode: 'environment',
+                    width: { ideal: isPortrait ? window.innerHeight : window.innerWidth },
+                    height: { ideal: isPortrait ? window.innerWidth : window.innerHeight }
+                }
+            };
+            
+            console.log('Starting camera with constraints:', constraints);
+            console.log('Viewport:', window.innerWidth, 'x', window.innerHeight);
+            console.log('Portrait mode:', isPortrait);
+            
+            navigator.mediaDevices.getUserMedia(constraints)
+                .then(mediaStream => {
+                    stream = mediaStream;
+                    video.srcObject = stream;
+                    
+                    // Show video and controls
+                    container.style.display = 'none';
+                    video.style.display = 'block';
+                    controls.style.display = 'block';
+                    info.style.display = 'block';
+                    
+                    // Log video info when loaded
+                    video.addEventListener('loadedmetadata', () => {
+                        const infoText = `
+                            Video: ${video.videoWidth}x${video.videoHeight}<br>
+                            Viewport: ${window.innerWidth}x${window.innerHeight}<br>
+                            Portrait: ${isPortrait}<br>
+                            Device Pixel Ratio: ${window.devicePixelRatio}<br>
+                            User Agent: ${navigator.userAgent.includes('iPhone') ? 'iPhone' : navigator.userAgent.includes('iPad') ? 'iPad' : 'Other'}
+                        `;
+                        info.innerHTML = infoText;
+                        
+                        console.log('Video dimensions:', video.videoWidth, 'x', video.videoHeight);
+                        console.log('Video element size:', video.clientWidth, 'x', video.clientHeight);
+                    });
+                })
+                .catch(err => {
+                    console.error('Camera error:', err);
+                    alert('Camera failed: ' + err.message);
+                });
+        }
+        
+        function stopCamera() {
+            const video = document.getElementById('video');
+            const controls = document.querySelector('.controls');
+            const info = document.getElementById('info');
+            const container = document.querySelector('.container');
+            
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
+                stream = null;
+            }
+            
+            video.srcObject = null;
+            video.style.display = 'none';
+            controls.style.display = 'none';
+            info.style.display = 'none';
+            container.style.display = 'flex';
+        }
+        
+        // Log initial viewport info
+        console.log('Page loaded - Viewport:', window.innerWidth, 'x', window.innerHeight);
+        console.log('User Agent:', navigator.userAgent);
+        
+        // Handle orientation changes
+        window.addEventListener('orientationchange', () => {
+            setTimeout(() => {
+                console.log('Orientation changed - New viewport:', window.innerWidth, 'x', window.innerHeight);
+            }, 100);
+        });
+    </script>
+</body>
+</html>
