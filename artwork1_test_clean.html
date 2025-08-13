@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="iOS Viewport Test">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="theme-color" content="#0a0a0a">
+    <link rel="manifest" href="./manifest.json">
+    <title>iOS Viewport Test - No AR</title>
+    
+    <!-- Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;900&display=swap" rel="stylesheet">
+    <!-- iOS-style Icons -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" rel="stylesheet">
+    
+    <!-- Shared PWA Resources -->
+    <link rel="stylesheet" href="./shared/common.css">
+    
+    <style>
+        body {
+            margin: 0;
+            font-family: 'Inter', 'Helvetica Neue', Arial, sans-serif;
+            background: transparent;
+            overflow: hidden;
+        }
+        
+        :root {
+            --glass-bg: rgba(255, 255, 255, 0.1);
+            --glass-border: rgba(255, 255, 255, 0.2);
+            --glass-hover: rgba(255, 255, 255, 0.15);
+            --glass-white: rgba(255, 255, 255, 0.9);
+            --glass-light: rgba(255, 255, 255, 0.7);
+            --glass-darkest: rgba(0, 0, 0, 0.3);
+        }
+        
+        /* Reset body and html for iOS safe area handling */
+        html, body {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            position: fixed;
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
+        }
+        
+        /* Test container for non-AR content */
+        .test-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1;
+        }
+        
+        .test-content {
+            text-align: center;
+            color: white;
+            font-size: 18px;
+            padding: 40px;
+            background: var(--glass-bg);
+            backdrop-filter: blur(20px);
+            border-radius: 20px;
+            border: 1px solid var(--glass-border);
+            max-width: 90%;
+        }
+        
+        .test-button {
+            padding: 12px 24px;
+            background: rgba(255,255,255,0.2);
+            border: 1px solid rgba(255,255,255,0.3);
+            color: white;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px;
+            transition: all 0.3s ease;
+        }
+        
+        .test-button:hover {
+            background: rgba(255,255,255,0.3);
+        }
+        
+        .camera-container {
+            margin-top: 20px;
+            display: none;
+        }
+        
+        .test-video {
+            width: 100%;
+            max-width: 400px;
+            height: auto;
+            border-radius: 10px;
+            border: 2px solid rgba(255,255,255,0.3);
+        }
+        
+        .fullscreen-video {
+            position: fixed !important;
+            top: 0 !important;
+            left: 0 !important;
+            width: 100vw !important;
+            height: 100vh !important;
+            object-fit: cover !important;
+            z-index: 10 !important;
+        }
+        
+        .debug-info {
+            margin-top: 20px;
+            font-size: 12px;
+            background: rgba(0,0,0,0.3);
+            padding: 10px;
+            border-radius: 5px;
+            text-align: left;
+        }
+        
+        .exit-button {
+            position: fixed;
+            top: 30px;
+            right: 30px;
+            width: 50px;
+            height: 50px;
+            background: var(--glass-bg);
+            backdrop-filter: blur(10px);
+            border: 1px solid var(--glass-border);
+            border-radius: 12px;
+            color: white;
+            font-size: 20px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 99999;
+        }
+        
+        @media screen and (max-width: 768px) {
+            .exit-button {
+                top: 20px;
+                right: 20px;
+                width: 40px;
+                height: 40px;
+                font-size: 16px;
+            }
+            
+            .test-content {
+                font-size: 16px;
+                padding: 30px 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Exit Button -->
+    <button class="exit-button" id="exitBtn" title="Exit">
+        <i class="bi bi-x-lg"></i>
+    </button>
+    
+    <!-- Non-AR Test Container -->
+    <div class="test-container">
+        <div class="test-content">
+            <h2>🔍 iOS Safari Viewport Test</h2>
+            <p>Testing iOS Safari viewport behavior <strong>without AR.js</strong></p>
+            <p>This should fill the entire screen without blue bars or gaps</p>
+            
+            <div>
+                <button class="test-button" onclick="testBasicCamera()">
+                    📹 Test Basic Camera
+                </button>
+                <button class="test-button" onclick="testFullscreenCamera()">
+                    🖥️ Test Fullscreen Camera
+                </button>
+                <button class="test-button" onclick="showDebugInfo()">
+                    🐛 Show Debug Info
+                </button>
+            </div>
+            
+            <div id="cameraContainer" class="camera-container">
+                <video id="testVideo" class="test-video" autoplay muted playsinline webkit-playsinline></video>
+                <button class="test-button" onclick="stopCamera()" style="margin-top: 10px;">
+                    ⏹️ Stop Camera
+                </button>
+            </div>
+            
+            <div id="debugInfo" class="debug-info" style="display: none;">
+                <div id="debugText"></div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        let currentStream = null;
+        
+        // Basic camera test
+        function testBasicCamera() {
+            const video = document.getElementById('testVideo');
+            const container = document.getElementById('cameraContainer');
+            
+            if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+                const constraints = {
+                    video: {
+                        facingMode: 'environment',
+                        width: { ideal: 640 },
+                        height: { ideal: 480 }
+                    }
+                };
+                
+                navigator.mediaDevices.getUserMedia(constraints)
+                    .then(stream => {
+                        currentStream = stream;
+                        video.srcObject = stream;
+                        container.style.display = 'block';
+                        video.className = 'test-video'; // Regular size
+                        
+                        // Log video dimensions for debugging
+                        video.addEventListener('loadedmetadata', () => {
+                            console.log(`Basic Camera - Video dimensions: ${video.videoWidth}x${video.videoHeight}`);
+                            console.log(`Viewport dimensions: ${window.innerWidth}x${window.innerHeight}`);
+                        });
+                    })
+                    .catch(err => {
+                        console.error('Camera access failed:', err);
+                        alert('Camera access failed: ' + err.message);
+                    });
+            } else {
+                alert('Camera not supported on this device');
+            }
+        }
+        
+        // Fullscreen camera test
+        function testFullscreenCamera() {
+            const video = document.getElementById('testVideo');
+            const container = document.getElementById('cameraContainer');
+            
+            if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+                // Use viewport dimensions for iOS portrait mode test
+                const isPortrait = window.innerHeight > window.innerWidth;
+                const constraints = {
+                    video: {
+                        facingMode: 'environment',
+                        width: { ideal: isPortrait ? window.innerHeight : window.innerWidth },
+                        height: { ideal: isPortrait ? window.innerWidth : window.innerHeight }
+                    }
+                };
+                
+                console.log('Fullscreen camera constraints:', constraints);
+                
+                navigator.mediaDevices.getUserMedia(constraints)
+                    .then(stream => {
+                        currentStream = stream;
+                        video.srcObject = stream;
+                        container.style.display = 'block';
+                        video.className = 'test-video fullscreen-video'; // Fullscreen
+                        
+                        // Log video dimensions for debugging
+                        video.addEventListener('loadedmetadata', () => {
+                            console.log(`Fullscreen Camera - Video dimensions: ${video.videoWidth}x${video.videoHeight}`);
+                            console.log(`Viewport dimensions: ${window.innerWidth}x${window.innerHeight}`);
+                            console.log(`Portrait mode: ${isPortrait}`);
+                            console.log(`Constraints used:`, constraints);
+                        });
+                    })
+                    .catch(err => {
+                        console.error('Fullscreen camera access failed:', err);
+                        alert('Fullscreen camera access failed: ' + err.message);
+                    });
+            } else {
+                alert('Camera not supported on this device');
+            }
+        }
+        
+        // Stop camera
+        function stopCamera() {
+            if (currentStream) {
+                currentStream.getTracks().forEach(track => track.stop());
+                currentStream = null;
+            }
+            
+            const video = document.getElementById('testVideo');
+            const container = document.getElementById('cameraContainer');
+            
+            video.srcObject = null;
+            container.style.display = 'none';
+            video.className = 'test-video'; // Reset to regular size
+        }
+        
+        // Show debug information
+        function showDebugInfo() {
+            const debugInfo = document.getElementById('debugInfo');
+            const debugText = document.getElementById('debugText');
+            
+            const info = `
+                <strong>Device Information:</strong><br>
+                User Agent: ${navigator.userAgent}<br>
+                Viewport: ${window.innerWidth}x${window.innerHeight}<br>
+                Device Pixel Ratio: ${window.devicePixelRatio}<br>
+                Screen: ${screen.width}x${screen.height}<br>
+                Orientation: ${window.innerHeight > window.innerWidth ? 'Portrait' : 'Landscape'}<br>
+                iOS: ${/iPad|iPhone|iPod/.test(navigator.userAgent) ? 'Yes' : 'No'}<br>
+                Standalone Mode: ${window.navigator.standalone ? 'Yes' : 'No'}<br>
+                <br>
+                <strong>CSS Environment Variables:</strong><br>
+                Safe Area Top: ${getComputedStyle(document.documentElement).getPropertyValue('env(safe-area-inset-top)') || 'Not supported'}<br>
+                Safe Area Bottom: ${getComputedStyle(document.documentElement).getPropertyValue('env(safe-area-inset-bottom)') || 'Not supported'}<br>
+                Safe Area Left: ${getComputedStyle(document.documentElement).getPropertyValue('env(safe-area-inset-left)') || 'Not supported'}<br>
+                Safe Area Right: ${getComputedStyle(document.documentElement).getPropertyValue('env(safe-area-inset-right)') || 'Not supported'}
+            `;
+            
+            debugText.innerHTML = info;
+            debugInfo.style.display = debugInfo.style.display === 'none' ? 'block' : 'none';
+        }
+        
+        // Exit button functionality
+        document.addEventListener('DOMContentLoaded', () => {
+            const exitBtn = document.getElementById('exitBtn');
+            if (exitBtn) {
+                exitBtn.addEventListener('click', () => {
+                    // Stop camera if running
+                    stopCamera();
+                    
+                    // Navigate back
+                    if (window.history.length > 1) {
+                        window.history.back();
+                    } else {
+                        window.location.href = './metal-slab.html';
+                    }
+                });
+            }
+            
+            // Log initial information
+            console.log('🔍 iOS Viewport Test Loaded');
+            console.log(`Viewport: ${window.innerWidth}x${window.innerHeight}`);
+            console.log(`User Agent: ${navigator.userAgent}`);
+            console.log(`Standalone Mode: ${window.navigator.standalone}`);
+        });
+        
+        // Handle orientation changes
+        window.addEventListener('orientationchange', () => {
+            setTimeout(() => {
+                console.log(`Orientation changed - New viewport: ${window.innerWidth}x${window.innerHeight}`);
+            }, 100);
+        });
+    </script>
+    
+    <!-- PWA Navigation System - Removed to avoid conflicts in test file -->
+</body>
+</html>
