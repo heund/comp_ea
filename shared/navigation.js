@@ -6,10 +6,10 @@ class ExhibitionNavigator {
         this.pages = {
             'metal-slab.html': {
                 title: 'Metal Slab Simulation',
-                next: 'artwork1.html',
+                next: 'artwork1_clean.html',
                 prev: null  // No previous page (home page)
             },
-            'artwork1.html': {
+            'artwork1_clean.html': {
                 title: 'Machine Correction Network AR',
                 next: 'artwork2.html',
                 prev: 'metal-slab.html'
