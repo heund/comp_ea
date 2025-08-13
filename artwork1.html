@@ -143,6 +143,92 @@
             }
         }
         
+        /* Navigation Button Position Override - Fix for Artwork Pages */
+        .next-button {
+            position: fixed !important;
+            bottom: 30px !important;
+            right: 30px !important;
+            top: auto !important;
+            left: auto !important;
+            width: 60px !important;
+            height: 60px !important;
+            z-index: 99999 !important;
+        }
+        
+        .back-button {
+            position: fixed !important;
+            bottom: 30px !important;
+            left: 30px !important;
+            top: auto !important;
+            right: auto !important;
+            width: 60px !important;
+            height: 60px !important;
+            z-index: 99999 !important;
+        }
+        
+        .home-button {
+            position: fixed !important;
+            top: 30px !important;
+            left: 30px !important;
+            bottom: auto !important;
+            right: auto !important;
+            width: 60px !important;
+            height: 60px !important;
+            z-index: 99999 !important;
+        }
+        
+        /* Mobile responsive navigation */
+        @media screen and (max-width: 768px) {
+            .next-button,
+            .back-button {
+                bottom: 20px !important;
+                width: 50px !important;
+                height: 50px !important;
+            }
+            
+            .next-button {
+                right: 20px !important;
+            }
+            
+            .back-button {
+                left: 20px !important;
+            }
+            
+            .home-button {
+                top: 20px !important;
+                left: 20px !important;
+                width: 50px !important;
+                height: 50px !important;
+            }
+            
+            .next-button i,
+            .back-button i,
+            .home-button i {
+                font-size: 20px !important;
+            }
+        }
+        
+        /* iPad landscape responsive navigation */
+        @media screen and (min-width: 1024px) and (orientation: landscape) {
+            .next-button,
+            .back-button {
+                bottom: 40px !important;
+            }
+            
+            .next-button {
+                right: 40px !important;
+            }
+            
+            .back-button {
+                left: 40px !important;
+            }
+            
+            .home-button {
+                top: 40px !important;
+                left: 40px !important;
+            }
+        }
+        
         /* AR Controls */
         .ar-controls-container {
             position: fixed;
