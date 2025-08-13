@@ -101,23 +101,19 @@
             position: fixed;
             top: 20px;
             left: 20px;
-            background: rgba(0,0,0,0.7);
-            padding: 10px;
-            border-radius: 5px;
-            font-size: 14px;
+            background: rgba(0,0,0,0.8);
+            padding: 15px;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: bold;
             color: white;
             z-index: 30;
-            display: none;
+            display: block;
+            border: 2px solid rgba(255,255,255,0.3);
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <h1>📹 Camera + AR Test</h1>
-        <p>Testing camera + AR marker detection</p>
-        <button class="button" onclick="startAR()">Start AR</button>
-    </div>
-    
     <div class="ar-status" id="arStatus">AR Ready</div>
     
     <!-- A-Frame AR Scene -->
@@ -125,8 +121,7 @@
         embedded
         arjs="sourceType: webcam; debugUIEnabled: false;"
         vr-mode-ui="enabled: false"
-        id="arScene"
-        style="display: none;">
+        id="arScene">
         
         <!-- AR Marker -->
         <a-marker
@@ -142,17 +137,11 @@
     </a-scene>
     
     <script>
-        function startAR() {
-            const container = document.querySelector('.container');
-            const arScene = document.getElementById('arScene');
+        // Auto-start AR when page loads
+        document.addEventListener('DOMContentLoaded', () => {
             const arStatus = document.getElementById('arStatus');
             
-            // Hide menu, show AR scene
-            container.style.display = 'none';
-            arScene.style.display = 'block';
-            arStatus.style.display = 'block';
-            
-            console.log('Starting AR...');
+            console.log('Auto-starting AR...');
             console.log('Viewport:', window.innerWidth, 'x', window.innerHeight);
             
             // Setup marker detection
@@ -172,6 +161,14 @@
             
             // Initial status
             arStatus.innerHTML = '🔍 Looking for AR Marker...';
+        });
+        
+        // Disable device motion/orientation permissions to prevent invasive prompts
+        if (typeof DeviceMotionEvent !== 'undefined' && DeviceMotionEvent.requestPermission) {
+            DeviceMotionEvent.requestPermission = () => Promise.resolve('denied');
+        }
+        if (typeof DeviceOrientationEvent !== 'undefined' && DeviceOrientationEvent.requestPermission) {
+            DeviceOrientationEvent.requestPermission = () => Promise.resolve('denied');
         }
         
         // Log initial viewport info
