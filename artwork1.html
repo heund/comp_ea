@@ -71,28 +71,43 @@
             user-select: none;
         }
         
-        /* Fix AR.js camera viewport for iframe context */
+        /* Fix AR.js camera viewport for iOS devices */
         a-scene {
             position: fixed !important;
             top: 0 !important;
             left: 0 !important;
-            width: 100% !important;
-            height: 100% !important;
+            width: 100vw !important;
+            height: 100vh !important;
             margin: 0 !important;
             padding: 0 !important;
+            z-index: 1 !important;
         }
         
-        /* Fix AR.js video element specifically for iframe viewport */
+        /* Critical iOS AR.js camera viewport fix */
         a-scene video,
-        a-scene canvas {
+        a-scene canvas,
+        a-scene .a-canvas {
             position: fixed !important;
             top: 0 !important;
             left: 0 !important;
-            width: 100% !important;
-            height: 100% !important;
+            width: 100vw !important;
+            height: 100vh !important;
             object-fit: cover !important;
             margin: 0 !important;
             padding: 0 !important;
+            transform: none !important;
+            max-width: none !important;
+            max-height: none !important;
+        }
+        
+        /* iOS-specific AR.js camera fix */
+        @supports (-webkit-appearance: none) {
+            a-scene video {
+                object-fit: cover !important;
+                object-position: center !important;
+                width: 100vw !important;
+                height: 100vh !important;
+            }
         }
         
         /* AR Controls */
@@ -1793,9 +1808,61 @@
             DeviceOrientationEvent.requestPermission = () => Promise.resolve('denied');
         }
 
+        // iOS AR.js camera viewport fix
+        function fixIOSCameraViewport() {
+            const scene = document.querySelector('a-scene');
+            if (!scene) return;
+            
+            // Wait for A-Frame to initialize
+            scene.addEventListener('loaded', () => {
+                setTimeout(() => {
+                    // Force camera video element to fill viewport on iOS
+                    const videos = document.querySelectorAll('a-scene video');
+                    const canvases = document.querySelectorAll('a-scene canvas, a-scene .a-canvas');
+                    
+                    const applyViewportFix = (elements) => {
+                        elements.forEach(element => {
+                            if (element) {
+                                element.style.position = 'fixed';
+                                element.style.top = '0';
+                                element.style.left = '0';
+                                element.style.width = '100vw';
+                                element.style.height = '100vh';
+                                element.style.objectFit = 'cover';
+                                element.style.objectPosition = 'center';
+                                element.style.transform = 'none';
+                                element.style.maxWidth = 'none';
+                                element.style.maxHeight = 'none';
+                                element.style.zIndex = '1';
+                            }
+                        });
+                    };
+                    
+                    applyViewportFix(videos);
+                    applyViewportFix(canvases);
+                    
+                    // Re-apply fix on window resize and orientation change
+                    const reapplyFix = () => {
+                        setTimeout(() => {
+                            const newVideos = document.querySelectorAll('a-scene video');
+                            const newCanvases = document.querySelectorAll('a-scene canvas, a-scene .a-canvas');
+                            applyViewportFix(newVideos);
+                            applyViewportFix(newCanvases);
+                        }, 100);
+                    };
+                    
+                    window.addEventListener('resize', reapplyFix);
+                    window.addEventListener('orientationchange', reapplyFix);
+                }, 500);
+            });
+        }
+
         // Initialize AR system
         let arTrigger;
         window.addEventListener('DOMContentLoaded', () => {
+            // Apply iOS camera viewport fix
+            fixIOSCameraViewport();
+            
             arTrigger = new ARTriggerSystem();
             
             // Setup exit button functionality for iPad/mobile
