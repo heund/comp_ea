@@ -59,6 +59,7 @@
             object-fit: cover;
             z-index: 10;
             display: none;
+            transition: none;
         }
         
         .controls {
@@ -174,12 +175,37 @@
         console.log('Page loaded - Viewport:', window.innerWidth, 'x', window.innerHeight);
         console.log('User Agent:', navigator.userAgent);
         
-        // Handle orientation changes
-        window.addEventListener('orientationchange', () => {
-            setTimeout(() => {
-                console.log('Orientation changed - New viewport:', window.innerWidth, 'x', window.innerHeight);
-            }, 100);
-        });
+        // Handle orientation changes smoothly
+        function handleOrientationChange() {
+            const video = document.getElementById('video');
+            const info = document.getElementById('info');
+            
+            if (video.style.display === 'block') {
+                // Force video to maintain fullscreen during orientation change
+                video.style.width = '100vw';
+                video.style.height = '100vh';
+                video.style.objectFit = 'cover';
+                
+                // Update info display
+                setTimeout(() => {
+                    const isPortrait = window.innerHeight > window.innerWidth;
+                    const infoText = `
+                        Video: ${video.videoWidth}x${video.videoHeight}<br>
+                        Viewport: ${window.innerWidth}x${window.innerHeight}<br>
+                        Portrait: ${isPortrait}<br>
+                        Device Pixel Ratio: ${window.devicePixelRatio}<br>
+                        User Agent: ${navigator.userAgent.includes('iPhone') ? 'iPhone' : navigator.userAgent.includes('iPad') ? 'iPad' : 'Other'}
+                    `;
+                    info.innerHTML = infoText;
+                    
+                    console.log('Orientation changed - New viewport:', window.innerWidth, 'x', window.innerHeight);
+                    console.log('Video maintains fullscreen:', video.clientWidth, 'x', video.clientHeight);
+                }, 200);
+            }
+        }
+        
+        window.addEventListener('orientationchange', handleOrientationChange);
+        window.addEventListener('resize', handleOrientationChange);
     </script>
 </body>
 </html>
