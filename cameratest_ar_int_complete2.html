@@ -995,6 +995,44 @@
                     threeJSAnimation.hideDataOverlay();
                 }
             });
+            
+            // Button functionality - Data button and Exit button only
+            const dataBtn = document.getElementById('dataBtn');
+            const exitBtn = document.getElementById('exitBtn');
+            
+            // Data button - Toggle data overlay
+            dataBtn.addEventListener('click', () => {
+                if (threeJSAnimation && threeJSAnimation.isInitialized) {
+                    threeJSAnimation.toggleDataOverlay();
+                    dataBtn.classList.toggle('active');
+                }
+            });
+            
+            // Exit button - Reset to blank camera, ready for next AR scan
+            exitBtn.addEventListener('click', () => {
+                // Hide AR controls
+                const arControls = document.querySelector('.ar-controls-container');
+                if (arControls) {
+                    arControls.classList.remove('ar-active');
+                }
+                
+                // Hide Three.js animation
+                if (threeJSAnimation) {
+                    threeJSAnimation.hide();
+                    threeJSAnimation.hideDataOverlay();
+                }
+                
+                // Reset data button active state
+                dataBtn.classList.remove('active');
+                
+                // Reset AR status - ready for next marker scan
+                const arStatus = document.getElementById('arStatus');
+                arStatus.innerHTML = '🔍 Looking for AR Marker...';
+                arStatus.style.background = 'rgba(0,0,0,0.7)';
+                
+                // Page stays open, camera continues running, ready for next AR marker
+                console.log('AR experience reset - ready for next marker scan');
+            });
         });
         
         // Disable device motion/orientation permissions to prevent invasive prompts
