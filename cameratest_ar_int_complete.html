@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>Camera + AR Test</title>
+    
+    <!-- A-Frame for AR -->
+    <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
+    <!-- AR.js for marker tracking -->
+    <script src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js@3.4.5/aframe/build/aframe-ar.js"></script>
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+            background: #000;
+            color: white;
+            overflow: hidden;
+        }
+        
+        .container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(45deg, #1e3c72, #2a5298);
+        }
+        
+        .button {
+            padding: 15px 30px;
+            background: rgba(255,255,255,0.2);
+            border: 1px solid rgba(255,255,255,0.3);
+            color: white;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 18px;
+            margin: 10px;
+            backdrop-filter: blur(10px);
+        }
+        
+        .button:hover {
+            background: rgba(255,255,255,0.3);
+        }
+        
+        #video {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            object-fit: cover;
+            z-index: 10;
+            display: none;
+            transition: none;
+        }
+        
+        .controls {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 20;
+            display: none;
+        }
+        
+        .info {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            background: rgba(0,0,0,0.7);
+            padding: 10px;
+            border-radius: 5px;
+            font-size: 12px;
+            z-index: 20;
+            display: none;
+        }
+        
+        /* AR Scene - minimal setup */
+        a-scene {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: 1;
+        }
+        
+        .ar-status {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            background: rgba(0,0,0,0.8);
+            padding: 15px;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: bold;
+            color: white;
+            z-index: 30;
+            display: block;
+            border: 2px solid rgba(255,255,255,0.3);
+        }
+    </style>
+</head>
+<body>
+    <div class="ar-status" id="arStatus">AR Ready</div>
+    
+    <!-- A-Frame AR Scene -->
+    <a-scene
+        embedded
+        arjs="sourceType: webcam; debugUIEnabled: false;"
+        vr-mode-ui="enabled: false"
+        id="arScene">
+        
+        <!-- AR Marker -->
+        <a-marker
+            type="pattern"
+            url="./pattern-ar_code_test1.patt"
+            id="marker"
+            smooth="true">
+            <!-- Just marker detection, no 3D objects -->
+        </a-marker>
+        
+        <!-- Camera -->
+        <a-camera></a-camera>
+    </a-scene>
+    
+    <script>
+        // Auto-start AR when page loads
+        document.addEventListener('DOMContentLoaded', () => {
+            const arStatus = document.getElementById('arStatus');
+            
+            console.log('Auto-starting AR...');
+            console.log('Viewport:', window.innerWidth, 'x', window.innerHeight);
+            
+            // Setup marker detection
+            const marker = document.getElementById('marker');
+            
+            marker.addEventListener('markerFound', () => {
+                console.log('AR Marker detected!');
+                arStatus.innerHTML = '✅ AR Marker Found!';
+                arStatus.style.background = 'rgba(0,128,0,0.7)';
+            });
+            
+            marker.addEventListener('markerLost', () => {
+                console.log('AR Marker lost');
+                arStatus.innerHTML = '🔍 Looking for AR Marker...';
+                arStatus.style.background = 'rgba(0,0,0,0.7)';
+            });
+            
+            // Initial status
+            arStatus.innerHTML = '🔍 Looking for AR Marker...';
+        });
+        
+        // Disable device motion/orientation permissions to prevent invasive prompts
+        if (typeof DeviceMotionEvent !== 'undefined' && DeviceMotionEvent.requestPermission) {
+            DeviceMotionEvent.requestPermission = () => Promise.resolve('denied');
+        }
+        if (typeof DeviceOrientationEvent !== 'undefined' && DeviceOrientationEvent.requestPermission) {
+            DeviceOrientationEvent.requestPermission = () => Promise.resolve('denied');
+        }
+        
+        // Log initial viewport info
+        console.log('Page loaded - Viewport:', window.innerWidth, 'x', window.innerHeight);
+        console.log('User Agent:', navigator.userAgent);
+    </script>
+</body>
+</html>
