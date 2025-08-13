@@ -110,6 +110,39 @@
             }
         }
         
+        /* Critical iOS Portrait Mode Fix */
+        @media screen and (orientation: portrait) and (-webkit-min-device-pixel-ratio: 1) {
+            a-scene,
+            a-scene video,
+            a-scene canvas,
+            a-scene .a-canvas {
+                position: fixed !important;
+                top: 0 !important;
+                left: 0 !important;
+                width: 100vw !important;
+                height: 100vh !important;
+                min-width: 100vw !important;
+                min-height: 100vh !important;
+                max-width: 100vw !important;
+                max-height: 100vh !important;
+                object-fit: cover !important;
+                object-position: center !important;
+                transform: none !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                border: none !important;
+                outline: none !important;
+            }
+            
+            /* Force video element to fill entire portrait viewport */
+            a-scene video {
+                object-fit: cover !important;
+                object-position: center center !important;
+                background-size: cover !important;
+                background-position: center center !important;
+            }
+        }
+        
         /* AR Controls */
         .ar-controls-container {
             position: fixed;
@@ -1808,53 +1841,98 @@
             DeviceOrientationEvent.requestPermission = () => Promise.resolve('denied');
         }
 
-        // iOS AR.js camera viewport fix
+        // iOS AR.js camera viewport fix - specifically for portrait mode
         function fixIOSCameraViewport() {
             const scene = document.querySelector('a-scene');
             if (!scene) return;
             
+            // Check if we're on iOS
+            const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || 
+                         (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+            
+            if (!isIOS) return;
+            
             // Wait for A-Frame to initialize
             scene.addEventListener('loaded', () => {
                 setTimeout(() => {
-                    // Force camera video element to fill viewport on iOS
+                    applyPortraitFix();
+                }, 500);
+            });
+            
+            function applyPortraitFix() {
+                const isPortrait = window.innerHeight > window.innerWidth;
+                
+                if (isPortrait) {
+                    // Force camera video element to fill viewport in portrait mode
                     const videos = document.querySelectorAll('a-scene video');
                     const canvases = document.querySelectorAll('a-scene canvas, a-scene .a-canvas');
                     
-                    const applyViewportFix = (elements) => {
+                    const applyPortraitViewportFix = (elements) => {
                         elements.forEach(element => {
                             if (element) {
+                                // Critical iOS portrait mode fixes
                                 element.style.position = 'fixed';
                                 element.style.top = '0';
                                 element.style.left = '0';
                                 element.style.width = '100vw';
                                 element.style.height = '100vh';
+                                element.style.minWidth = '100vw';
+                                element.style.minHeight = '100vh';
+                                element.style.maxWidth = '100vw';
+                                element.style.maxHeight = '100vh';
                                 element.style.objectFit = 'cover';
-                                element.style.objectPosition = 'center';
+                                element.style.objectPosition = 'center center';
                                 element.style.transform = 'none';
-                                element.style.maxWidth = 'none';
-                                element.style.maxHeight = 'none';
+                                element.style.margin = '0';
+                                element.style.padding = '0';
+                                element.style.border = 'none';
+                                element.style.outline = 'none';
                                 element.style.zIndex = '1';
+                                
+                                // Additional iOS portrait fixes
+                                if (element.tagName === 'VIDEO') {
+                                    element.style.backgroundSize = 'cover';
+                                    element.style.backgroundPosition = 'center center';
+                                }
                             }
                         });
                     };
                     
-                    applyViewportFix(videos);
-                    applyViewportFix(canvases);
+                    applyPortraitViewportFix(videos);
+                    applyPortraitViewportFix(canvases);
                     
-                    // Re-apply fix on window resize and orientation change
-                    const reapplyFix = () => {
-                        setTimeout(() => {
-                            const newVideos = document.querySelectorAll('a-scene video');
-                            const newCanvases = document.querySelectorAll('a-scene canvas, a-scene .a-canvas');
-                            applyViewportFix(newVideos);
-                            applyViewportFix(newCanvases);
-                        }, 100);
-                    };
+                    // Also fix the scene itself in portrait mode
+                    scene.style.position = 'fixed';
+                    scene.style.top = '0';
+                    scene.style.left = '0';
+                    scene.style.width = '100vw';
+                    scene.style.height = '100vh';
+                    scene.style.minWidth = '100vw';
+                    scene.style.minHeight = '100vh';
+                    scene.style.maxWidth = '100vw';
+                    scene.style.maxHeight = '100vh';
+                }
+            }
+            
+            // Re-apply fix on orientation change (critical for portrait mode)
+            const handleOrientationChange = () => {
+                setTimeout(() => {
+                    applyPortraitFix();
                     
-                    window.addEventListener('resize', reapplyFix);
-                    window.addEventListener('orientationchange', reapplyFix);
-                }, 500);
-            });
+                    // Double-check after another delay for iOS
+                    setTimeout(() => {
+                        applyPortraitFix();
+                    }, 300);
+                }, 100);
+            };
+            
+            window.addEventListener('orientationchange', handleOrientationChange);
+            window.addEventListener('resize', handleOrientationChange);
+            
+            // Apply fix immediately if already in portrait mode
+            setTimeout(() => {
+                applyPortraitFix();
+            }, 1000);
         }
 
         // Initialize AR system
