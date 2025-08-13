@@ -188,11 +188,14 @@
         let scene, camera, renderer;
         let networkNodes = [], networkEdges = [], centralCore = null;
         let networkGraph = { nodes: [] };
-        let isAnimating = true;
+        let isAnimating = true, isWireframe = false;
         let colorSchemeIndex = 0;
         
         const colorSchemes = [
-            { name: 'UserGreyGradient', colors: ['#E9EAEB', '#BEC3C5', '#989C9E', '#747779', '#525455', '#323334', '#151616'] }
+            { name: 'UserGreyGradient', colors: ['#E9EAEB', '#BEC3C5', '#989C9E', '#747779', '#525455', '#323334', '#151616'] },
+            { name: 'GreyGradientAlt', colors: ['#E9EAEB', '#BEC3C5', '#989C9E', '#747779', '#525455', '#323334', '#151616'] },
+            { name: 'MonochromeGradient', colors: ['#E9EAEB', '#BEC3C5', '#989C9E', '#747779', '#525455', '#323334', '#151616'] },
+            { name: 'GreyScale', colors: ['#E9EAEB', '#BEC3C5', '#989C9E', '#747779', '#525455', '#323334', '#151616'] }
         ];
         
         // Three.js Animation System
@@ -217,10 +220,17 @@
                 scene = new THREE.Scene();
                 scene.background = null;
                 
-                // Camera setup
+                // Camera setup with dynamic scaling for different devices
                 camera = new THREE.PerspectiveCamera(75, width / height, 0.1, 1000);
+                
+                // Calculate scale factor based on viewport size
+                const minDimension = Math.min(width, height);
+                const scaleFactor = this.calculateScaleFactor(minDimension);
+                
+                // Apply dynamic camera positioning
                 const baseDistance = 20;
-                camera.position.set(baseDistance, baseDistance * 0.6, baseDistance);
+                const distance = baseDistance * scaleFactor;
+                camera.position.set(distance, distance * 0.6, distance);
                 camera.lookAt(0, 0, 0);
                 
                 // Renderer setup
@@ -324,15 +334,15 @@
                     scene.add(edge);
                     networkEdges.push(edge);
                     
-                    // Create node sphere
-                    const nodeRadius = 0.08 + (node.intensity * 0.12);
-                    const nodeGeometry = new THREE.SphereGeometry(nodeRadius, 8, 8);
-                    const nodeColor = new THREE.Color().lerpColors(
-                        new THREE.Color(currentScheme.colors[0]),
-                        new THREE.Color(currentScheme.colors[Math.floor(currentScheme.colors.length * 0.7)]),
-                        node.health
-                    );
-                    const nodeMaterial = new THREE.MeshLambertMaterial({ color: nodeColor });
+                    // Create optimized node mesh - EXACT same as artwork1.html
+                    const nodeGeometry = new THREE.SphereGeometry(0.2, 12, 12); // Reduced complexity
+                    const colorIndex = Math.floor(node.intensity * (currentScheme.colors.length - 1));
+                    const nodeMaterial = new THREE.MeshBasicMaterial({
+                        color: new THREE.Color(currentScheme.colors[colorIndex]),
+                        transparent: true, 
+                        opacity: 0.8, 
+                        wireframe: isWireframe
+                    });
                     
                     const nodeMesh = new THREE.Mesh(nodeGeometry, nodeMaterial);
                     nodeMesh.position.set(node.x, node.y, node.z);
@@ -344,71 +354,146 @@
             
             setupMouseControls() {
                 const canvas = document.getElementById('visualizationCanvas');
-                let isDragging = false;
+                let isInteracting = false;
                 let previousMousePosition = { x: 0, y: 0 };
+                let previousTouchDistance = 0;
                 
+                // Mouse controls - EXACT same as artwork1.html
                 canvas.addEventListener('mousedown', (event) => {
-                    isDragging = true;
+                    isInteracting = true;
                     previousMousePosition = { x: event.clientX, y: event.clientY };
-                });
-                
-                canvas.addEventListener('mousemove', (event) => {
-                    if (!isDragging) return;
-                    
-                    const deltaMove = {
-                        x: event.clientX - previousMousePosition.x,
-                        y: event.clientY - previousMousePosition.y
-                    };
-                    
-                    const deltaRotationQuaternion = new THREE.Quaternion()
-                        .setFromEuler(new THREE.Euler(
-                            deltaMove.y * 0.01,
-                            deltaMove.x * 0.01,
-                            0,
-                            'XYZ'
-                        ));
-                    
-                    camera.quaternion.multiplyQuaternions(deltaRotationQuaternion, camera.quaternion);
-                    previousMousePosition = { x: event.clientX, y: event.clientY };
+                    canvas.style.cursor = 'grabbing';
+                    event.preventDefault();
                 });
                 
                 canvas.addEventListener('mouseup', () => {
-                    isDragging = false;
+                    isInteracting = false;
+                    canvas.style.cursor = 'grab';
                 });
                 
-                // Touch controls for mobile
+                canvas.addEventListener('mouseleave', () => {
+                    isInteracting = false;
+                    canvas.style.cursor = 'grab';
+                });
+                
+                canvas.addEventListener('mousemove', (event) => {
+                    if (!isInteracting) return;
+                    
+                    const deltaX = event.clientX - previousMousePosition.x;
+                    const deltaY = event.clientY - previousMousePosition.y;
+                    
+                    this.rotateCamera(deltaX, deltaY);
+                    
+                    previousMousePosition = { x: event.clientX, y: event.clientY };
+                    event.preventDefault();
+                });
+                
+                // Mouse wheel zoom
+                canvas.addEventListener('wheel', (event) => {
+                    const zoomSpeed = 0.1;
+                    const zoomDirection = event.deltaY > 0 ? 1 : -1;
+                    this.zoomCamera(zoomDirection * zoomSpeed);
+                    event.preventDefault();
+                });
+                
+                // Touch controls for mobile - EXACT same as artwork1.html
                 canvas.addEventListener('touchstart', (event) => {
+                    event.preventDefault();
+                    
                     if (event.touches.length === 1) {
-                        isDragging = true;
+                        // Single touch - rotation
+                        isInteracting = true;
                         const touch = event.touches[0];
                         previousMousePosition = { x: touch.clientX, y: touch.clientY };
+                    } else if (event.touches.length === 2) {
+                        // Two finger pinch - zoom
+                        const touch1 = event.touches[0];
+                        const touch2 = event.touches[1];
+                        const distance = Math.sqrt(
+                            Math.pow(touch2.clientX - touch1.clientX, 2) +
+                            Math.pow(touch2.clientY - touch1.clientY, 2)
+                        );
+                        previousTouchDistance = distance;
                     }
                 });
                 
                 canvas.addEventListener('touchmove', (event) => {
-                    if (!isDragging || event.touches.length !== 1) return;
+                    event.preventDefault();
                     
-                    const touch = event.touches[0];
-                    const deltaMove = {
-                        x: touch.clientX - previousMousePosition.x,
-                        y: touch.clientY - previousMousePosition.y
-                    };
-                    
-                    const deltaRotationQuaternion = new THREE.Quaternion()
-                        .setFromEuler(new THREE.Euler(
-                            deltaMove.y * 0.01,
-                            deltaMove.x * 0.01,
-                            0,
-                            'XYZ'
-                        ));
-                    
-                    camera.quaternion.multiplyQuaternions(deltaRotationQuaternion, camera.quaternion);
-                    previousMousePosition = { x: touch.clientX, y: touch.clientY };
+                    if (event.touches.length === 1 && isInteracting) {
+                        // Single touch rotation
+                        const touch = event.touches[0];
+                        const deltaX = touch.clientX - previousMousePosition.x;
+                        const deltaY = touch.clientY - previousMousePosition.y;
+                        
+                        this.rotateCamera(deltaX, deltaY);
+                        
+                        previousMousePosition = { x: touch.clientX, y: touch.clientY };
+                    } else if (event.touches.length === 2) {
+                        // Two finger pinch zoom
+                        const touch1 = event.touches[0];
+                        const touch2 = event.touches[1];
+                        const distance = Math.sqrt(
+                            Math.pow(touch2.clientX - touch1.clientX, 2) +
+                            Math.pow(touch2.clientY - touch1.clientY, 2)
+                        );
+                        
+                        if (previousTouchDistance > 0) {
+                            const zoomDelta = (distance - previousTouchDistance) * 0.01;
+                            this.zoomCamera(-zoomDelta);
+                        }
+                        
+                        previousTouchDistance = distance;
+                    }
                 });
                 
-                canvas.addEventListener('touchend', () => {
-                    isDragging = false;
+                canvas.addEventListener('touchend', (event) => {
+                    event.preventDefault();
+                    isInteracting = false;
+                    previousTouchDistance = 0;
                 });
+            }
+            
+            rotateCamera(deltaX, deltaY) {
+                const rotationSpeed = 0.005;
+                const spherical = new THREE.Spherical();
+                spherical.setFromVector3(camera.position);
+                
+                spherical.theta -= deltaX * rotationSpeed;
+                spherical.phi += deltaY * rotationSpeed;
+                
+                // Constrain phi to prevent flipping
+                spherical.phi = Math.max(0.1, Math.min(Math.PI - 0.1, spherical.phi));
+                
+                camera.position.setFromSpherical(spherical);
+                camera.lookAt(0, 0, 0);
+            }
+            
+            zoomCamera(delta) {
+                const direction = camera.position.clone().normalize();
+                const newPosition = camera.position.clone().add(direction.multiplyScalar(delta));
+                
+                // Constrain zoom distance
+                const minDistance = 5;
+                const maxDistance = 100;
+                const distance = newPosition.length();
+                
+                if (distance >= minDistance && distance <= maxDistance) {
+                    camera.position.copy(newPosition);
+                }
+            }
+            
+            calculateScaleFactor(minDimension) {
+                // Dynamic scaling based on device size
+                if (minDimension <= 480) {
+                    return 0.8; // Phone
+                } else if (minDimension <= 768) {
+                    return 0.9; // Small tablet
+                } else if (minDimension <= 1024) {
+                    return 1.0; // iPad
+                } else {
+                    return 1.1; // Desktop
+                }
             }
             
             animate() {
