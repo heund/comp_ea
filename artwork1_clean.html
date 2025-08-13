@@ -1018,20 +1018,26 @@
         }
         
         let threeJSAnimation = null;
-        
-        // Check if we're coming from loading screen
         let cameraInitialized = false;
         let markerDetected = false;
+        let pageFullyLoaded = false;
         
-        // Function to check if camera is ready and hide loading screen
+        // Function to check if camera is ready
         function checkCameraReadyState() {
-            if (cameraInitialized) {
-                console.log('Camera is initialized, hiding loading screen');
-                const loadingScreen = document.getElementById('cameraLoadingScreen');
-                loadingScreen.classList.remove('visible');
-                
-                // Clear the session storage flag
-                sessionStorage.removeItem('comingFromLoadingScreen');
+            // Camera is initialized, ready for marker detection
+            console.log('Camera ready for marker detection');
+            
+            // Mark the page as fully loaded
+            pageFullyLoaded = true;
+            
+            // If we're not in a persistent AR transition or no marker is detected yet,
+            // hide the loading screen after a short delay
+            if (!window.inPersistentARTransition || !markerDetected) {
+                setTimeout(() => {
+                    if (window.persistentLoadingScreen) {
+                        window.persistentLoadingScreen.hide();
+                    }
+                }, 1000);
             }
         }
         
@@ -1062,11 +1068,24 @@
             scene.addEventListener('loaded', () => {
                 console.log('A-Frame scene loaded');
                 
+                // Ensure the persistent loading screen is visible during camera initialization
+                if (window.persistentLoadingScreen) {
+                    window.persistentLoadingScreen.show();
+                    window.persistentLoadingScreen.setARMode(true);
+                }
+                
                 // Give a little time for the camera to fully initialize
                 setTimeout(() => {
                     cameraInitialized = true;
                     checkCameraReadyState();
                     console.log('Camera initialization complete');
+                    
+                    // Reset the persistent AR transition flag now that we're loaded
+                    window.inPersistentARTransition = false;
+                    
+                    // Note: We don't hide the loading screen here
+                    // It will be hidden when the marker is found (in markerFound event)
+                    // or after a timeout if no marker is found
                 }, 1000); // 1 second delay to ensure camera is fully active
             });
             
@@ -1096,6 +1115,11 @@
                     arControls.classList.add('ar-active');
                 }
                 
+                // Hide the persistent loading screen now that AR is ready
+                if (window.persistentLoadingScreen) {
+                    window.persistentLoadingScreen.hide();
+                }
+                
                 // Play click sound if available
                 if (typeof playClickSound === 'function') {
                     playClickSound();
@@ -1110,6 +1134,14 @@
             });
             
             // Initial status - already set in HTML
+            
+            // Add a timeout to hide the loading screen if no marker is found after 15 seconds
+            setTimeout(() => {
+                if (!markerDetected && window.persistentLoadingScreen) {
+                    console.log('No marker detected after timeout, hiding loading screen');
+                    window.persistentLoadingScreen.hide();
+                }
+            }, 15000); // 15 seconds timeout
             
             // Data overlay event listeners - EXACT copy from artwork1.html
             const canvas = document.getElementById('visualizationCanvas');
@@ -1309,6 +1341,11 @@
         
         // Initialize on page load
         document.addEventListener('DOMContentLoaded', function() {
+            // If we're coming from a persistent AR transition, ensure the loading screen is visible
+            if (window.inPersistentARTransition && window.persistentLoadingScreen) {
+                window.persistentLoadingScreen.show();
+                window.persistentLoadingScreen.setARMode(true);
+            }
             // Initialize audio
             initializeAudio();
             

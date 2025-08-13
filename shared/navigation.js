@@ -191,44 +191,60 @@ class ExhibitionNavigator {
         if (this.currentPage === 'metal-slab.html') {
             this.showLoadingScreen();
             
-            // Preload the next page
+            // For AR pages, don't preload with iframe (prevents duplicate camera permission)
             if (currentPageInfo && currentPageInfo.next) {
                 const nextPage = currentPageInfo.next;
                 
-                // Create a hidden iframe to preload the next page
-                const preloadFrame = document.createElement('iframe');
-                preloadFrame.style.width = '0';
-                preloadFrame.style.height = '0';
-                preloadFrame.style.border = 'none';
-                preloadFrame.style.position = 'absolute';
-                preloadFrame.style.left = '-9999px';
-                preloadFrame.style.top = '-9999px';
-                preloadFrame.src = nextPage;
+                // Check if the next page is an AR page (contains "artwork" in the name)
+                const isARPage = nextPage.includes('artwork');
                 
-                // Listen for the iframe to load
-                preloadFrame.onload = () => {
-                    // Wait a bit more to ensure everything is loaded and show animation
+                if (isARPage) {
+                    // For AR pages, navigate directly but keep loading screen visible
+                    // This prevents duplicate camera permission requests
+                    // The loading screen will be hidden by the AR page when it's fully loaded
+                    
+                    // Store that we're in a persistent loading transition
+                    window.inPersistentARTransition = true;
+                    
+                    // Navigate immediately to the AR page
+                    this.navigateTo(nextPage);
+                } else {
+                    // For non-AR pages, use the preloading iframe approach
+                    // Create a hidden iframe to preload the next page
+                    const preloadFrame = document.createElement('iframe');
+                    preloadFrame.style.width = '0';
+                    preloadFrame.style.height = '0';
+                    preloadFrame.style.border = 'none';
+                    preloadFrame.style.position = 'absolute';
+                    preloadFrame.style.left = '-9999px';
+                    preloadFrame.style.top = '-9999px';
+                    preloadFrame.src = nextPage;
+                    
+                    // Listen for the iframe to load
+                    preloadFrame.onload = () => {
+                        // Wait a bit more to ensure everything is loaded and show animation
+                        setTimeout(() => {
+                            // Remove the preload frame
+                            if (preloadFrame.parentNode) {
+                                preloadFrame.parentNode.removeChild(preloadFrame);
+                            }
+                            
+                            // Navigate to the next page
+                            this.navigateTo(nextPage);
+                        }, 1500); // 1.5 second additional delay after preload completes
+                    };
+                    
+                    // Add the preload frame to the document
+                    document.body.appendChild(preloadFrame);
+                    
+                    // Set a fallback timeout in case the iframe load event doesn't fire
                     setTimeout(() => {
-                        // Remove the preload frame
                         if (preloadFrame.parentNode) {
                             preloadFrame.parentNode.removeChild(preloadFrame);
+                            this.navigateTo(nextPage);
                         }
-                        
-                        // Navigate to the next page
-                        this.navigateTo(nextPage);
-                    }, 1500); // 1.5 second additional delay after preload completes
-                };
-                
-                // Add the preload frame to the document
-                document.body.appendChild(preloadFrame);
-                
-                // Set a fallback timeout in case the iframe load event doesn't fire
-                setTimeout(() => {
-                    if (preloadFrame.parentNode) {
-                        preloadFrame.parentNode.removeChild(preloadFrame);
-                        this.navigateTo(nextPage);
-                    }
-                }, 5000); // 5 second fallback timeout
+                    }, 5000); // 5 second fallback timeout
+                }
             } else {
                 // If no next page defined, go back to start after delay
                 setTimeout(() => {
@@ -377,12 +393,50 @@ class ExhibitionNavigator {
             
             document.head.appendChild(style);
             document.body.appendChild(loadingScreen);
+            
+            // Expose global methods to control the loading screen
+            window.persistentLoadingScreen = {
+                show: () => this.showPersistentLoadingScreen(),
+                hide: () => this.hidePersistentLoadingScreen(),
+                setARMode: (isAR) => this.setARLoadingMode(isAR)
+            };
         }
         
         // Show the loading screen
         setTimeout(() => {
             loadingScreen.classList.add('visible');
         }, 10);
+    }
+    
+    // Method to show the persistent loading screen
+    showPersistentLoadingScreen() {
+        const loadingScreen = document.getElementById('glassmorphismLoading');
+        if (loadingScreen) {
+            loadingScreen.classList.add('visible');
+        } else {
+            // Create it if it doesn't exist yet
+            this.showLoadingScreen();
+        }
+    }
+    
+    // Method to hide the persistent loading screen
+    hidePersistentLoadingScreen() {
+        const loadingScreen = document.getElementById('glassmorphismLoading');
+        if (loadingScreen) {
+            loadingScreen.classList.remove('visible');
+        }
+    }
+    
+    // Method to set AR loading mode (can be used to modify the loading screen appearance for AR)
+    setARLoadingMode(isAR) {
+        const loadingScreen = document.getElementById('glassmorphismLoading');
+        if (loadingScreen) {
+            if (isAR) {
+                loadingScreen.setAttribute('data-mode', 'ar');
+            } else {
+                loadingScreen.removeAttribute('data-mode');
+            }
+        }
     }
     
     updateUI() {
@@ -430,4 +484,30 @@ class ExhibitionNavigator {
 // Auto-initialize when DOM is ready (all pages now have navigation)
 document.addEventListener('DOMContentLoaded', () => {
     window.exhibitionNavigator = new ExhibitionNavigator();
+    
+    // Check if this is an AR page and set up AR loading screen integration
+    if (document.querySelector('a-scene')) {
+        // This is an AR page, set up AR loading screen integration
+        const scene = document.querySelector('a-scene');
+        const marker = document.getElementById('marker');
+        
+        if (scene) {
+            // When the AR.js scene is loaded and camera is ready
+            scene.addEventListener('loaded', () => {
+                console.log('A-Frame scene loaded, camera initializing...');
+                // Keep the loading screen visible until marker is found or timeout
+                // The loading screen will be hidden by the markerFound event
+            });
+        }
+        
+        if (marker) {
+            marker.addEventListener('markerFound', () => {
+                console.log('AR Marker detected! Hiding loading screen.');
+                // Hide the loading screen when marker is found
+                if (window.persistentLoadingScreen) {
+                    window.persistentLoadingScreen.hide();
+                }
+            });
+        }
+    }
 });
