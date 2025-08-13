@@ -547,6 +547,8 @@
         <a-camera></a-camera>
     </a-scene>
     
+    <!-- Loading screen is now managed by navigation.js -->
+    
     <script>
         // Sample data from artwork1.html
         const sampleData = [
@@ -1017,12 +1019,35 @@
         
         let threeJSAnimation = null;
         
+        // Check if we're coming from loading screen
+        let cameraInitialized = false;
+        let markerDetected = false;
+        
+        // Function to check if camera is ready and hide loading screen
+        function checkCameraReadyState() {
+            if (cameraInitialized) {
+                console.log('Camera is initialized, hiding loading screen');
+                const loadingScreen = document.getElementById('cameraLoadingScreen');
+                loadingScreen.classList.remove('visible');
+                
+                // Clear the session storage flag
+                sessionStorage.removeItem('comingFromLoadingScreen');
+            }
+        }
+        
         // Auto-start AR when page loads
         document.addEventListener('DOMContentLoaded', () => {
             const arStatus = document.getElementById('arStatus');
+            const loadingScreen = document.getElementById('cameraLoadingScreen');
             
             console.log('Auto-starting AR...');
             console.log('Viewport:', window.innerWidth, 'x', window.innerHeight);
+            
+            // Check if we're coming from the loading screen
+            if (sessionStorage.getItem('comingFromLoadingScreen') === 'true') {
+                console.log('Coming from loading screen, showing camera loading overlay');
+                loadingScreen.classList.add('visible');
+            }
             
             // Initialize Three.js animation system
             threeJSAnimation = new ThreeJSAnimation();
@@ -1030,8 +1055,24 @@
             // Setup marker detection
             const marker = document.getElementById('marker');
             
+            // Listen for camera stream initialization
+            const scene = document.querySelector('a-scene');
+            
+            // When the AR.js scene is loaded and camera is ready
+            scene.addEventListener('loaded', () => {
+                console.log('A-Frame scene loaded');
+                
+                // Give a little time for the camera to fully initialize
+                setTimeout(() => {
+                    cameraInitialized = true;
+                    checkCameraReadyState();
+                    console.log('Camera initialization complete');
+                }, 1000); // 1 second delay to ensure camera is fully active
+            });
+            
             marker.addEventListener('markerFound', () => {
                 console.log('AR Marker detected!');
+                markerDetected = true;
                 
                 // Get the AR detection elements
                 const arDetection = document.getElementById('arDetection');

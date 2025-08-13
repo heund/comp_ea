@@ -262,7 +262,13 @@ class ExhibitionNavigator {
 
     navigateTo(pageName) {
         if (pageName === this.currentPage) return;
-
+        
+        // For artwork1_clean.html, we need to handle the AR camera initialization
+        if (pageName === 'artwork1_clean.html') {
+            // Store the target page in sessionStorage so artwork1_clean.html knows we're coming from loading screen
+            sessionStorage.setItem('comingFromLoadingScreen', 'true');
+        }
+        
         // Direct navigation (no iframe)
         window.location.href = pageName;
     }
@@ -277,103 +283,91 @@ class ExhibitionNavigator {
             loadingScreen.id = 'glassmorphismLoading';
             loadingScreen.className = 'glassmorphism-loading';
             
-            // Create the loading content
-            const loadingContent = document.createElement('div');
-            loadingContent.className = 'loading-content';
-            
-            // Create loading spinner
+            // Create loading spinner only (no container, no text)
             const spinner = document.createElement('div');
             spinner.className = 'loading-spinner';
             
-            // Create loading text
-            const loadingText = document.createElement('div');
-            loadingText.className = 'loading-text';
-            loadingText.textContent = '로딩 중...'; // 'Loading...' in Korean
-            
-            // Assemble the loading screen
-            loadingContent.appendChild(spinner);
-            loadingContent.appendChild(loadingText);
-            loadingScreen.appendChild(loadingContent);
+            // Assemble the loading screen (just the spinner)
+            loadingScreen.appendChild(spinner);
             
             // Add the CSS for the loading screen
             const style = document.createElement('style');
             style.textContent = `
+                /* Glassmorphism Loading Screen */
                 .glassmorphism-loading {
                     position: fixed;
                     top: 0;
                     left: 0;
                     width: 100%;
                     height: 100%;
-                    background: rgba(255, 255, 255, 0.1);
-                    backdrop-filter: blur(10px);
-                    -webkit-backdrop-filter: blur(10px);
                     display: flex;
                     justify-content: center;
                     align-items: center;
                     z-index: 10000;
                     opacity: 0;
-                    transition: opacity 0.3s ease;
+                    visibility: hidden;
+                    transition: opacity 0.5s ease;
                     overflow: hidden;
                 }
                 
+                /* Simple black background */
                 .glassmorphism-loading::before {
                     content: '';
                     position: absolute;
-                    top: -50%;
-                    left: -50%;
-                    width: 200%;
-                    height: 200%;
-                    background: linear-gradient(45deg, 
-                        rgba(255, 0, 128, 0.2), 
-                        rgba(0, 128, 255, 0.2), 
-                        rgba(128, 255, 0, 0.2), 
-                        rgba(255, 0, 128, 0.2));
-                    z-index: -1;
-                    animation: gradientMove 8s linear infinite;
-                    opacity: 0.7;
+                    top: 0;
+                    left: 0;
+                    width: 100%;
+                    height: 100%;
+                    background: #000000;
+                    z-index: -2;
+                    opacity: 1;
                 }
                 
-                @keyframes gradientMove {
-                    0% {
-                        transform: rotate(0deg);
-                    }
-                    100% {
-                        transform: rotate(360deg);
-                    }
+                /* Glassmorphism overlay */
+                .glassmorphism-loading::after {
+                    content: '';
+                    position: absolute;
+                    top: 0;
+                    left: 0;
+                    width: 100%;
+                    height: 100%;
+                    backdrop-filter: blur(10px);
+                    -webkit-backdrop-filter: blur(10px);
+                    background: rgba(255, 255, 255, 0.1);
+                    z-index: -1;
                 }
                 
                 .glassmorphism-loading.visible {
                     opacity: 1;
+                    visibility: visible;
                 }
                 
-                .loading-content {
-                    display: flex;
-                    flex-direction: column;
-                    align-items: center;
-                    justify-content: center;
-                    padding: 40px;
-                    border-radius: 20px;
-                    background: rgba(255, 255, 255, 0.15);
-                    border: 1px solid rgba(255, 255, 255, 0.3);
-                    box-shadow: 0 8px 32px rgba(31, 38, 135, 0.2);
+                @keyframes gradientMove {
+                    0% {
+                        background-position: 0% 0%;
+                    }
+                    25% {
+                        background-position: 50% 50%;
+                    }
+                    50% {
+                        background-position: 100% 100%;
+                    }
+                    75% {
+                        background-position: 50% 50%;
+                    }
+                    100% {
+                        background-position: 0% 0%;
+                    }
                 }
                 
                 .loading-spinner {
-                    width: 60px;
-                    height: 60px;
-                    border: 3px solid rgba(255, 255, 255, 0.3);
+                    width: 80px;
+                    height: 80px;
+                    border: 4px solid rgba(255, 255, 255, 0.3);
                     border-radius: 50%;
                     border-top-color: #ffffff;
                     animation: spin 1s ease-in-out infinite;
-                    margin-bottom: 20px;
-                }
-                
-                .loading-text {
-                    color: white;
-                    font-family: 'Noto Serif KR', serif;
-                    font-size: 18px;
-                    font-weight: 400;
-                    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+                    z-index: 1;
                 }
                 
                 @keyframes spin {
