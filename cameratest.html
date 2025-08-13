@@ -107,19 +107,15 @@
             const info = document.getElementById('info');
             const container = document.querySelector('.container');
             
-            // iOS portrait mode camera constraints
-            const isPortrait = window.innerHeight > window.innerWidth;
+            // Simple camera constraints - let CSS handle the fullscreen display
             const constraints = {
                 video: {
-                    facingMode: 'environment',
-                    width: { ideal: isPortrait ? window.innerHeight : window.innerWidth },
-                    height: { ideal: isPortrait ? window.innerWidth : window.innerHeight }
+                    facingMode: 'environment'
                 }
             };
             
             console.log('Starting camera with constraints:', constraints);
             console.log('Viewport:', window.innerWidth, 'x', window.innerHeight);
-            console.log('Portrait mode:', isPortrait);
             
             navigator.mediaDevices.getUserMedia(constraints)
                 .then(mediaStream => {
@@ -137,7 +133,6 @@
                         const infoText = `
                             Video: ${video.videoWidth}x${video.videoHeight}<br>
                             Viewport: ${window.innerWidth}x${window.innerHeight}<br>
-                            Portrait: ${isPortrait}<br>
                             Device Pixel Ratio: ${window.devicePixelRatio}<br>
                             User Agent: ${navigator.userAgent.includes('iPhone') ? 'iPhone' : navigator.userAgent.includes('iPad') ? 'iPad' : 'Other'}
                         `;
