@@ -26,6 +26,9 @@
     <!-- Bootstrap Icons for Navigation -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" rel="stylesheet">
     
+    <!-- Navigation Buttons CSS Only -->
+    <link rel="stylesheet" href="./shared/nav-buttons.css">
+    
     <style>
         html {
             /* iOS PWA safe area handling - apply to html element */
@@ -2863,221 +2866,19 @@
         });
     </script>
     
-    <!-- Navigation Responsive CSS (Exact Match with shared/common.css) -->
-    <style>
-        /* Navigation Buttons - Exact Copy from shared/common.css */
-        #navButton {
-            position: fixed;
-            bottom: 30px;
-            right: 30px;
-            width: 60px;
-            height: 60px;
-            background: rgba(255, 255, 255, 0.1);
-            backdrop-filter: blur(20px);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            z-index: 1001;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
-            text-decoration: none;
-        }
-
-        #navButton:hover {
-            background: rgba(255, 255, 255, 0.15);
-            transform: scale(1.05);
-            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
-        }
-
-        #navButton i {
-            font-size: 24px;
-            color: rgba(255, 255, 255, 0.9);
-        }
-
-        #backButton {
-            position: fixed;
-            bottom: 30px;
-            left: 30px;
-            width: 60px;
-            height: 60px;
-            background: rgba(255, 255, 255, 0.1);
-            backdrop-filter: blur(20px);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            z-index: 1001;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
-            opacity: 0;
-            visibility: hidden;
-            text-decoration: none;
-        }
-
-        #backButton.visible {
-            opacity: 1;
-            visibility: visible;
-        }
-
-        #backButton:hover {
-            background: rgba(255, 255, 255, 0.15);
-            transform: scale(1.05);
-            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
-        }
-
-        #backButton i {
-            font-size: 24px;
-            color: rgba(255, 255, 255, 0.9);
-        }
-
-        #homeButton {
-            position: fixed;
-            top: 30px;
-            left: 30px;
-            width: 60px;
-            height: 60px;
-            background: rgba(255, 255, 255, 0.1);
-            backdrop-filter: blur(20px);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            z-index: 1001;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
-            opacity: 0;
-            visibility: hidden;
-            text-decoration: none;
-        }
-
-        #homeButton.visible {
-            opacity: 1;
-            visibility: visible;
-        }
-
-        #homeButton:hover {
-            background: rgba(255, 255, 255, 0.15);
-            transform: scale(1.05);
-            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
-        }
-
-        #homeButton i {
-            font-size: 24px;
-            color: rgba(255, 255, 255, 0.9);
-        }
-
-        #statusIndicator {
-            position: fixed;
-            top: 30px;
-            right: 30px;
-            background: rgba(255, 255, 255, 0.1);
-            backdrop-filter: blur(20px);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            border-radius: 25px;
-            padding: 8px 16px;
-            font-size: 12px;
-            font-weight: 500;
-            color: rgba(255, 255, 255, 0.9);
-            z-index: 1000;
-            opacity: 0;
-            visibility: hidden;
-            transition: all 0.3s ease;
-            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
-        }
-
-        #statusIndicator.visible {
-            opacity: 1;
-            visibility: visible;
-        }
-
-        /* Responsive Design for Mobile Visitors - EXACT COPY */
-        @media (max-width: 767px) {
-            #navButton {
-                bottom: 20px;
-                right: 20px;
-                width: 50px;
-                height: 50px;
-            }
-
-            #navButton i {
-                font-size: 20px;
-            }
-
-            #backButton {
-                bottom: 20px;
-                left: 20px;
-                width: 50px;
-                height: 50px;
-            }
-
-            #backButton i {
-                font-size: 20px;
-            }
-
-            #homeButton {
-                top: 20px;
-                left: 20px;
-                width: 50px;
-                height: 50px;
-            }
-
-            #homeButton i {
-                font-size: 20px;
-            }
-
-            #statusIndicator {
-                top: 20px;
-                right: 20px;
-                font-size: 11px;
-                padding: 6px 12px;
-            }
-        }
-
-        /* iPad Exhibition Mode (Primary) - EXACT COPY */
-        @media (min-width: 768px) and (orientation: landscape) {
-            #navButton {
-                bottom: 40px;
-                right: 40px;
-            }
-            
-            #backButton {
-                bottom: 40px;
-                left: 40px;
-            }
-            
-            #homeButton {
-                top: 40px;
-                left: 40px;
-            }
-            
-            #statusIndicator {
-                top: 40px;
-                right: 40px;
-            }
-        }
-    </style>
-
-    <!-- Navigation Buttons (Using CSS Classes Above) -->
-    <button id="navButton">
+    <!-- Navigation Buttons CSS Only -->
+    <link rel="stylesheet" href="./shared/nav-buttons.css">
+    
+    <!-- Navigation Buttons - Only Next Button for Landing Page -->
+    <button class="nav-button" id="navButton">
         <i class="bi bi-arrow-right"></i>
     </button>
     
-    <button id="backButton">
-        <i class="bi bi-arrow-left"></i>
-    </button>
-    
-    <div id="statusIndicator">
+    <div class="status-indicator" id="statusIndicator">
         Metal Slab Simulation
     </div>
-
-    <!-- PWA Navigation System -->
+    
+    <!-- Shared Navigation Script -->
     <script src="./shared/navigation.js"></script>
 </body>
 </html>

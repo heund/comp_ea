@@ -92,6 +92,10 @@ class ExhibitionNavigator {
         // Navigation button - go to next page
         if (this.navButton) {
             this.navButton.addEventListener('click', () => {
+                // Play click sound if available
+                if (typeof playClickSound === 'function') {
+                    playClickSound();
+                }
                 this.navigateNext();
             });
         }
@@ -99,6 +103,10 @@ class ExhibitionNavigator {
         // Back button - go to previous page
         if (this.backButton) {
             this.backButton.addEventListener('click', () => {
+                // Play click sound if available
+                if (typeof playClickSound === 'function') {
+                    playClickSound();
+                }
                 this.navigatePrevious();
             });
         }
@@ -106,6 +114,10 @@ class ExhibitionNavigator {
         // Home button - go to home page
         if (this.homeButton) {
             this.homeButton.addEventListener('click', () => {
+                // Play click sound if available
+                if (typeof playClickSound === 'function') {
+                    playClickSound();
+                }
                 this.navigateHome();
             });
         }
@@ -218,7 +230,7 @@ class ExhibitionNavigator {
             }, 3000);
         }
 
-        // Show/hide back button (previous page)
+        // Show/hide back button (previous page) - only if it exists
         if (this.backButton) {
             const currentPageInfo = this.pages[this.currentPage];
             if (currentPageInfo && currentPageInfo.prev) {
@@ -228,13 +240,19 @@ class ExhibitionNavigator {
             }
         }
 
-        // Show/hide home button
+        // Show/hide home button - only if it exists
         if (this.homeButton) {
             if (this.currentPage === 'metal-slab.html') {
                 this.homeButton.classList.remove('visible');
             } else {
                 this.homeButton.classList.add('visible');
             }
+        }
+        
+        // Always ensure next button is visible
+        if (this.navButton) {
+            this.navButton.style.opacity = '1';
+            this.navButton.style.visibility = 'visible';
         }
     }
 }

@@ -1072,5 +1072,82 @@
     
     <!-- Shared Navigation Script -->
     <script src="./shared/navigation.js"></script>
+    
+    <!-- Click Sound Implementation with Debounce -->  
+    <script>
+        // Audio variables
+        let clickSound = null;
+        
+        // Debounce variables
+        let lastClickTime = 0;
+        const clickDebounceTime = 100; // Minimum milliseconds between click sounds
+        
+        // Initialize audio system
+        function initializeAudio() {
+            // Initialize click sound
+            clickSound = new Audio('https://heund.github.io/ea_test1/sounds/click1.wav');
+            clickSound.volume = 0.3; // Set volume to 30% for subtle feedback
+            clickSound.preload = 'auto';
+        }
+        
+        // Play click sound with debounce and error handling
+        function playClickSound() {
+            // Debounce logic - only play if enough time has passed since last click
+            const now = Date.now();
+            if (now - lastClickTime < clickDebounceTime) {
+                console.log('Click sound debounced');
+                return; // Skip this sound - too soon after previous
+            }
+            
+            // Update last click time
+            lastClickTime = now;
+            
+            // Play the sound
+            if (clickSound) {
+                try {
+                    clickSound.currentTime = 0; // Reset to beginning
+                    clickSound.play().catch(e => {
+                        // Silently handle audio play errors (common on mobile)
+                        console.log('Audio play prevented:', e);
+                    });
+                } catch (error) {
+                    console.log('Audio error:', error);
+                }
+            }
+        }
+        
+        // Add click sound to all interactive elements
+        function addClickSounds() {
+            // Add click sounds to all data points
+            const dataPoints = document.querySelectorAll('.data-point');
+            dataPoints.forEach(point => {
+                point.addEventListener('click', playClickSound);
+                point.addEventListener('touchstart', playClickSound);
+            });
+            
+            // Add click sounds to canvas interactions
+            const canvas = document.querySelector('#visualizationCanvas');
+            if (canvas) {
+                canvas.addEventListener('click', playClickSound);
+                canvas.addEventListener('touchstart', playClickSound);
+            }
+            
+            // Add click sounds to all buttons and interactive elements
+            const buttons = document.querySelectorAll('button, .interactive, .data-overlay-close, #dataBtn, #exitBtn');
+            buttons.forEach(button => {
+                button.addEventListener('click', playClickSound);
+                button.addEventListener('touchstart', playClickSound);
+            });
+        }
+        
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            // Initialize audio
+            initializeAudio();
+            
+            // Add click sounds to all interactive elements
+            addClickSounds();
+        });
+    </script>
 </body>
 </html>
