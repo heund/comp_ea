@@ -1966,17 +1966,30 @@
                     if (isIOS) {
                         console.log('Applying iOS camera constraints...');
                         
-                        // Override getUserMedia for iOS to force proper camera resolution
+                        // Override getUserMedia for iOS to handle portrait mode dimension swap
                         const originalGetUserMedia = navigator.mediaDevices.getUserMedia;
                         navigator.mediaDevices.getUserMedia = function(constraints) {
                             if (constraints && constraints.video) {
-                                // Force iOS to use device viewport dimensions
-                                constraints.video = {
-                                    width: { ideal: window.innerWidth },
-                                    height: { ideal: window.innerHeight },
-                                    facingMode: 'environment'
-                                };
-                                console.log('iOS camera constraints applied:', constraints.video);
+                                const isPortrait = window.innerHeight > window.innerWidth;
+                                
+                                if (isPortrait) {
+                                    // iOS swaps dimensions in portrait mode, so we request landscape dimensions
+                                    // to get the correct portrait result
+                                    constraints.video = {
+                                        width: { ideal: window.innerHeight },  // Swapped!
+                                        height: { ideal: window.innerWidth },  // Swapped!
+                                        facingMode: 'environment'
+                                    };
+                                    console.log('iOS portrait mode - using swapped dimensions:', constraints.video);
+                                } else {
+                                    // Landscape mode - use normal dimensions
+                                    constraints.video = {
+                                        width: { ideal: window.innerWidth },
+                                        height: { ideal: window.innerHeight },
+                                        facingMode: 'environment'
+                                    };
+                                    console.log('iOS landscape mode - using normal dimensions:', constraints.video);
+                                }
                             }
                             return originalGetUserMedia.call(this, constraints);
                         };
@@ -2002,7 +2015,15 @@
                         video.setAttribute('playsinline', 'true');
                         video.setAttribute('webkit-playsinline', 'true');
                         
-                        // Force video dimensions
+                        // Check video's actual dimensions vs viewport
+                        const videoWidth = video.videoWidth || video.clientWidth;
+                        const videoHeight = video.videoHeight || video.clientHeight;
+                        const viewportWidth = window.innerWidth;
+                        const viewportHeight = window.innerHeight;
+                        
+                        console.log(`Video dimensions: ${videoWidth}x${videoHeight}, Viewport: ${viewportWidth}x${viewportHeight}`);
+                        
+                        // Force video dimensions with iOS-specific handling
                         video.style.position = 'fixed';
                         video.style.top = '0';
                         video.style.left = '0';
@@ -2010,12 +2031,26 @@
                         video.style.height = '100vh';
                         video.style.objectFit = 'cover';
                         video.style.objectPosition = 'center';
-                        video.style.transform = 'none';
                         video.style.maxWidth = 'none';
                         video.style.maxHeight = 'none';
                         video.style.zIndex = '1';
                         
-                        console.log('Applied iOS video fix with required attributes');
+                        // iOS portrait mode specific transform fix
+                        if (window.innerHeight > window.innerWidth) {
+                            // If video dimensions don't match viewport aspect ratio, apply transform
+                            const videoAspect = videoWidth / videoHeight;
+                            const viewportAspect = viewportWidth / viewportHeight;
+                            
+                            if (Math.abs(videoAspect - viewportAspect) > 0.1) {
+                                console.log('Applying iOS portrait transform fix');
+                                video.style.transform = 'scale(1.2) translateX(0)';
+                                video.style.transformOrigin = 'center center';
+                            }
+                        } else {
+                            video.style.transform = 'none';
+                        }
+                        
+                        console.log('Applied iOS video fix with required attributes and transforms');
                     });
                     
                     // Also apply to canvas elements
