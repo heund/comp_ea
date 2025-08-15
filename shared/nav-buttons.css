@@ -3,109 +3,76 @@
  * Only styles navigation buttons - no global styles
  */
 
-/* Next Button (bottom right) */
+/* Next Button - Removed as requested */
+/* Keeping the CSS class for compatibility but not using it */
 .nav-button {
-    position: fixed;
-    bottom: 30px;
-    right: 30px;
-    width: 60px;
-    height: 60px;
-    background-color: rgba(0, 0, 0, 0.5);
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    z-index: 9999 !important;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
-    text-decoration: none;
-    opacity: 1 !important;
-    visibility: visible !important;
+    display: none;
+    visibility: hidden;
+    opacity: 0;
 }
 
-.nav-button:hover {
-    background-color: rgba(0, 0, 0, 0.7);
-    transform: scale(1.05);
-    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
-}
-
-.nav-button i {
-    font-size: 24px;
-    color: #ffffff;
-}
-
-/* Back Button (bottom left) */
+/* Back Button (top left) */
 .back-button {
     position: fixed;
-    bottom: 30px;
-    left: 30px;
-    width: 60px;
-    height: 60px;
-    background-color: rgba(0, 0, 0, 0.5);
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    border-radius: 50%;
+    top: calc(env(safe-area-inset-top) + 16px);
+    left: 16px;
+    width: 40px;
+    height: 40px;
     display: flex;
     align-items: center;
     justify-content: center;
     cursor: pointer;
     transition: all 0.3s ease;
     z-index: 9999 !important;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
     text-decoration: none;
     opacity: 1 !important;
     visibility: visible !important;
+    background: none;
+    border: none;
 }
 
 .back-button:hover {
-    background-color: rgba(0, 0, 0, 0.7);
     transform: scale(1.05);
-    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
 }
 
-.back-button i {
-    font-size: 24px;
-    color: #ffffff;
+.back-button svg {
+    width: 24px;
+    height: 24px;
+    stroke: #ffffff;
+    stroke-width: 2.5;
+    fill: none;
 }
 
-/* Home Button (top left) */
+/* Home Button (top right) */
 .home-button {
     position: fixed;
-    top: 30px;
-    left: 30px;
-    width: 60px;
-    height: 60px;
-    background-color: rgba(0, 0, 0, 0.5);
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    border-radius: 50%;
+    top: calc(env(safe-area-inset-top) + 16px);
+    right: 16px;
+    width: 40px;
+    height: 40px;
     display: flex;
     align-items: center;
     justify-content: center;
     cursor: pointer;
     transition: all 0.3s ease;
     z-index: 9999 !important;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
     text-decoration: none;
     opacity: 1 !important;
     visibility: visible !important;
+    background: none;
+    border: none;
 }
 
 .home-button:hover {
-    background-color: rgba(0, 0, 0, 0.7);
     transform: scale(1.05);
-    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
 }
 
-.home-button i {
-    font-size: 24px;
-    color: #ffffff;
+.home-button svg {
+    width: 24px;
+    height: 24px;
+    stroke: #ffffff;
+    stroke-width: 2.5;
+    fill: none;
 }
 
 /* Ensure visibility */

@@ -6,7 +6,7 @@ class ExhibitionNavigator {
         this.pages = {
             'metal-slab.html': {
                 title: 'Metal Slab Simulation',
-                next: 'artwork1_clean.html',
+                next: 'ar_detection.html',
                 prev: null  // No previous page (home page)
             },
             'artwork1_clean.html': {
@@ -50,24 +50,25 @@ class ExhibitionNavigator {
 
     createNavigationElements() {
         // Get existing navigation elements (they should already exist in HTML)
-        this.navButton = document.getElementById('navButton');
         this.backButton = document.getElementById('backButton');
+        this.homeButton = document.getElementById('homeButton');
         this.statusIndicator = document.getElementById('statusIndicator');
         
         // Only create if they don't exist (for artwork pages that might not have them)
-        if (!this.navButton) {
+        if (!this.backButton) {
             const navHTML = `
-                <!-- Simple Navigation (like original) -->
-                <button class="nav-button" id="navButton">
-                    <i class="bi bi-arrow-right"></i>
-                </button>
-                
+                <!-- Simple Navigation with SVG icons -->
                 <button class="back-button" id="backButton">
-                    <i class="bi bi-arrow-left"></i>
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+                        <path d="M15 18l-6-6 6-6"></path>
+                    </svg>
                 </button>
                 
                 <button class="home-button" id="homeButton">
-                    <i class="bi bi-house"></i>
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+                        <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+                        <polyline points="9 22 9 12 15 12 15 22"></polyline>
+                    </svg>
                 </button>
                 
                 <div class="status-indicator" id="statusIndicator">
@@ -78,28 +79,16 @@ class ExhibitionNavigator {
             document.body.insertAdjacentHTML('beforeend', navHTML);
             
             // Re-get the elements after creating them
-            this.navButton = document.getElementById('navButton');
             this.backButton = document.getElementById('backButton');
             this.homeButton = document.getElementById('homeButton');
             this.statusIndicator = document.getElementById('statusIndicator');
-        } else {
-            // If elements exist, also get the home button
+        } else if (!this.homeButton) {
+            // If back button exists but home button doesn't, get the home button
             this.homeButton = document.getElementById('homeButton');
         }
     }
 
     setupEventListeners() {
-        // Navigation button - go to next page
-        if (this.navButton) {
-            this.navButton.addEventListener('click', () => {
-                // Play click sound if available
-                if (typeof playClickSound === 'function') {
-                    playClickSound();
-                }
-                this.navigateNext();
-            });
-        }
-
         // Back button - go to previous page
         if (this.backButton) {
             this.backButton.addEventListener('click', () => {
@@ -196,8 +185,8 @@ class ExhibitionNavigator {
             if (currentPageInfo && currentPageInfo.next) {
                 const nextPage = currentPageInfo.next;
                 
-                // Check if the next page is an AR page (contains "artwork" in the name)
-                const isARPage = nextPage.includes('artwork');
+                // Check if the next page is an AR page (contains "artwork" or "ar_" in the name)
+                const isARPage = nextPage.includes('artwork') || nextPage.includes('ar_');
                 
                 if (isARPage) {
                     // For AR pages, just show loading screen and navigate directly after a delay
@@ -470,12 +459,6 @@ class ExhibitionNavigator {
             } else {
                 this.homeButton.classList.add('visible');
             }
-        }
-        
-        // Always ensure next button is visible
-        if (this.navButton) {
-            this.navButton.style.opacity = '1';
-            this.navButton.style.visibility = 'visible';
         }
     }
 }

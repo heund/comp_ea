@@ -2941,8 +2941,49 @@
     <!-- Navigation Buttons CSS Only -->
     <link rel="stylesheet" href="./shared/nav-buttons.css">
     
-    <!-- Navigation Buttons - Only Next Button for Landing Page -->
-    <button class="nav-button" id="navButton">
+    <style>
+        /* Custom Next Button Styling for Landing Page */
+        .next-button {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.2);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            z-index: 9999;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+        }
+        
+        .next-button:hover {
+            transform: scale(1.05);
+            background: rgba(255, 255, 255, 0.25);
+            box-shadow: 0 4px 25px rgba(0, 0, 0, 0.3);
+        }
+        
+        .next-button i {
+            font-size: 24px;
+            color: white;
+        }
+        
+        /* Hide standard navigation buttons on landing page */
+        .back-button, .home-button {
+            display: none !important;
+            visibility: hidden !important;
+            opacity: 0 !important;
+        }
+    </style>
+    
+    <!-- Large Next Button for Landing Page -->
+    <button class="next-button" id="navButton">
         <i class="bi bi-arrow-right"></i>
     </button>
     
@@ -2959,6 +3000,12 @@
             const navButton = document.getElementById('navButton');
             const loadingScreen = document.getElementById('loadingScreen');
             
+            // Check if we're returning from AR detection (back button)
+            if (sessionStorage.getItem('returning_from_ar') === 'true') {
+                // Clear the flag
+                sessionStorage.removeItem('returning_from_ar');
+            }
+            
             if (navButton && loadingScreen) {
                 navButton.addEventListener('click', function(e) {
                     // Play click sound if available
@@ -2966,16 +3013,19 @@
                         playClickSound();
                     }
                     
-                    // Show loading screen
+                    // Set a flag in sessionStorage to indicate we're navigating to AR
+                    // and that we've already shown the loading screen
+                    sessionStorage.setItem('loading_ar', 'true');
+                    sessionStorage.setItem('loading_screen_shown', 'true');
+                    
+                    // Show loading screen with smooth transition
                     loadingScreen.classList.add('visible');
                     
-                    // Let the loading screen appear before navigating
+                    // Let the loading screen appear fully before navigating (longer delay for smoother transition)
                     setTimeout(() => {
-                        // Navigate to artwork1_clean.html
-                        if (window.navigator && typeof window.navigator.navigateTo === 'function') {
-                            window.navigator.navigateTo('artwork1_clean.html');
-                        }
-                    }, 300);
+                        // Navigate to ar_detection.html using standard window.location
+                        window.location.href = 'ar_detection.html';
+                    }, 800); // Increased from 300ms to 800ms for smoother transition
                     
                     // Prevent default navigation
                     e.preventDefault();

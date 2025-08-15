@@ -1,0 +1,1780 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Compression Spheres AR">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="theme-color" content="#0a0a0a">
+    <link rel="manifest" href="./manifest.json">
+    <title>AR Desktop Development - Artwork 2 Compression Spheres</title>
+    
+    <!-- Three.js for 3D visualization -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    
+    <!-- Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <!-- iOS-style Icons -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" rel="stylesheet">
+    
+    <!-- Navigation Buttons CSS Only -->
+    <link rel="stylesheet" href="./shared/nav-buttons.css">
+    
+    <style>
+        body {
+            margin: 0;
+            font-family: 'Inter', 'Helvetica Neue', Arial, sans-serif;
+            background: transparent;
+            overflow: hidden;
+        }
+        
+        :root {
+            --glass-bg: rgba(255, 255, 255, 0.1);
+            --glass-border: rgba(255, 255, 255, 0.2);
+            --glass-hover: rgba(255, 255, 255, 0.15);
+            --glass-white: rgba(255, 255, 255, 0.9);
+            --glass-light: rgba(255, 255, 255, 0.7);
+            --glass-darkest: rgba(0, 0, 0, 0.3);
+        }
+        
+        /* Reset body and html for AR */
+        html, body {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            position: fixed;
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
+        }
+        
+        .ar-controls-container {
+            position: fixed;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+            z-index: 1000;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.8s ease;
+        }
+        
+        .ar-controls-container.ar-active {
+            opacity: 1;
+            visibility: visible;
+        }
+        
+        .ar-title {
+            font-family: 'Noto Sans KR', sans-serif;
+            font-size: 14px;
+            font-weight: 400;
+            color: #000000; /* Black text for gallery visibility */
+            background: var(--glass-bg);
+            backdrop-filter: blur(20px);
+            padding: 8px 16px;
+            border-radius: 12px;
+            border: 1px solid var(--glass-border);
+            text-align: center;
+            white-space: nowrap;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        }
+        
+        .ar-controls {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 15px;
+            background: var(--glass-bg);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--glass-border);
+            border-radius: 20px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        }
+        
+        .control-btn {
+            width: 50px;
+            height: 50px;
+            border: none;
+            border-radius: 12px;
+            background: var(--glass-bg);
+            backdrop-filter: blur(10px);
+            color: #000000; /* Black icons for gallery visibility */
+            font-size: 18px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 10px;
+            border: 1px solid var(--glass-border);
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+            opacity: 0.8;
+        }
+        
+        .control-btn:hover {
+            background: var(--glass-hover);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+            opacity: 1;
+        }
+        
+        .control-btn.active {
+            background: var(--glass-hover);
+            opacity: 1;
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2);
+        }
+        
+        /* 3D Visualization Container - Only visible when marker detected */
+        .visualization-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: 100;
+            pointer-events: auto; /* Enable interactions when active */
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s ease;
+            overflow: hidden; /* Prevent overflow in portrait mode */
+        }
+        
+        .visualization-container.active {
+            opacity: 1;
+            visibility: visible;
+            pointer-events: auto; /* Enable interactions when marker is detected */
+        }
+        
+        #visualizationCanvas {
+            width: 100%;
+            height: 100%;
+            background: transparent;
+            cursor: grab;
+            position: relative;
+            z-index: 1001; /* Ensure canvas is on top */
+        }
+        
+        #visualizationCanvas:active {
+            cursor: grabbing;
+        }
+        
+        /* Data Panel */
+        .data-panel {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: var(--glass-bg);
+            backdrop-filter: blur(20px);
+            color: var(--glass-white);
+            padding: 20px;
+            border-radius: 12px;
+            border: 1px solid var(--glass-border);
+            font-size: 12px;
+            max-width: 300px;
+            opacity: 0;
+            pointer-events: none;
+            transition: all 0.3s ease;
+            z-index: 1001;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        }
+        
+        .data-panel.visible {
+            opacity: 1;
+            pointer-events: auto;
+        }
+        
+
+        
+        /* Audio Progress Bar */
+        .audio-progress-container {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 300px;
+            background: var(--glass-bg);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--glass-border);
+            border-radius: 12px;
+            padding: 12px 16px;
+            z-index: 1003;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.8s ease;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        }
+        
+        .audio-progress-container.visible {
+            opacity: 1;
+            visibility: visible;
+        }
+        
+        .audio-progress-container.ar-active {
+            opacity: 1;
+            visibility: visible;
+        }
+        
+        .audio-info {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 8px;
+        }
+        
+        .audio-title {
+            font-size: 12px;
+            color: #000000; /* Black text for gallery visibility */
+            font-weight: 500;
+        }
+        
+        .audio-time {
+            font-size: 11px;
+            color: #000000; /* Black text for gallery visibility */
+            font-family: 'Inter', sans-serif;
+        }
+        
+        .progress-bar {
+            width: 100%;
+            height: 4px;
+            background: var(--glass-darkest);
+            border-radius: 2px;
+            overflow: hidden;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: #000000; /* Black progress bar for gallery visibility */
+            border-radius: 2px;
+            width: 0%;
+            transition: width 0.1s ease;
+        }
+        
+        .data-panel h4 {
+            margin: 0 0 10px 0;
+            color: var(--glass-light);
+            font-size: 14px;
+        }
+        
+        .data-item {
+            margin: 8px 0;
+            padding: 5px 0;
+            border-bottom: 1px solid var(--glass-border);
+        }
+        
+        .data-label {
+            color: var(--glass-light);
+            font-weight: 500;
+        }
+        
+        .data-value {
+            color: var(--glass-white);
+            margin-left: 10px;
+        }
+        
+        /* Futuristic Data Overlay with Dynamic Scaling */
+        .data-overlay {
+            --popup-scale: 1.0; /* CSS custom property for dynamic scaling */
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) scale(calc(0.8 * var(--popup-scale)));
+            width: 280px;
+            height: 280px;
+            background: radial-gradient(circle, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.02) 100%);
+            border: 2px solid rgba(255,255,255,0.2);
+            border-radius: 50%;
+            backdrop-filter: blur(20px);
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+            z-index: 2000; /* Higher than canvas (1001) to appear above spheres */
+            pointer-events: none;
+        }
+        
+        .data-overlay.active {
+            transform: translate(-50%, -50%) scale(calc(1.0 * var(--popup-scale)));
+            opacity: 1;
+            visibility: visible;
+            pointer-events: auto;
+        }
+        
+        .data-overlay.fade-out {
+            transform: translate(-50%, -50%) scale(calc(0.9 * var(--popup-scale)));
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+        }
+        
+        .data-overlay-inner {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .data-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            width: 280px;
+        }
+        
+        .data-content {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            /* Removed square background, border-radius, and backdrop-filter */
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .data-metric {
+            text-align: center;
+            padding: 15px;
+            background: rgba(255,255,255,0.08);
+            border: 1px solid rgba(255,255,255,0.15);
+            border-radius: 8px;
+            backdrop-filter: blur(10px);
+        }
+        
+        .metric-value {
+            font-size: 32px;
+            font-weight: 700;
+            color: #ffffff;
+            font-family: 'Inter', sans-serif;
+            margin-bottom: 5px;
+            text-shadow: 0 0 10px rgba(255,255,255,0.3);
+        }
+        
+        .metric-label {
+            font-size: 11px;
+            color: rgba(255,255,255,0.7);
+            font-weight: 500;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+        
+        .data-overlay-close {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            width: 36px;
+            height: 36px;
+            background: rgba(255,255,255,0.25);
+            border: 2px solid rgba(255,255,255,0.6);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            backdrop-filter: blur(10px);
+        }
+        
+        .data-overlay-close:hover {
+            background: rgba(255,255,255,0.4);
+            border-color: rgba(255,255,255,0.8);
+            transform: scale(1.15);
+            box-shadow: 0 6px 16px rgba(0,0,0,0.4);
+        }
+        
+        .data-overlay-close::before,
+        .data-overlay-close::after {
+            content: '';
+            position: absolute;
+            width: 16px;
+            height: 3px;
+            background: rgba(255,255,255,0.95);
+            border-radius: 2px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+        }
+        
+        .data-overlay-close::before {
+            transform: rotate(45deg);
+        }
+        
+        .data-overlay-close::after {
+            transform: rotate(-45deg);
+        }
+        
+        /* Ring CSS removed for clean data overlay design */
+        
+        /* Single Metric Display */
+        .single-metric {
+            text-align: center;
+            padding: 30px;
+        }
+        
+        .metric-value-large {
+            font-size: 64px;
+            font-weight: 700;
+            color: #ffffff;
+            font-family: 'Inter', sans-serif;
+            margin-bottom: 5px;
+            text-shadow: 0 0 20px rgba(255,255,255,0.5);
+            line-height: 1;
+        }
+        
+        .metric-unit {
+            font-size: 24px;
+            color: rgba(255,255,255,0.8);
+            font-weight: 300;
+            margin-bottom: 15px;
+        }
+        
+        .metric-label-large {
+            font-size: 14px;
+            color: rgba(255,255,255,0.7);
+            font-weight: 500;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+        }
+    </style>
+</head>
+<body>
+
+    
+    <!-- 3D Visualization Container - Always visible -->
+    <div class="visualization-container">
+        <canvas id="visualizationCanvas"></canvas>
+        
+        <!-- Futuristic Data Overlay -->
+        <div class="data-overlay" id="dataOverlay">
+            <div class="overlay-rings">
+                <div class="ring"></div>
+                <div class="ring"></div>
+            </div>
+            <div class="data-content">
+                <div class="metric-value-large" id="metricValue">1247</div>
+                <div class="metric-unit" id="metricUnit">kN</div>
+                <div class="metric-label-large" id="metricLabel">Rolling Force</div>
+            </div>
+            <div class="data-overlay-close" id="overlayClose"></div>
+        </div>
+    </div>
+    
+    <!-- Audio Progress Bar -->
+    <div class="audio-progress-container" id="audioProgress">
+        <div class="audio-info">
+            <div class="audio-title">Force Efficiency Audio</div>
+            <div class="audio-time" id="audioTime">0:00 / 0:00</div>
+        </div>
+        <div class="progress-bar">
+            <div class="progress-fill" id="progressFill"></div>
+        </div>
+    </div>
+    
+    <!-- AR Controls -->
+    <div class="ar-controls-container">
+        <div class="ar-title">열간압연 데이터 02: 압연 효율 분포</div>
+        <div class="ar-controls">
+            <button class="control-btn" id="dataBtn" title="Reveal Data"><i class="bi bi-bar-chart-fill"></i></button>
+            <button class="control-btn" id="audioBtn" title="Toggle Audio"><i class="bi bi-volume-up-fill"></i></button>
+            <button class="control-btn" id="exitBtn" title="Exit to Gallery"><i class="bi bi-x-circle-fill"></i></button>
+        </div>
+    </div>
+    
+    <!-- Audio Element -->
+    <audio id="artworkAudio" preload="auto">
+        <source src="./artwork1 demo1.mp3" type="audio/mpeg">
+        Your browser does not support the audio element.
+    </audio>
+    
+    <!-- Visualization will be handled by Three.js -->
+    
+    <script>
+        // Embedded sample data from artwork1.html
+        const sampleData = [
+            {current_corrections_count: 2, data_integrity: 0.85, correction_effectiveness: 0.78, active_corrections_count: 5},
+            {current_corrections_count: 3, data_integrity: 0.92, correction_effectiveness: 0.81, active_corrections_count: 7},
+            {current_corrections_count: 1, data_integrity: 0.76, correction_effectiveness: 0.69, active_corrections_count: 3},
+            {current_corrections_count: 4, data_integrity: 0.88, correction_effectiveness: 0.85, active_corrections_count: 8},
+            {current_corrections_count: 2, data_integrity: 0.91, correction_effectiveness: 0.77, active_corrections_count: 6}
+        ];
+        
+        // Global variables - exact same as artwork1.html
+        let scene, camera, renderer;
+        let compressionSpheres = [];
+        let isAnimating = false;
+        let mouseX = 0, mouseY = 0;
+        let targetRotationX = 0, targetRotationY = 0;
+        let rotationX = 0, rotationY = 0;
+        let mouseDown = false;
+        let isWireframe = false, colorSchemeIndex = 0;
+        
+
+        
+        // Data flow visualization variables
+        let dataFlowPulses = [];
+        let dataFlowInterval = null;
+        let pulseGeometry = null;
+        let pulseMaterial = null;
+        
+        // Audio variables
+        let audioElement = null;
+        let audioPlaying = false;
+        let audioProgressInterval = null;
+        
+        const colorSchemes = [
+            { name: 'UserBlueGradient', colors: ['#D7EEFA', '#71CEF2', '#51A6C5', '#3C7F97', '#295A6C', '#173743', '#132028'] },
+            { name: 'BlueGradientAlt', colors: ['#D7EEFA', '#71CEF2', '#51A6C5', '#3C7F97', '#295A6C', '#173743', '#132028'] },
+            { name: 'OceanGradient', colors: ['#D7EEFA', '#71CEF2', '#51A6C5', '#3C7F97', '#295A6C', '#173743', '#132028'] }
+        ];
+        
+        // Complete compression data from original Artwork 2
+        const sampleCompressionData = [
+            {simulation_step: 1, material_type: "MED_CARBON", rolling_force_normalized: 0.298, deformation_field_normalized: 0.389, compression_ratio_normalized: 0.178, force_field_normalized: 0.579, compression_zone_1_entry_normalized: 0.182, compression_zone_2_mid_normalized: 0.435, compression_zone_3_exit_normalized: 0.311, compression_zone_4_edgeL_normalized: 0.175},
+            {simulation_step: 2, material_type: "HIGH_CARBON", rolling_force_normalized: 0.445, deformation_field_normalized: 0.512, compression_ratio_normalized: 0.234, force_field_normalized: 0.678, compression_zone_1_entry_normalized: 0.298, compression_zone_2_mid_normalized: 0.567, compression_zone_3_exit_normalized: 0.423, compression_zone_4_edgeL_normalized: 0.289},
+            {simulation_step: 3, material_type: "LOW_CARBON", rolling_force_normalized: 0.356, deformation_field_normalized: 0.445, compression_ratio_normalized: 0.198, force_field_normalized: 0.623, compression_zone_1_entry_normalized: 0.234, compression_zone_2_mid_normalized: 0.489, compression_zone_3_exit_normalized: 0.367, compression_zone_4_edgeL_normalized: 0.212},
+            {simulation_step: 4, material_type: "MED_CARBON", rolling_force_normalized: 0.523, deformation_field_normalized: 0.598, compression_ratio_normalized: 0.289, force_field_normalized: 0.734, compression_zone_1_entry_normalized: 0.345, compression_zone_2_mid_normalized: 0.623, compression_zone_3_exit_normalized: 0.478, compression_zone_4_edgeL_normalized: 0.334},
+            {simulation_step: 5, material_type: "HIGH_CARBON", rolling_force_normalized: 0.412, deformation_field_normalized: 0.478, compression_ratio_normalized: 0.223, force_field_normalized: 0.656, compression_zone_1_entry_normalized: 0.267, compression_zone_2_mid_normalized: 0.534, compression_zone_3_exit_normalized: 0.398, compression_zone_4_edgeL_normalized: 0.245},
+            {simulation_step: 6, material_type: "LOW_CARBON", rolling_force_normalized: 0.378, deformation_field_normalized: 0.423, compression_ratio_normalized: 0.201, force_field_normalized: 0.598, compression_zone_1_entry_normalized: 0.245, compression_zone_2_mid_normalized: 0.456, compression_zone_3_exit_normalized: 0.345, compression_zone_4_edgeL_normalized: 0.223},
+            {simulation_step: 7, material_type: "MED_CARBON", rolling_force_normalized: 0.467, deformation_field_normalized: 0.534, compression_ratio_normalized: 0.256, force_field_normalized: 0.689, compression_zone_1_entry_normalized: 0.312, compression_zone_2_mid_normalized: 0.578, compression_zone_3_exit_normalized: 0.434, compression_zone_4_edgeL_normalized: 0.298},
+            {simulation_step: 8, material_type: "HIGH_CARBON", rolling_force_normalized: 0.534, deformation_field_normalized: 0.612, compression_ratio_normalized: 0.298, force_field_normalized: 0.756, compression_zone_1_entry_normalized: 0.367, compression_zone_2_mid_normalized: 0.645, compression_zone_3_exit_normalized: 0.489, compression_zone_4_edgeL_normalized: 0.356},
+            {simulation_step: 9, material_type: "LOW_CARBON", rolling_force_normalized: 0.389, deformation_field_normalized: 0.445, compression_ratio_normalized: 0.212, force_field_normalized: 0.612, compression_zone_1_entry_normalized: 0.256, compression_zone_2_mid_normalized: 0.478, compression_zone_3_exit_normalized: 0.356, compression_zone_4_edgeL_normalized: 0.234},
+            {simulation_step: 10, material_type: "MED_CARBON", rolling_force_normalized: 0.445, deformation_field_normalized: 0.512, compression_ratio_normalized: 0.245, force_field_normalized: 0.667, compression_zone_1_entry_normalized: 0.289, compression_zone_2_mid_normalized: 0.545, compression_zone_3_exit_normalized: 0.412, compression_zone_4_edgeL_normalized: 0.267},
+            {simulation_step: 11, material_type: "HIGH_CARBON", rolling_force_normalized: 0.498, deformation_field_normalized: 0.567, compression_ratio_normalized: 0.278, force_field_normalized: 0.712, compression_zone_1_entry_normalized: 0.334, compression_zone_2_mid_normalized: 0.598, compression_zone_3_exit_normalized: 0.456, compression_zone_4_edgeL_normalized: 0.312},
+            {simulation_step: 12, material_type: "LOW_CARBON", rolling_force_normalized: 0.367, deformation_field_normalized: 0.434, compression_ratio_normalized: 0.198, force_field_normalized: 0.589, compression_zone_1_entry_normalized: 0.234, compression_zone_2_mid_normalized: 0.467, compression_zone_3_exit_normalized: 0.334, compression_zone_4_edgeL_normalized: 0.212},
+            {simulation_step: 13, material_type: "MED_CARBON", rolling_force_normalized: 0.423, deformation_field_normalized: 0.489, compression_ratio_normalized: 0.234, force_field_normalized: 0.645, compression_zone_1_entry_normalized: 0.278, compression_zone_2_mid_normalized: 0.523, compression_zone_3_exit_normalized: 0.389, compression_zone_4_edgeL_normalized: 0.256},
+            {simulation_step: 14, material_type: "HIGH_CARBON", rolling_force_normalized: 0.512, deformation_field_normalized: 0.578, compression_ratio_normalized: 0.289, force_field_normalized: 0.723, compression_zone_1_entry_normalized: 0.345, compression_zone_2_mid_normalized: 0.612, compression_zone_3_exit_normalized: 0.467, compression_zone_4_edgeL_normalized: 0.334},
+            {simulation_step: 15, material_type: "LOW_CARBON", rolling_force_normalized: 0.378, deformation_field_normalized: 0.445, compression_ratio_normalized: 0.206, force_field_normalized: 0.601, compression_zone_1_entry_normalized: 0.245, compression_zone_2_mid_normalized: 0.478, compression_zone_3_exit_normalized: 0.345, compression_zone_4_edgeL_normalized: 0.223},
+            {simulation_step: 16, material_type: "MED_CARBON", rolling_force_normalized: 0.456, deformation_field_normalized: 0.523, compression_ratio_normalized: 0.256, force_field_normalized: 0.678, compression_zone_1_entry_normalized: 0.301, compression_zone_2_mid_normalized: 0.556, compression_zone_3_exit_normalized: 0.423, compression_zone_4_edgeL_normalized: 0.289},
+            {simulation_step: 17, material_type: "HIGH_CARBON", rolling_force_normalized: 0.489, deformation_field_normalized: 0.556, compression_ratio_normalized: 0.278, force_field_normalized: 0.701, compression_zone_1_entry_normalized: 0.323, compression_zone_2_mid_normalized: 0.589, compression_zone_3_exit_normalized: 0.445, compression_zone_4_edgeL_normalized: 0.312},
+            {simulation_step: 18, material_type: "LOW_CARBON", rolling_force_normalized: 0.401, deformation_field_normalized: 0.467, compression_ratio_normalized: 0.218, force_field_normalized: 0.623, compression_zone_1_entry_normalized: 0.267, compression_zone_2_mid_normalized: 0.501, compression_zone_3_exit_normalized: 0.367, compression_zone_4_edgeL_normalized: 0.245},
+            {simulation_step: 19, material_type: "MED_CARBON", rolling_force_normalized: 0.434, deformation_field_normalized: 0.501, compression_ratio_normalized: 0.245, force_field_normalized: 0.656, compression_zone_1_entry_normalized: 0.289, compression_zone_2_mid_normalized: 0.534, compression_zone_3_exit_normalized: 0.401, compression_zone_4_edgeL_normalized: 0.267},
+            {simulation_step: 20, material_type: "HIGH_CARBON", rolling_force_normalized: 0.467, deformation_field_normalized: 0.534, compression_ratio_normalized: 0.267, force_field_normalized: 0.689, compression_zone_1_entry_normalized: 0.312, compression_zone_2_mid_normalized: 0.567, compression_zone_3_exit_normalized: 0.434, compression_zone_4_edgeL_normalized: 0.298}
+        ];    
+        
+        // Three.js Animation System
+        class ThreeJSAnimation {
+            constructor() {
+                this.dataRevealed = false;
+                this.simulationActive = false;
+                
+                this.setupEventListeners();
+                this.initializeThreeJS();
+                this.initializeAudio();
+                
+                // Auto-show visualization since we're not using AR markers
+                this.showVisualization();
+            }
+            
+            initializeThreeJS() {
+                const canvas = document.getElementById('visualizationCanvas');
+                if (!canvas) return;
+                
+                // Get the actual container dimensions
+                const container = canvas.parentElement;
+                const width = container.clientWidth;
+                const height = container.clientHeight;
+                
+                // Scene setup - exact same as artwork1.html
+                scene = new THREE.Scene();
+                scene.background = null; // Transparent background
+                
+                // Camera setup with dynamic scaling for different devices
+                camera = new THREE.PerspectiveCamera(75, width / height, 0.1, 1000);
+                
+                // Calculate scale factor based on viewport size
+                const minDimension = Math.min(width, height);
+                const scaleFactor = this.calculateScaleFactor(minDimension);
+                
+                // Apply dynamic camera positioning (artwork2 uses different base position)
+                const baseDistance = 40;
+                const distance = baseDistance * scaleFactor;
+                camera.position.set(0, 0, distance);
+                camera.lookAt(0, 0, 0);
+                
+                // Apply proportional popup scaling
+                const popupScaleFactor = this.calculatePopupScaleFactor(minDimension);
+                this.updatePopupScale(popupScaleFactor);
+                
+                // Renderer setup with transparent background
+                renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true, alpha: true });
+                renderer.setSize(width, height);
+                renderer.setClearColor(0x000000, 0); // Transparent
+                renderer.shadowMap.enabled = true;
+                renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+                
+                // Lighting - exact same as artwork1.html
+                const ambientLight = new THREE.AmbientLight(0x404040, 0.6);
+                scene.add(ambientLight);
+                const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+                directionalLight.position.set(50, 50, 50);
+                scene.add(directionalLight);
+                
+                this.setupMouseControls();
+                this.createCompressionVisualization();
+                this.animate();
+                
+                window.addEventListener('resize', () => this.onWindowResize());
+                // Also handle orientation changes for iPad
+                window.addEventListener('orientationchange', () => {
+                    setTimeout(() => this.onWindowResize(), 100);
+                });
+            }
+            
+            createCompressionVisualization() {
+                // Clear existing spheres
+                compressionSpheres.forEach(sphere => scene.remove(sphere));
+                compressionSpheres = [];
+                
+                const currentScheme = colorSchemes[colorSchemeIndex];
+                const numDataPoints = 500; // Total visualization points
+                
+                // Create spheres for each compression event
+                for (let i = 0; i < numDataPoints; i++) {
+                    const dataPoint = sampleCompressionData[i % sampleCompressionData.length];
+                    const variation = (Math.random() - 0.5) * 0.1;
+                    
+                    // Position based on simulation step and zone - more spread out
+                    const timeProgress = (i / numDataPoints) * 80; // Increased spread over time
+                    const zoneOffset = (i % 4) * 8; // Wider zone spacing
+                    
+                    const x = timeProgress - 40 + (Math.random() - 0.5) * 6; // Wider X spread
+                    // Use full Y range from -15 to +15 by using random distribution plus data influence
+                    const baseY = (Math.random() - 0.5) * 30; // Random from -15 to +15
+                    const dataInfluence = (dataPoint.force_field_normalized + variation - 0.5) * 10; // Data influence -5 to +5
+                    const y = baseY + dataInfluence; // Combined Y position
+                    const z = zoneOffset - 12 + (Math.random() - 0.5) * 4; // Deeper Z spread
+                    
+                    // Size based on rolling force
+                    const baseSize = 0.5;
+                    const sizeMultiplier = 1 + (dataPoint.rolling_force_normalized + variation) * 2;
+                    const sphereRadius = baseSize * sizeMultiplier;
+                    
+                    // Color based on Y-position (height) - darker blues at bottom, brighter at top
+                    // Normalize Y position to 0-1 range (y ranges from -15 to +15, so +15 to get 0-30, then /30)
+                    const normalizedHeight = Math.max(0, Math.min(1, (y + 15) / 30));
+                    // Reverse the index so bottom (low Y) gets dark colors (high index), top (high Y) gets bright colors (low index)
+                    const colorIndex = Math.floor((1 - normalizedHeight) * (currentScheme.colors.length - 1));
+                    const sphereColor = new THREE.Color(currentScheme.colors[colorIndex]);
+                    
+
+                    
+                    // Keep efficiency for animation purposes
+                    const efficiency = (dataPoint.force_field_normalized + dataPoint.deformation_field_normalized) / 2 + variation;
+                    
+                    // Create optimized sphere geometry
+                    const geometry = new THREE.SphereGeometry(sphereRadius, 12, 12); // Reduced complexity
+                    const sphereOpacity = 0.5 + (1 - normalizedHeight) * 0.5;
+                    const material = new THREE.MeshBasicMaterial({
+                        color: sphereColor,
+                        transparent: true,
+                        opacity: sphereOpacity,
+                        wireframe: isWireframe
+                    });
+                    
+                    const sphere = new THREE.Mesh(geometry, material);
+                    sphere.position.set(x, y, z);
+                    
+                    // Store data for animation
+                    sphere.userData = {
+                        originalPosition: { x, y, z },
+                        efficiency: efficiency,
+                        force: dataPoint.rolling_force_normalized + variation,
+                        animationOffset: i * 0.1
+                    };
+                    
+                    scene.add(sphere);
+                    compressionSpheres.push(sphere);
+                }
+            }
+            
+            setupMouseControls() {
+                const canvas = document.getElementById('visualizationCanvas');
+                let isInteracting = false;
+                let previousMousePosition = { x: 0, y: 0 };
+                let previousTouchDistance = 0;
+                
+                // Mouse controls - WebAR best practice approach
+                let isDragging = false;
+                let mouseDownPosition = { x: 0, y: 0 };
+                const dragThreshold = 5; // pixels
+                
+                // Use window event listeners for better WebAR compatibility
+                const onMouseDown = (event) => {
+                    // Only handle if click is on our canvas
+                    if (event.target !== canvas) return;
+                    
+                    isInteracting = true;
+                    mouseDownPosition = { x: event.clientX, y: event.clientY };
+                    previousMousePosition = { x: event.clientX, y: event.clientY };
+                    isDragging = false;
+                    canvas.style.cursor = 'grabbing';
+                };
+                
+                const onMouseMove = (event) => {
+                    if (!isInteracting) return;
+                    
+                    // Calculate distance moved since mousedown
+                    const dx = event.clientX - mouseDownPosition.x;
+                    const dy = event.clientY - mouseDownPosition.y;
+                    const distance = Math.sqrt(dx * dx + dy * dy);
+                    
+                    // If moved beyond threshold, it's a drag
+                    if (distance > dragThreshold) {
+                        isDragging = true;
+                    }
+                    
+                    // Handle camera rotation
+                    const deltaX = event.clientX - previousMousePosition.x;
+                    const deltaY = event.clientY - previousMousePosition.y;
+                    this.rotateCamera(deltaX, deltaY);
+                    previousMousePosition = { x: event.clientX, y: event.clientY };
+                };
+                
+                const onMouseUp = (event) => {
+                    if (!isInteracting) return;
+                    
+                    isInteracting = false;
+                    canvas.style.cursor = 'grab';
+                    
+                    // If not dragging, treat as click
+                    if (!isDragging && event.target === canvas) {
+                        this.handleSphereClick(event, canvas);
+                    }
+                    
+                    isDragging = false;
+                };
+                
+                // Attach to window for WebAR compatibility
+                window.addEventListener('mousedown', onMouseDown);
+                window.addEventListener('mousemove', onMouseMove);
+                window.addEventListener('mouseup', onMouseUp);
+                
+                // Add touch event handlers for iPad/mobile compatibility
+                let touchStartPosition = { x: 0, y: 0 };
+                let isTouchDragging = false;
+                const touchDragThreshold = 10; // pixels
+                
+                const onTouchStart = (event) => {
+                    // Only handle single touch on canvas
+                    if (event.touches.length !== 1) return;
+                    
+                    const touch = event.touches[0];
+                    const target = document.elementFromPoint(touch.clientX, touch.clientY);
+                    
+                    if (target === canvas || canvas.contains(target)) {
+                        touchStartPosition = { x: touch.clientX, y: touch.clientY };
+                        isTouchDragging = false;
+                    }
+                };
+                
+                const onTouchMove = (event) => {
+                    if (event.touches.length !== 1) return;
+                    
+                    const touch = event.touches[0];
+                    const dx = touch.clientX - touchStartPosition.x;
+                    const dy = touch.clientY - touchStartPosition.y;
+                    const distance = Math.sqrt(dx * dx + dy * dy);
+                    
+                    if (distance > touchDragThreshold) {
+                        isTouchDragging = true;
+                    }
+                };
+                
+                const onTouchEnd = (event) => {
+                    if (event.changedTouches.length !== 1) return;
+                    
+                    const touch = event.changedTouches[0];
+                    const target = document.elementFromPoint(touch.clientX, touch.clientY);
+                    
+                    // If not dragging and touch ended on canvas, treat as click
+                    if (!isTouchDragging && (target === canvas || canvas.contains(target))) {
+                        // Create a synthetic mouse event for handleSphereClick
+                        const syntheticEvent = {
+                            clientX: touch.clientX,
+                            clientY: touch.clientY,
+                            target: canvas
+                        };
+                        this.handleSphereClick(syntheticEvent, canvas);
+                    }
+                    
+                    isTouchDragging = false;
+                };
+                
+                // Attach touch event listeners to window
+                window.addEventListener('touchstart', onTouchStart, { passive: true });
+                window.addEventListener('touchmove', onTouchMove, { passive: true });
+                window.addEventListener('touchend', onTouchEnd, { passive: true });
+                
+                canvas.addEventListener('mouseleave', () => {
+                    isInteracting = false;
+                    canvas.style.cursor = 'grab';
+                    isDragging = false;
+                });
+                
+                // Mouse wheel zoom
+                canvas.addEventListener('wheel', (event) => {
+                    const zoomSpeed = 0.1;
+                    const zoomDirection = event.deltaY > 0 ? 1 : -1;
+                    this.zoomCamera(zoomDirection * zoomSpeed);
+                    event.preventDefault();
+                });
+                
+                // Touch controls for mobile
+                canvas.addEventListener('touchstart', (event) => {
+                    event.preventDefault();
+                    
+                    if (event.touches.length === 1) {
+                        // Single touch - rotation
+                        isInteracting = true;
+                        const touch = event.touches[0];
+                        previousMousePosition = { x: touch.clientX, y: touch.clientY };
+                    } else if (event.touches.length === 2) {
+                        // Two finger pinch - zoom
+                        const touch1 = event.touches[0];
+                        const touch2 = event.touches[1];
+                        const distance = Math.sqrt(
+                            Math.pow(touch2.clientX - touch1.clientX, 2) +
+                            Math.pow(touch2.clientY - touch1.clientY, 2)
+                        );
+                        previousTouchDistance = distance;
+                    }
+                });
+                
+                canvas.addEventListener('touchmove', (event) => {
+                    event.preventDefault();
+                    
+                    if (event.touches.length === 1 && isInteracting) {
+                        // Single touch rotation
+                        const touch = event.touches[0];
+                        const deltaX = touch.clientX - previousMousePosition.x;
+                        const deltaY = touch.clientY - previousMousePosition.y;
+                        
+                        this.rotateCamera(deltaX, deltaY);
+                        
+                        previousMousePosition = { x: touch.clientX, y: touch.clientY };
+                    } else if (event.touches.length === 2) {
+                        // Two finger pinch zoom
+                        const touch1 = event.touches[0];
+                        const touch2 = event.touches[1];
+                        const distance = Math.sqrt(
+                            Math.pow(touch2.clientX - touch1.clientX, 2) +
+                            Math.pow(touch2.clientY - touch1.clientY, 2)
+                        );
+                        
+                        if (previousTouchDistance > 0) {
+                            const zoomDelta = (distance - previousTouchDistance) * 0.01;
+                            this.zoomCamera(-zoomDelta);
+                        }
+                        
+                        previousTouchDistance = distance;
+                    }
+                });
+                
+                canvas.addEventListener('touchend', (event) => {
+                    event.preventDefault();
+                    isInteracting = false;
+                    previousTouchDistance = 0;
+                });
+            }
+            
+            rotateCamera(deltaX, deltaY) {
+                const rotationSpeed = 0.005;
+                const spherical = new THREE.Spherical();
+                spherical.setFromVector3(camera.position);
+                
+                spherical.theta -= deltaX * rotationSpeed;
+                spherical.phi += deltaY * rotationSpeed;
+                
+                // Constrain phi to prevent flipping
+                spherical.phi = Math.max(0.1, Math.min(Math.PI - 0.1, spherical.phi));
+                
+                camera.position.setFromSpherical(spherical);
+                camera.lookAt(0, 0, 0);
+            }
+            
+            zoomCamera(delta) {
+                const direction = camera.position.clone().normalize();
+                const newPosition = camera.position.clone().add(direction.multiplyScalar(delta));
+                
+                // Constrain zoom distance
+                const minDistance = 5;
+                const maxDistance = 100;
+                const distance = newPosition.length();
+                
+                if (distance >= minDistance && distance <= maxDistance) {
+                    camera.position.copy(newPosition);
+                }
+            }
+            
+            resetCameraPosition() {
+                // Reset to original camera position and angle
+                camera.position.set(30, 20, 30);
+                camera.lookAt(0, 0, 0);
+            }
+            
+            setupEventListeners() {
+                // Data button toggles the data overlay
+                const dataBtn = document.getElementById('dataBtn');
+                if (dataBtn) {
+                    dataBtn.addEventListener('click', () => {
+                        this.toggleDataOverlay();
+                    });
+                }
+                
+                const audioBtn = document.getElementById('audioBtn');
+                if (audioBtn) {
+                    audioBtn.addEventListener('click', () => {
+                        this.toggleAudio();
+                    });
+                }
+                
+                // Close overlay when clicking the close button
+                const closeBtn = document.getElementById('overlayClose');
+                if (closeBtn) {
+                    closeBtn.addEventListener('click', () => {
+                        this.hideDataOverlay();
+                    });
+                }
+                
+                // Add sphere click detection
+                this.setupSphereClickDetection();
+            }
+            
+            showVisualization() {
+                const container = document.querySelector('.visualization-container');
+                container.classList.add('active');
+                
+                // Start animation when visualization becomes active
+                isAnimating = true;
+                
+                // Fade in AR UI elements when marker is detected
+                this.showARInterface();
+                
+                // Start data flow visualization
+                setTimeout(() => {
+                    this.startDataFlowVisualization();
+                }, 1000);
+            }
+            
+            showARInterface() {
+                // Fade in AR controls and title
+                const arControls = document.querySelector('.ar-controls-container');
+                if (arControls) {
+                    // Immediate activation without delay to match work1.html
+                    arControls.classList.add('ar-active');
+                }
+                
+                // Fade in audio progress bar if audio is playing
+                const audioProgress = document.querySelector('.audio-progress-container');
+                if (audioProgress && audioPlaying) {
+                    setTimeout(() => {
+                        audioProgress.classList.add('ar-active');
+                    }, 800); // Staggered appearance
+                }
+            }
+            
+            hideARInterface() {
+                // Fade out AR controls and title
+                const arControls = document.querySelector('.ar-controls-container');
+                if (arControls) {
+                    arControls.classList.remove('ar-active');
+                }
+                
+                // Fade out audio progress bar
+                const audioProgress = document.querySelector('.audio-progress-container');
+                if (audioProgress) {
+                    audioProgress.classList.remove('ar-active');
+                }
+            }
+            
+            hideVisualization() {
+                const container = document.querySelector('.visualization-container');
+                container.classList.remove('active');
+            }
+            
+            resetExperience() {
+                // Stop all animations and audio
+                this.stopDataCycling();
+                this.stopAudio();
+                
+                // Hide all UI elements
+                const arControls = document.querySelector('.ar-controls-container');
+                if (arControls) {
+                    arControls.classList.remove('ar-active');
+                }
+                
+                // Hide data overlay if visible
+                this.hideDataOverlay();
+                
+                // Hide visualization
+                this.dataRevealed = false;
+                this.hideVisualization();
+                
+                // Stop data flow visualization
+                this.stopDataFlowVisualization();
+                
+                // Stop audio if playing
+                if (audioPlaying) {
+                    this.stopAudio();
+                }
+                
+                // Reset UI states
+                document.getElementById('dataPanel').classList.remove('visible');
+                
+                isAnimating = false;
+            }
+            
+            setupSphereClickDetection() {
+                const canvas = document.getElementById('visualizationCanvas');
+                if (!canvas) return;
+                
+                // Initialize raycaster and mouse as class properties
+                this.raycaster = new THREE.Raycaster();
+                this.mouse = new THREE.Vector2();
+            }
+            
+            handleSphereClick(event, canvas) {
+                // Calculate mouse position in normalized device coordinates
+                const rect = canvas.getBoundingClientRect();
+                this.mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+                this.mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+                
+                // Update raycaster
+                this.raycaster.setFromCamera(this.mouse, camera);
+                
+                // Check for intersections with spheres
+                const intersects = this.raycaster.intersectObjects(compressionSpheres);
+                
+                // Accept any canvas click for interaction
+                if (this.dataRevealed) {
+                    this.cycleToNextDataset();
+                } else {
+                    this.showDataOverlay();
+                }
+            }
+            
+            startDataFlowVisualization() {
+                // Create pulse geometry and material - brighter and more noticeable
+                pulseGeometry = new THREE.SphereGeometry(0.15, 12, 12);
+                pulseMaterial = new THREE.MeshBasicMaterial({
+                    color: 0x00FFFF, // Bright cyan
+                    transparent: true,
+                    opacity: 1.0
+                });
+                
+                // Start creating data flow pulses - optimized frequency
+                dataFlowInterval = setInterval(() => {
+                    this.createDataFlowPulse();
+                }, 800); // Reduced from 400ms to 800ms for better performance
+            }
+            
+            stopDataFlowVisualization() {
+                if (dataFlowInterval) {
+                    clearInterval(dataFlowInterval);
+                    dataFlowInterval = null;
+                }
+                
+                // Remove all existing pulses
+                dataFlowPulses.forEach(pulse => {
+                    if (pulse.mesh && pulse.mesh.parent) {
+                        scene.remove(pulse.mesh);
+                    }
+                });
+                dataFlowPulses = [];
+            }
+            
+            createDataFlowPulse() {
+                if (!isAnimating || compressionSpheres.length === 0) return;
+                
+                // Randomly choose a target sphere
+                const targetSphereIndex = Math.floor(Math.random() * compressionSpheres.length);
+                const targetSphere = compressionSpheres[targetSphereIndex];
+                
+                // Create pulse mesh
+                const pulseMesh = new THREE.Mesh(pulseGeometry, pulseMaterial.clone());
+                pulseMesh.position.set(0, 0, 0); // Start at center
+                scene.add(pulseMesh);
+                
+                // Create pulse data object
+                const pulse = {
+                    mesh: pulseMesh,
+                    startPos: new THREE.Vector3(0, 0, 0),
+                    endPos: targetSphere.position.clone(),
+                    progress: 0,
+                    speed: 0.8 + Math.random() * 0.4, // Random speed between 0.8-1.2
+                    lifeTime: 0,
+                    maxLifeTime: 3000 // 3 seconds max life
+                };
+                
+                dataFlowPulses.push(pulse);
+            }
+            
+            updateDataFlowPulses() {
+                if (!isAnimating) return;
+                
+                const deltaTime = 16;
+                
+                for (let i = dataFlowPulses.length - 1; i >= 0; i--) {
+                    const pulse = dataFlowPulses[i];
+                    pulse.lifeTime += deltaTime;
+                    
+                    // Update pulse position
+                    pulse.progress += pulse.speed * (deltaTime / 1000);
+                    
+                    if (pulse.progress >= 1.0) {
+                        // Pulse reached target - create brief highlight effect
+                        this.createNodeHighlight(pulse.endPos);
+                        
+                        // Remove pulse
+                        if (pulse.mesh && pulse.mesh.parent) {
+                            scene.remove(pulse.mesh);
+                        }
+                        dataFlowPulses.splice(i, 1);
+                        continue;
+                    }
+                    
+                    // Optimized position interpolation
+                    pulse.mesh.position.lerpVectors(
+                        pulse.startPos, 
+                        pulse.endPos, 
+                        this.easeInOutCubic(pulse.progress)
+                    );
+                    
+                    // Fade out as it approaches target
+                    const fadeStart = 0.7;
+                    if (pulse.progress > fadeStart) {
+                        const fadeProgress = (pulse.progress - fadeStart) / (1.0 - fadeStart);
+                        pulse.mesh.material.opacity = 0.8 * (1.0 - fadeProgress);
+                    }
+                    
+                    // Scale pulse more dramatically for visual interest
+                    const scale = 1.0 + Math.sin(pulse.lifeTime * 0.02) * 0.4;
+                    pulse.mesh.scale.setScalar(scale);
+                    
+                    // Add pulsing glow effect
+                    const glowIntensity = 0.5 + Math.sin(pulse.lifeTime * 0.03) * 0.5;
+                    pulse.mesh.material.opacity = glowIntensity;
+                    
+                    // Remove old pulses
+                    if (pulse.lifeTime > pulse.maxLifeTime) {
+                        if (pulse.mesh && pulse.mesh.parent) {
+                            scene.remove(pulse.mesh);
+                        }
+                        dataFlowPulses.splice(i, 1);
+                    }
+                }
+            }
+            
+            createNodeHighlight(position) {
+                // Create a much brighter and more noticeable glow effect
+                const glowGeometry = new THREE.SphereGeometry(0.5, 20, 20);
+                const glowMaterial = new THREE.MeshBasicMaterial({
+                    color: 0x00FFFF, // Bright cyan
+                    transparent: true,
+                    opacity: 0.9
+                });
+                
+                const glowMesh = new THREE.Mesh(glowGeometry, glowMaterial);
+                glowMesh.position.copy(position);
+                scene.add(glowMesh);
+                
+                // Animate glow expansion and fade - longer duration, more dramatic
+                const startTime = Date.now();
+                const duration = 800; // 0.8 seconds (longer)
+                
+                const animateGlow = () => {
+                    const elapsed = Date.now() - startTime;
+                    const progress = elapsed / duration;
+                    
+                    if (progress >= 1.0) {
+                        scene.remove(glowMesh);
+                        return;
+                    }
+                    
+                    // More dramatic expand and fade
+                    const scale = 1.0 + progress * 3.5; // Larger expansion
+                    const opacity = 0.9 * (1.0 - progress * progress); // Quadratic fade for more impact
+                    
+                    glowMesh.scale.setScalar(scale);
+                    glowMesh.material.opacity = opacity;
+                    
+                    requestAnimationFrame(animateGlow);
+                };
+                
+                animateGlow();
+            }
+            
+            easeInOutCubic(t) {
+                return t < 0.5 ? 4 * t * t * t : (t - 1) * (2 * t - 2) * (2 * t - 2) + 1;
+            }
+            
+            highlightCoreSystem() {
+                // Briefly highlight the central core
+                if (centralCore) {
+                    const originalColor = centralCore.material.color.getHex();
+                    centralCore.material.color.setHex(0x85C8DB);
+                    
+                    setTimeout(() => {
+                        centralCore.material.color.setHex(originalColor);
+                    }, 1000);
+                }
+            }
+            
+            highlightActiveNodes() {
+                // Highlight random subset of spheres
+                const spheresToHighlight = Math.floor(compressionSpheres.length * 0.1); // 10% of spheres
+                const highlightedIndices = [];
+                
+                for (let i = 0; i < spheresToHighlight; i++) {
+                    const randomIndex = Math.floor(Math.random() * compressionSpheres.length);
+                    if (!highlightedIndices.includes(randomIndex)) {
+                        highlightedIndices.push(randomIndex);
+                        const sphere = compressionSpheres[randomIndex];
+                        const originalColor = sphere.material.color.getHex();
+                        
+                        sphere.material.color.setHex(0x85C8DB);
+                        
+                        setTimeout(() => {
+                            sphere.material.color.setHex(originalColor);
+                        }, 1500);
+                    }
+                }
+            }
+            
+            highlightNetworkConnections() {
+                // Highlight random subset of connections
+                const connectionsToHighlight = Math.floor(networkEdges.length * 0.15); // 15% of edges
+                
+                for (let i = 0; i < connectionsToHighlight; i++) {
+                    const randomIndex = Math.floor(Math.random() * networkEdges.length);
+                    const edge = networkEdges[randomIndex];
+                    const originalColor = edge.material.color.getHex();
+                    const originalOpacity = edge.material.opacity;
+                    
+                    edge.material.color.setHex(0x85C8DB);
+                    edge.material.opacity = 1.0;
+                    
+                    setTimeout(() => {
+                        edge.material.color.setHex(originalColor);
+                        edge.material.opacity = originalOpacity;
+                    }, 1200);
+                }
+            }
+            
+            highlightDataFlow() {
+                // Create a wave effect through the compression spheres
+                compressionSpheres.forEach((sphere, index) => {
+                    setTimeout(() => {
+                        const originalColor = sphere.material.color.getHex();
+                        sphere.material.color.setHex(0x6A9FAF);
+                        
+                        setTimeout(() => {
+                            sphere.material.color.setHex(originalColor);
+                        }, 300);
+                    }, index * 2); // Stagger the wave effect
+                });
+            }
+            
+            toggleDataOverlay() {
+                this.dataRevealed = !this.dataRevealed;
+                const overlay = document.getElementById('dataOverlay');
+                if (this.dataRevealed) {
+                    this.showDataOverlay();
+                } else {
+                    this.hideDataOverlay();
+                }
+            }
+            
+            showDataOverlay() {
+                const overlay = document.getElementById('dataOverlay');
+                if (overlay) {
+                    // Remove any fade-out class and prepare for fade-in
+                    overlay.classList.remove('fade-out');
+                    overlay.style.display = 'block';
+                    
+                    // Force a reflow to ensure the display change takes effect
+                    overlay.offsetHeight;
+                    
+                    // Add active class for smooth fade-in animation
+                    overlay.classList.add('active');
+                    this.dataRevealed = true;
+                    
+                    // Start dynamic data cycling for control room effect
+                    this.startDataCycling();
+                }
+            }
+            
+            hideDataOverlay() {
+                const overlay = document.getElementById('dataOverlay');
+                if (overlay) {
+                    // Add fade-out class for smooth animation
+                    overlay.classList.remove('active');
+                    overlay.classList.add('fade-out');
+                    this.dataRevealed = false;
+                    
+                    // Stop data cycling
+                    this.stopDataCycling();
+                    
+                    // Hide overlay after fade-out animation completes (400ms)
+                    setTimeout(() => {
+                        if (overlay.classList.contains('fade-out')) {
+                            overlay.style.display = 'none';
+                            overlay.classList.remove('fade-out');
+                        }
+                    }, 400);
+                }
+            }
+            
+            startDataCycling() {
+                // Clear any existing cycling interval
+                this.stopDataCycling();
+                
+                // Initialize dynamic calculation system
+                this.initializeCalculationSystem();
+                
+                // Start with first metric (Rolling Force)
+                this.currentDatasetIndex = 0;
+                
+                // Update immediately
+                this.updateDataDisplay();
+                
+                // Set fast cycling interval for control room effect (400ms for rapid updates)
+                this.dataCyclingInterval = setInterval(() => {
+                    this.updateDataDisplay();
+                }, 400);
+            }
+            
+            initializeCalculationSystem() {
+                // Initialize calculation parameters and base values
+                this.calculationStartTime = Date.now();
+                this.systemState = {
+                    temperature: 850, // Base temperature in °C
+                    pressure: 12.5,   // Base pressure in MPa
+                    speed: 2.3,       // Rolling speed in m/s
+                    efficiency: 0.89  // Base efficiency factor
+                };
+                
+                // Define metric calculation parameters
+                this.metrics = [
+                    {
+                        label: 'Rolling Force',
+                        unit: 'kN',
+                        baseValue: 1248,
+                        variance: 4,
+                        frequency: 0.8,
+                        noiseLevel: 0.3,
+                        calculate: (time, state) => {
+                            const cyclicVariation = Math.sin(time * this.metrics[0].frequency) * this.metrics[0].variance;
+                            const pressureInfluence = (state.pressure - 12.5) * 15;
+                            const speedInfluence = (state.speed - 2.3) * 8;
+                            const noise = (Math.random() - 0.5) * this.metrics[0].noiseLevel;
+                            return this.metrics[0].baseValue + cyclicVariation + pressureInfluence + speedInfluence + noise;
+                        }
+                    },
+                    {
+                        label: 'Compression',
+                        unit: '%',
+                        baseValue: 73.3,
+                        variance: 0.4,
+                        frequency: 1.2,
+                        noiseLevel: 0.1,
+                        calculate: (time, state) => {
+                            const cyclicVariation = Math.cos(time * this.metrics[1].frequency) * this.metrics[1].variance;
+                            const temperatureInfluence = (state.temperature - 850) * 0.002;
+                            const efficiencyInfluence = (state.efficiency - 0.89) * 2;
+                            const noise = (Math.random() - 0.5) * this.metrics[1].noiseLevel;
+                            return this.metrics[1].baseValue + cyclicVariation + temperatureInfluence + efficiencyInfluence + noise;
+                        }
+                    },
+                    {
+                        label: 'Process Efficiency',
+                        unit: '%',
+                        baseValue: 89.2,
+                        variance: 0.3,
+                        frequency: 0.6,
+                        noiseLevel: 0.08,
+                        calculate: (time, state) => {
+                            const cyclicVariation = Math.sin(time * this.metrics[2].frequency + Math.PI/4) * this.metrics[2].variance;
+                            const temperatureOptimal = 1 - Math.abs(state.temperature - 850) * 0.0001;
+                            const speedOptimal = 1 - Math.abs(state.speed - 2.3) * 0.05;
+                            const noise = (Math.random() - 0.5) * this.metrics[2].noiseLevel;
+                            return (this.metrics[2].baseValue + cyclicVariation) * temperatureOptimal * speedOptimal + noise;
+                        }
+                    },
+                    {
+                        label: 'Material Flow',
+                        unit: '%',
+                        baseValue: 94.1,
+                        variance: 0.25,
+                        frequency: 1.5,
+                        noiseLevel: 0.06,
+                        calculate: (time, state) => {
+                            const cyclicVariation = Math.sin(time * this.metrics[3].frequency + Math.PI/2) * this.metrics[3].variance;
+                            const speedInfluence = (state.speed - 2.3) * 0.8;
+                            const efficiencyInfluence = (state.efficiency - 0.89) * 3;
+                            const compressionInfluence = (this.getCurrentCompression() - 73.3) * 0.1;
+                            const noise = (Math.random() - 0.5) * this.metrics[3].noiseLevel;
+                            return this.metrics[3].baseValue + cyclicVariation + speedInfluence + efficiencyInfluence + compressionInfluence + noise;
+                        }
+                    }
+                ];
+                
+                // Slowly evolving system parameters
+                this.parameterEvolution = setInterval(() => {
+                    const evolutionTime = (Date.now() - this.calculationStartTime) / 10000; // Slow evolution
+                    this.systemState.temperature = 850 + Math.sin(evolutionTime * 0.3) * 5;
+                    this.systemState.pressure = 12.5 + Math.cos(evolutionTime * 0.2) * 0.3;
+                    this.systemState.speed = 2.3 + Math.sin(evolutionTime * 0.4) * 0.1;
+                    this.systemState.efficiency = 0.89 + Math.cos(evolutionTime * 0.15) * 0.02;
+                }, 2000);
+            }
+            
+            getCurrentCompression() {
+                // Helper method to get current compression value for interdependent calculations
+                if (this.metrics && this.metrics[1]) {
+                    const time = (Date.now() - this.calculationStartTime) / 1000;
+                    return this.metrics[1].calculate(time, this.systemState);
+                }
+                return 73.3;
+            }
+            
+            stopDataCycling() {
+                if (this.dataCyclingInterval) {
+                    clearInterval(this.dataCyclingInterval);
+                    this.dataCyclingInterval = null;
+                }
+                
+                // Stop parameter evolution
+                if (this.parameterEvolution) {
+                    clearInterval(this.parameterEvolution);
+                    this.parameterEvolution = null;
+                }
+            }
+            
+            updateDataDisplay() {
+                const valueElement = document.getElementById('metricValue');
+                const unitElement = document.getElementById('metricUnit');
+                const labelElement = document.getElementById('metricLabel');
+                
+                if (valueElement && unitElement && labelElement && this.metrics) {
+                    const currentMetric = this.metrics[this.currentDatasetIndex];
+                    const time = (Date.now() - this.calculationStartTime) / 1000;
+                    
+                    // Calculate current value using dynamic formula
+                    const calculatedValue = currentMetric.calculate(time, this.systemState);
+                    
+                    // Format value based on metric type
+                    let displayValue;
+                    if (currentMetric.unit === 'kN') {
+                        displayValue = Math.round(calculatedValue);
+                    } else {
+                        displayValue = calculatedValue.toFixed(1);
+                    }
+                    
+                    valueElement.textContent = displayValue;
+                    unitElement.textContent = currentMetric.unit;
+                    labelElement.textContent = currentMetric.label;
+                }
+            }
+            
+            // Method to cycle to next metric when user clicks while overlay is open
+            cycleToNextDataset() {
+                if (this.dataRevealed && this.metrics) {
+                    this.currentDatasetIndex = (this.currentDatasetIndex + 1) % this.metrics.length;
+                    this.updateDataDisplay();
+                }
+            }
+            
+            exitARExperience() {
+                // Stop all AR activities and clean up
+                this.stopDataCycling();
+                this.hideDataOverlay();
+                this.stopAudio();
+                this.stopDataFlowVisualization();
+                
+                // For AR context - close the browser tab/window to return to iPad home
+                try {
+                    // Try to close the current tab/window
+                    window.close();
+                } catch (e) {
+                    // If window.close() doesn't work (security restrictions), try alternative methods
+                    try {
+                        // For iOS Safari/WebView - try to navigate to a special URL that closes the app
+                        window.location.href = 'about:blank';
+                        // Or try to minimize/hide the browser
+                        if (navigator.userAgent.includes('iPad') || navigator.userAgent.includes('iPhone')) {
+                            // For iOS devices, try to trigger home button behavior
+                            window.location.href = 'x-web-search://';
+                        }
+                    } catch (e2) {
+                        // Fallback - show confirmation and redirect to a blank page
+                        if (confirm('Exit AR Experience?')) {
+                            window.location.href = 'about:blank';
+                        }
+                    }
+                }
+            }
+            
+            initializeAudio() {
+                audioElement = document.getElementById('artworkAudio');
+                
+                audioElement.addEventListener('loadedmetadata', () => {
+                    this.updateAudioTime();
+                });
+                
+                audioElement.addEventListener('timeupdate', () => {
+                    this.updateAudioProgress();
+                });
+                
+                audioElement.addEventListener('ended', () => {
+                    this.stopAudio();
+                });
+            }
+            
+            toggleAudio() {
+                if (audioPlaying) {
+                    this.stopAudio();
+                } else {
+                    this.playAudio();
+                }
+            }
+            
+            playAudio() {
+                if (audioElement) {
+                    audioElement.play().then(() => {
+                        audioPlaying = true;
+                        this.showAudioProgress();
+                        this.updateAudioButton();
+                        this.startAudioProgressUpdate();
+                    }).catch(error => {
+                        console.error('Audio playback failed:', error);
+                    });
+                }
+            }
+            
+            stopAudio() {
+                if (audioElement) {
+                    audioElement.pause();
+                    audioElement.currentTime = 0;
+                    audioPlaying = false;
+                    this.hideAudioProgress();
+                    this.updateAudioButton();
+                    this.stopAudioProgressUpdate();
+                }
+            }
+            
+            showAudioProgress() {
+                const progressContainer = document.getElementById('audioProgress');
+                progressContainer.classList.add('visible');
+                
+                // Also add AR active class if AR interface is shown
+                if (this.experienceTriggered) {
+                    progressContainer.classList.add('ar-active');
+                }
+            }
+            
+            hideAudioProgress() {
+                const progressContainer = document.getElementById('audioProgress');
+                progressContainer.classList.remove('visible');
+                progressContainer.classList.remove('ar-active');
+            }
+            
+            updateAudioButton() {
+                const audioBtn = document.getElementById('audioBtn');
+                const icon = audioBtn.querySelector('i');
+                
+                if (audioPlaying) {
+                    icon.className = 'bi bi-pause-fill';
+                    audioBtn.classList.add('active');
+                } else {
+                    icon.className = 'bi bi-volume-up-fill';
+                    audioBtn.classList.remove('active');
+                }
+            }
+            
+            startAudioProgressUpdate() {
+                audioProgressInterval = setInterval(() => {
+                    this.updateAudioProgress();
+                    this.updateAudioTime();
+                }, 100);
+            }
+            
+            stopAudioProgressUpdate() {
+                if (audioProgressInterval) {
+                    clearInterval(audioProgressInterval);
+                    audioProgressInterval = null;
+                }
+            }
+            
+            updateAudioProgress() {
+                if (audioElement && audioElement.duration) {
+                    const progress = (audioElement.currentTime / audioElement.duration) * 100;
+                    const progressFill = document.getElementById('progressFill');
+                    progressFill.style.width = progress + '%';
+                }
+            }
+            
+            updateAudioTime() {
+                if (audioElement) {
+                    const current = this.formatTime(audioElement.currentTime || 0);
+                    const duration = this.formatTime(audioElement.duration || 0);
+                    const timeDisplay = document.getElementById('audioTime');
+                    timeDisplay.textContent = `${current} / ${duration}`;
+                }
+            }
+            
+            formatTime(seconds) {
+                const mins = Math.floor(seconds / 60);
+                const secs = Math.floor(seconds % 60);
+                return `${mins}:${secs.toString().padStart(2, '0')}`;
+            }
+            
+            animate() {
+                requestAnimationFrame(() => this.animate());
+                
+                if (isAnimating) {
+                    const time = Date.now() * 0.001;
+                    
+                    // Simple floating animation for compression spheres
+                    compressionSpheres.forEach((sphere, i) => {
+                        const userData = sphere.userData;
+                        const animationTime = time + userData.animationOffset;
+                        
+                        // Gentle floating motion - simple up and down movement
+                        const floatY = Math.sin(animationTime * 0.5 + i * 0.1) * 0.8;
+                        const floatX = Math.cos(animationTime * 0.3 + i * 0.15) * 0.4;
+                        
+                        sphere.position.x = userData.originalPosition.x + floatX;
+                        sphere.position.y = userData.originalPosition.y + floatY;
+                        sphere.position.z = userData.originalPosition.z;
+                        
+                        // Gentle pulsing based on efficiency
+                        const pulse = 1 + Math.sin(animationTime * 1.5 + i * 0.2) * 0.1 * userData.efficiency;
+                        sphere.scale.set(pulse, pulse, pulse);
+                    });
+                }
+                
+                // Update data flow pulses
+                this.updateDataFlowPulses();
+                
+                if (renderer && scene && camera) {
+                    renderer.render(scene, camera);
+                }
+            }
+            
+            calculateScaleFactor(minDimension) {
+                // Define breakpoints for different device sizes
+                // iPad: ~768px minimum dimension
+                // Large phone: ~414px minimum dimension  
+                // Small phone: ~375px minimum dimension
+                
+                // INVERTED LOGIC: Larger scale factor = camera farther away = graphic appears smaller
+                if (minDimension >= 768) {
+                    // iPad size - use original distance
+                    return 1.0;
+                } else if (minDimension >= 414) {
+                    // Large phone - move camera farther to make graphic smaller
+                    return 1.4;
+                } else if (minDimension >= 375) {
+                    // Medium phone - move camera even farther
+                    return 1.6;
+                } else {
+                    // Small phone - move camera farthest away
+                    return 1.8;
+                }
+            }
+            
+            calculatePopupScaleFactor(minDimension) {
+                // Popup should scale DOWN on smaller devices (opposite of camera scaling)
+                // This makes the popup proportionally smaller to match the smaller graphic
+                if (minDimension >= 768) {
+                    // iPad size - use original popup size
+                    return 1.0;
+                } else if (minDimension >= 414) {
+                    // Large phone - make popup smaller
+                    return 0.75;
+                } else if (minDimension >= 375) {
+                    // Medium phone - make popup even smaller
+                    return 0.65;
+                } else {
+                    // Small phone - make popup smallest
+                    return 0.55;
+                }
+            }
+            
+            updatePopupScale(scaleFactor) {
+                const dataOverlay = document.getElementById('dataOverlay');
+                if (dataOverlay) {
+                    // Apply scale to the popup while maintaining its transform origin
+                    dataOverlay.style.setProperty('--popup-scale', scaleFactor);
+                }
+            }
+            
+            onWindowResize() {
+                if (!camera || !renderer) return;
+                
+                // Get the actual container dimensions (not window dimensions)
+                const canvas = document.getElementById('visualizationCanvas');
+                if (!canvas) return;
+                
+                const container = canvas.parentElement;
+                const width = container.clientWidth;
+                const height = container.clientHeight;
+                
+                // Recalculate camera position for new dimensions
+                const minDimension = Math.min(width, height);
+                const scaleFactor = this.calculateScaleFactor(minDimension);
+                
+                // Update camera aspect ratio
+                camera.aspect = width / height;
+                camera.updateProjectionMatrix();
+                
+                // Update camera position with new scale factor (artwork2 uses different base position)
+                const baseDistance = 40;
+                const distance = baseDistance * scaleFactor;
+                camera.position.set(0, 0, distance);
+                camera.lookAt(0, 0, 0);
+                
+                // Update popup scaling proportionally
+                const popupScaleFactor = this.calculatePopupScaleFactor(minDimension);
+                this.updatePopupScale(popupScaleFactor);
+                
+                // Update renderer size to match container
+                renderer.setSize(width, height);
+                
+                // Force a render to apply changes immediately
+                if (scene && camera) {
+                    renderer.render(scene, camera);
+                }
+            }
+        }
+        
+        // Initialize Three.js Animation
+        let animation;
+        window.addEventListener('DOMContentLoaded', () => {
+            animation = new ThreeJSAnimation();
+            
+            // Make controls visible immediately on page load (matching work1.html behavior)
+            const controlsContainer = document.getElementById('controlsContainer');
+            if (controlsContainer) {
+                controlsContainer.classList.add('ar-active');
+            }
+        });
+        
+
+    </script>
+    
+    <!-- No navigation system needed -->
+</body>
+</html>

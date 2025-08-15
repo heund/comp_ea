@@ -1,0 +1,1312 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Machine Correction Network AR">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="theme-color" content="#0a0a0a">
+    <link rel="manifest" href="../manifest.json">
+    <title>Machine Correction Network AR</title>
+    
+    <!-- A-Frame for AR -->
+    <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
+    <!-- AR.js for marker tracking -->
+    <script src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js@3.4.5/aframe/build/aframe-ar.js"></script>
+    <!-- Three.js for 3D visualization -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <!-- Bootstrap Icons for UI buttons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+    <!-- Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Navigation Buttons CSS Only -->
+    <link rel="stylesheet" href="./shared/nav-buttons.css">
+    <!-- Global Styles -->
+    <link rel="stylesheet" href="./shared/style.css">
+</head>
+<body>
+    <div class="ar-detection-container" id="arDetection">
+        <div class="ar-detection-box" id="arDetectionBox"></div>
+        <div class="ar-detection-text" id="arDetectionText">AR 마커를 스캔해주세요</div>
+    </div>
+    
+    <!-- Three.js Visualization Container -->
+    <div class="visualization-container" id="visualizationContainer">
+        <canvas id="visualizationCanvas"></canvas>
+        
+        <!-- Futuristic Data Overlay - EXACT copy from artwork1.html -->
+        <div class="data-overlay" id="dataOverlay">
+            <div class="overlay-rings">
+                <div class="ring"></div>
+                <div class="ring"></div>
+            </div>
+            <div class="data-content">
+                <div class="metric-value-large" id="metricValue">1247</div>
+                <div class="metric-unit" id="metricUnit">kN</div>
+                <div class="metric-label-large" id="metricLabel">Rolling Force</div>
+            </div>
+            <div class="data-overlay-close" id="overlayClose">×</div>
+        </div>
+    </div>
+    
+    <!-- AR Title - Now independent from controls -->
+    <div class="ar-title-container">
+        <div class="ar-title">AR 작품 시각화</div>
+    </div>
+    
+    <!-- AR Controls with Bootstrap Icons -->
+    <div class="ar-controls-container">
+        <div class="ar-controls">
+            <button class="control-btn" id="dataBtn" title="Reveal Data">
+                <i class="bi bi-bar-chart"></i>
+            </button>
+            <button class="control-btn" id="audioBtn" title="Toggle Audio">
+                <i class="bi bi-volume-up"></i>
+            </button>
+            <button class="control-btn" id="exitBtn" title="Exit to Gallery">
+                <i class="bi bi-x-circle"></i>
+            </button>
+        </div>
+    </div>
+    
+    <!-- A-Frame AR Scene -->
+    <a-scene id="arScene" embedded vr-mode-ui="enabled: false" arjs="sourceType: webcam; debugUIEnabled: false; detectionMode: mono_and_matrix; matrixCodeType: 3x3; trackingMethod: best; patternRatio: 0.8; sourceWidth: 1280; sourceHeight: 960; displayWidth: 1280; displayHeight: 960;" renderer="logarithmicDepthBuffer: true; antialias: true; precision: high;" inspector="https://cdn.jsdelivr.net/gh/aframevr/aframe-inspector@master/dist/aframe-inspector.min.js">
+        
+        <!-- Camera with user-gesture-required removed for better iOS compatibility -->
+        <a-entity camera></a-entity>
+        
+        <!-- Marker for data1 -->
+        <a-marker id="template" type="pattern" url="./pattern-ar_code_test2.patt" emitevents="true" smooth="true" smoothCount="5" smoothTolerance="0.01" smoothThreshold="2" raycaster="objects: .clickable" cursor="fuse: false">
+            <!-- Empty marker - visualization handled by Three.js -->
+        </a-marker>
+    </a-scene>
+    
+    <!-- Glassmorphism Loading Screen -->
+    <div id="loadingScreen" class="glassmorphism-loading">
+        <div class="loading-spinner"></div>
+    </div>
+    
+    <style>
+        /* Glassmorphism Loading Screen */
+        .glassmorphism-loading {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 10000;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.5s ease;
+            overflow: hidden;
+        }
+        
+        /* Simple black background */
+        .glassmorphism-loading::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #000000;
+            z-index: -2;
+            opacity: 1;
+        }
+        
+        /* Glassmorphism overlay */
+        .glassmorphism-loading::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            background: rgba(255, 255, 255, 0.1);
+            z-index: -1;
+        }
+        
+        .glassmorphism-loading.visible {
+            opacity: 1;
+            visibility: visible;
+        }
+        
+        .loading-spinner {
+            width: 80px;
+            height: 80px;
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top-color: #ffffff;
+            animation: spin 1s ease-in-out infinite;
+            z-index: 1;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+    
+    <!-- Artwork Module System - Using conditional loading to prevent duplicate declarations -->
+    <script>
+        // Check if modules are already loaded before including them
+        if (typeof ArtworkModule === 'undefined') {
+            const artworkModuleScript = document.createElement('script');
+            artworkModuleScript.src = './shared/artwork-module.js';
+            document.head.appendChild(artworkModuleScript);
+        }
+        
+        if (typeof ARContainerManager === 'undefined') {
+            const arContainerManagerScript = document.createElement('script');
+            arContainerManagerScript.src = './shared/ar-container-manager.js';
+            document.head.appendChild(arContainerManagerScript);
+        }
+        
+        if (typeof ArtworkTemplate === 'undefined') {
+            const artworkTemplateScript = document.createElement('script');
+            artworkTemplateScript.src = './shared/artwork_template.js';
+            document.head.appendChild(artworkTemplateScript);
+        }
+    </script>
+    
+    <script>
+        // Loading Screen Handler
+        document.addEventListener('DOMContentLoaded', function() {
+            const loadingScreen = document.getElementById('loadingScreen');
+            
+            // Check if we're coming from metal-slab.html with loading flag
+            if (sessionStorage.getItem('loading_ar') === 'true') {
+                // Check if loading screen has already been shown
+                const alreadyShown = sessionStorage.getItem('loading_screen_shown') === 'true';
+                
+                // Only show loading screen if it hasn't been shown already
+                if (loadingScreen && !alreadyShown) {
+                    loadingScreen.classList.add('visible');
+                }
+                
+                // Clear the flags
+                sessionStorage.removeItem('loading_ar');
+                // Keep loading_screen_shown flag until AR scene is loaded
+            }
+        });
+    </script>
+    
+    <script>
+        // Sample data from artwork1.html
+        const sampleData = [
+            {current_corrections_count: 2, data_integrity: 0.85, correction_effectiveness: 0.78, active_corrections_count: 5},
+            {current_corrections_count: 3, data_integrity: 0.92, correction_effectiveness: 0.81, active_corrections_count: 7},
+            {current_corrections_count: 1, data_integrity: 0.76, correction_effectiveness: 0.69, active_corrections_count: 3},
+            {current_corrections_count: 4, data_integrity: 0.88, correction_effectiveness: 0.85, active_corrections_count: 8},
+            {current_corrections_count: 2, data_integrity: 0.91, correction_effectiveness: 0.77, active_corrections_count: 6}
+        ];
+        
+        // Global Three.js variables
+        let scene, camera, renderer;
+        let networkNodes = [], networkEdges = [], centralCore = null;
+        let networkGraph = { nodes: [] };
+        let isAnimating = true, isWireframe = false;
+        let colorSchemeIndex = 0;
+        
+        const colorSchemes = [
+            { name: 'UserGreyGradient', colors: ['#E9EAEB', '#BEC3C5', '#989C9E', '#747779', '#525455', '#323334', '#151616'] },
+            { name: 'GreyGradientAlt', colors: ['#E9EAEB', '#BEC3C5', '#989C9E', '#747779', '#525455', '#323334', '#151616'] },
+            { name: 'MonochromeGradient', colors: ['#E9EAEB', '#BEC3C5', '#989C9E', '#747779', '#525455', '#323334', '#151616'] },
+            { name: 'GreyScale', colors: ['#E9EAEB', '#BEC3C5', '#989C9E', '#747779', '#525455', '#323334', '#151616'] }
+        ];
+        
+        // Three.js Animation System
+        class ThreeJSAnimation {
+            constructor() {
+                this.isInitialized = false;
+                this.mouse = new THREE.Vector2();
+                this.raycaster = new THREE.Raycaster();
+                
+                // Data overlay system - EXACT copy from artwork1.html
+                this.overlayVisible = false;
+                this.currentDataset = 0;
+                this.dataUpdateInterval = null;
+            }
+            
+            initialize() {
+                if (this.isInitialized) return;
+                
+                const canvas = document.getElementById('visualizationCanvas');
+                if (!canvas) return;
+                
+                const container = canvas.parentElement;
+                const width = container.clientWidth;
+                const height = container.clientHeight;
+                
+                // Scene setup - exact same as artwork1.html
+                scene = new THREE.Scene();
+                scene.background = null;
+                
+                // Camera setup with dynamic scaling for different devices
+                camera = new THREE.PerspectiveCamera(75, width / height, 0.1, 1000);
+                
+                // Calculate scale factor based on viewport size
+                const minDimension = Math.min(width, height);
+                const scaleFactor = this.calculateScaleFactor(minDimension);
+                
+                // Apply dynamic camera positioning
+                const baseDistance = 20;
+                const distance = baseDistance * scaleFactor;
+                camera.position.set(distance, distance * 0.6, distance);
+                camera.lookAt(0, 0, 0);
+                
+                // Renderer setup
+                renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true, alpha: true });
+                renderer.setSize(width, height);
+                renderer.setClearColor(0x000000, 0);
+                renderer.shadowMap.enabled = true;
+                renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+                
+                // Lighting
+                const ambientLight = new THREE.AmbientLight(0x404040, 0.6);
+                scene.add(ambientLight);
+                const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+                directionalLight.position.set(50, 50, 50);
+                scene.add(directionalLight);
+                
+                this.setupMouseControls();
+                this.createCorrectionNetwork();
+                this.animate();
+                
+                window.addEventListener('resize', () => this.onWindowResize());
+                
+                this.isInitialized = true;
+            }
+            
+            createCorrectionNetwork() {
+                const n_nodes = 800;
+                const coreRadius = 1.5, sphereRadius = 15;
+                
+                networkGraph.nodes = [];
+                
+                // Create 800 nodes - exact same logic as artwork1.html
+                for (let i = 0; i < n_nodes; i++) {
+                    const row = sampleData[i % sampleData.length];
+                    const variation = (Math.random() - 0.5) * 0.2;
+                    
+                    const correctionIntensity = Math.min(1.0, (row.current_corrections_count + variation) / 5.0);
+                    const systemHealth = Math.min(1.0, ((row.data_integrity + row.correction_effectiveness) / 2.0) + variation * 0.1);
+                    const correctionBurden = Math.min(1.0, (row.active_corrections_count + Math.floor(variation * 3)) / 10.0);
+                    
+                    // Generate 3D position using rejection sampling
+                    let x, y, z, distanceSquared;
+                    do {
+                        x = (Math.random() - 0.5) * 2;
+                        y = (Math.random() - 0.5) * 2;
+                        z = (Math.random() - 0.5) * 2;
+                        distanceSquared = x*x + y*y + z*z;
+                    } while (distanceSquared > 1 || distanceSquared < 0.01);
+                    
+                    const unitDistance = Math.sqrt(distanceSquared);
+                    const minDistance = coreRadius + 0.5;
+                    const actualDistance = minDistance + (unitDistance * (sphereRadius - minDistance));
+                    
+                    x = (x / unitDistance) * actualDistance;
+                    y = (y / unitDistance) * actualDistance;
+                    z = (z / unitDistance) * actualDistance;
+                    
+                    networkGraph.nodes.push({
+                        id: i, intensity: correctionIntensity, health: systemHealth, burden: correctionBurden,
+                        x: x, y: y, z: z, vx: 0, vy: 0, vz: 0
+                    });
+                }
+                
+                this.createSolidCore();
+                this.createNetworkVisualization();
+            }
+            
+            createSolidCore() {
+                const coreGeometry = new THREE.SphereGeometry(1.5, 32, 32);
+                const currentScheme = colorSchemes[colorSchemeIndex];
+                const coreMaterial = new THREE.MeshLambertMaterial({
+                    color: new THREE.Color(currentScheme.colors[currentScheme.colors.length - 1])
+                });
+                
+                centralCore = new THREE.Mesh(coreGeometry, coreMaterial);
+                centralCore.castShadow = true;
+                scene.add(centralCore);
+            }
+            
+            createNetworkVisualization() {
+                // Clear existing
+                networkNodes.forEach(node => scene.remove(node));
+                networkEdges.forEach(edge => scene.remove(edge));
+                networkNodes.length = 0;
+                networkEdges.length = 0;
+                
+                const currentScheme = colorSchemes[colorSchemeIndex];
+                const edgeColor = new THREE.Color(currentScheme.colors[currentScheme.colors.length - 2]);
+                
+                networkGraph.nodes.forEach((node, i) => {
+                    // Create connection from center to node
+                    const geometry = new THREE.BufferGeometry();
+                    const positions = new Float32Array([0, 0, 0, node.x, node.y, node.z]);
+                    geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+                    
+                    const material = new THREE.LineBasicMaterial({
+                        color: edgeColor, transparent: true, opacity: 0.7
+                    });
+                    
+                    const edge = new THREE.Line(geometry, material);
+                    scene.add(edge);
+                    networkEdges.push(edge);
+                    
+                    // Create optimized node mesh - EXACT same as artwork1.html
+                    const nodeGeometry = new THREE.SphereGeometry(0.2, 12, 12); // Reduced complexity
+                    const colorIndex = Math.floor(node.intensity * (currentScheme.colors.length - 1));
+                    const nodeMaterial = new THREE.MeshBasicMaterial({
+                        color: new THREE.Color(currentScheme.colors[colorIndex]),
+                        transparent: true, 
+                        opacity: 0.8, 
+                        wireframe: isWireframe
+                    });
+                    
+                    const nodeMesh = new THREE.Mesh(nodeGeometry, nodeMaterial);
+                    nodeMesh.position.set(node.x, node.y, node.z);
+                    nodeMesh.userData = { nodeData: node, type: 'correction-node' };
+                    scene.add(nodeMesh);
+                    networkNodes.push(nodeMesh);
+                });
+            }
+            
+            setupMouseControls() {
+                const canvas = document.getElementById('visualizationCanvas');
+                let isInteracting = false;
+                let previousMousePosition = { x: 0, y: 0 };
+                let previousTouchDistance = 0;
+                
+                // Mouse controls - EXACT same as artwork1.html
+                canvas.addEventListener('mousedown', (event) => {
+                    isInteracting = true;
+                    previousMousePosition = { x: event.clientX, y: event.clientY };
+                    canvas.style.cursor = 'grabbing';
+                    event.preventDefault();
+                });
+                
+                canvas.addEventListener('mouseup', () => {
+                    isInteracting = false;
+                    canvas.style.cursor = 'grab';
+                });
+                
+                canvas.addEventListener('mouseleave', () => {
+                    isInteracting = false;
+                    canvas.style.cursor = 'grab';
+                });
+                
+                canvas.addEventListener('mousemove', (event) => {
+                    if (!isInteracting) return;
+                    
+                    const deltaX = event.clientX - previousMousePosition.x;
+                    const deltaY = event.clientY - previousMousePosition.y;
+                    
+                    this.rotateCamera(deltaX, deltaY);
+                    
+                    previousMousePosition = { x: event.clientX, y: event.clientY };
+                    event.preventDefault();
+                });
+                
+                // Mouse wheel zoom
+                canvas.addEventListener('wheel', (event) => {
+                    const zoomSpeed = 0.1;
+                    const zoomDirection = event.deltaY > 0 ? 1 : -1;
+                    this.zoomCamera(zoomDirection * zoomSpeed);
+                    event.preventDefault();
+                });
+                
+                // Touch controls for mobile - EXACT same as artwork1.html
+                canvas.addEventListener('touchstart', (event) => {
+                    event.preventDefault();
+                    
+                    if (event.touches.length === 1) {
+                        // Single touch - rotation
+                        isInteracting = true;
+                        const touch = event.touches[0];
+                        previousMousePosition = { x: touch.clientX, y: touch.clientY };
+                    } else if (event.touches.length === 2) {
+                        // Two finger pinch - zoom
+                        const touch1 = event.touches[0];
+                        const touch2 = event.touches[1];
+                        const distance = Math.sqrt(
+                            Math.pow(touch2.clientX - touch1.clientX, 2) +
+                            Math.pow(touch2.clientY - touch1.clientY, 2)
+                        );
+                        previousTouchDistance = distance;
+                    }
+                });
+                
+                canvas.addEventListener('touchmove', (event) => {
+                    event.preventDefault();
+                    
+                    if (event.touches.length === 1 && isInteracting) {
+                        // Single touch rotation
+                        const touch = event.touches[0];
+                        const deltaX = touch.clientX - previousMousePosition.x;
+                        const deltaY = touch.clientY - previousMousePosition.y;
+                        
+                        this.rotateCamera(deltaX, deltaY);
+                        
+                        previousMousePosition = { x: touch.clientX, y: touch.clientY };
+                    } else if (event.touches.length === 2) {
+                        // Two finger pinch zoom
+                        const touch1 = event.touches[0];
+                        const touch2 = event.touches[1];
+                        const distance = Math.sqrt(
+                            Math.pow(touch2.clientX - touch1.clientX, 2) +
+                            Math.pow(touch2.clientY - touch1.clientY, 2)
+                        );
+                        
+                        if (previousTouchDistance > 0) {
+                            const zoomDelta = (distance - previousTouchDistance) * 0.01;
+                            this.zoomCamera(-zoomDelta);
+                        }
+                        
+                        previousTouchDistance = distance;
+                    }
+                });
+                
+                canvas.addEventListener('touchend', (event) => {
+                    event.preventDefault();
+                    isInteracting = false;
+                    previousTouchDistance = 0;
+                });
+            }
+            
+            rotateCamera(deltaX, deltaY) {
+                const rotationSpeed = 0.005;
+                const spherical = new THREE.Spherical();
+                spherical.setFromVector3(camera.position);
+                
+                spherical.theta -= deltaX * rotationSpeed;
+                spherical.phi += deltaY * rotationSpeed;
+                
+                // Constrain phi to prevent flipping
+                spherical.phi = Math.max(0.1, Math.min(Math.PI - 0.1, spherical.phi));
+                
+                camera.position.setFromSpherical(spherical);
+                camera.lookAt(0, 0, 0);
+            }
+            
+            zoomCamera(delta) {
+                const direction = camera.position.clone().normalize();
+                const newPosition = camera.position.clone().add(direction.multiplyScalar(delta));
+                
+                // Constrain zoom distance
+                const minDistance = 5;
+                const maxDistance = 100;
+                const distance = newPosition.length();
+                
+                if (distance >= minDistance && distance <= maxDistance) {
+                    camera.position.copy(newPosition);
+                }
+            }
+            
+            calculateScaleFactor(minDimension) {
+                // Dynamic scaling based on device size
+                if (minDimension <= 480) {
+                    return 0.8; // Phone
+                } else if (minDimension <= 768) {
+                    return 0.9; // Small tablet
+                } else if (minDimension <= 1024) {
+                    return 1.0; // iPad
+                } else {
+                    return 1.1; // Desktop
+                }
+            }
+            
+            animate() {
+                if (!isAnimating) return;
+                
+                requestAnimationFrame(() => this.animate());
+                
+                // Rotate central core
+                if (centralCore) {
+                    centralCore.rotation.y += 0.005;
+                    centralCore.rotation.x += 0.002;
+                }
+                
+                renderer.render(scene, camera);
+            }
+            
+            onWindowResize() {
+                const canvas = document.getElementById('visualizationCanvas');
+                const container = canvas.parentElement;
+                const width = container.clientWidth;
+                const height = container.clientHeight;
+                
+                camera.aspect = width / height;
+                camera.updateProjectionMatrix();
+                renderer.setSize(width, height);
+            }
+            
+            show() {
+                const container = document.getElementById('visualizationContainer');
+                container.classList.add('active');
+            }
+            
+            hide() {
+                const container = document.getElementById('visualizationContainer');
+                container.classList.remove('active');
+            }
+            
+            // Data overlay system methods - EXACT copy from artwork1.html
+            handleNodeClick(event, canvas) {
+                const rect = canvas.getBoundingClientRect();
+                this.mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+                this.mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+                this.raycaster.setFromCamera(this.mouse, camera);
+                
+                const clickableObjects = [];
+                scene.traverse((child) => {
+                    // Include both mesh objects (nodes) and line objects (connections)
+                    if (child.isMesh || child.isLine || child.isLineSegments || child.type === 'Line') {
+                        clickableObjects.push(child);
+                    }
+                });
+                
+                const intersects = this.raycaster.intersectObjects(clickableObjects);
+                if (intersects.length > 0) {
+                    if (this.overlayVisible) {
+                        this.cycleToNextDataset();
+                    } else {
+                        this.showDataOverlay();
+                    }
+                }
+            }
+            
+            showDataOverlay() {
+                this.overlayVisible = true;
+                const overlay = document.getElementById('dataOverlay');
+                overlay.classList.add('active');
+                this.startDataCycling();
+            }
+            
+            hideDataOverlay() {
+                this.overlayVisible = false;
+                const overlay = document.getElementById('dataOverlay');
+                overlay.classList.remove('active');
+                this.stopDataCycling();
+            }
+            
+            cycleToNextDataset() {
+                this.currentDataset = (this.currentDataset + 1) % 4;
+                this.updateOverlayData();
+            }
+            
+            updateOverlayData() {
+                const datasets = [
+                    { title: 'Core Efficiency', unit: '%', baseValue: 87.3 },
+                    { title: 'Network Load', unit: '%', baseValue: 64.2 },
+                    { title: 'Active Corrections', unit: '', baseValue: 142 },
+                    { title: 'Data<br>Integrity', unit: '%', baseValue: 91.8 }
+                ];
+                
+                const dataset = datasets[this.currentDataset];
+                document.getElementById('metricLabel').innerHTML = dataset.title;
+                document.getElementById('metricUnit').textContent = dataset.unit;
+                
+                // Start with base value, will be updated by cycling
+                document.getElementById('metricValue').textContent = dataset.baseValue;
+            }
+            
+            startDataCycling() {
+                if (this.dataUpdateInterval) return;
+                
+                this.dataUpdateInterval = setInterval(() => {
+                    this.updateDynamicData();
+                }, 150); // Update every 150ms for rapid cycling
+            }
+            
+            stopDataCycling() {
+                if (this.dataUpdateInterval) {
+                    clearInterval(this.dataUpdateInterval);
+                    this.dataUpdateInterval = null;
+                }
+            }
+            
+            updateDynamicData() {
+                const datasets = [
+                    { title: 'Core Efficiency', unit: '%', baseValue: 87.3, range: 15 },
+                    { title: 'Network Load', unit: '%', baseValue: 64.2, range: 20 },
+                    { title: 'Active Corrections', unit: '', baseValue: 142, range: 30 },
+                    { title: 'Data<br>Integrity', unit: '%', baseValue: 91.8, range: 8 }
+                ];
+                
+                const dataset = datasets[this.currentDataset];
+                const variation = (Math.random() - 0.5) * dataset.range;
+                let newValue = dataset.baseValue + variation;
+                
+                // Format the value appropriately
+                if (dataset.unit === '%') {
+                    newValue = Math.max(0, Math.min(100, newValue));
+                    document.getElementById('metricValue').textContent = newValue.toFixed(1);
+                } else {
+                    newValue = Math.max(0, newValue);
+                    document.getElementById('metricValue').textContent = Math.round(newValue);
+                }
+            }
+            
+            toggleDataOverlay() {
+                if (this.overlayVisible) {
+                    this.hideDataOverlay();
+                } else {
+                    this.showDataOverlay();
+                }
+            }
+        }
+        
+        // Disable device motion/orientation permission requests for development
+        if (typeof DeviceMotionEvent !== 'undefined' && DeviceMotionEvent.requestPermission) {
+            DeviceMotionEvent.requestPermission = () => Promise.resolve('denied');
+        }
+        if (typeof DeviceOrientationEvent !== 'undefined' && DeviceOrientationEvent.requestPermission) {
+            DeviceOrientationEvent.requestPermission = () => Promise.resolve('denied');
+        }
+        
+        // Log initial viewport info
+        console.log('Page loaded - Viewport:', window.innerWidth, 'x', window.innerHeight);
+        console.log('User Agent:', navigator.userAgent);
+        
+        let threeJSAnimation = null;
+        
+        // AR Container System - Modular architecture for AR marker detection
+        document.addEventListener('DOMContentLoaded', function() {
+            const loadingScreen = document.getElementById('loadingScreen');
+            
+            // Add event listener to hide loading screen when AR scene is loaded
+            const arScene = document.querySelector('a-scene');
+            if (arScene) {
+                arScene.addEventListener('loaded', function() {
+                    console.log('AR scene loaded, hiding loading screen');
+                    // Hide loading screen with a slight delay for smooth transition
+                    setTimeout(() => {
+                        if (loadingScreen) {
+                            loadingScreen.classList.remove('visible');
+                        }
+                        // Clear the loading_screen_shown flag when AR scene is fully loaded
+                        sessionStorage.removeItem('loading_screen_shown');
+                    }, 1000);
+                });
+            }
+            
+            // Custom AR marker detection handler for data1 artwork
+            arManager.onMarkerDetected = function(markerId) {
+                console.log('AR marker detected:', markerId);
+                
+                // Initialize Three.js animation system when marker is detected
+                if (markerId === 'data1') {
+                    // Initialize Three.js animation
+                    threeJSAnimation = new ThreeJSAnimation();
+                    threeJSAnimation.initialize();
+                    threeJSAnimation.show();
+                    
+                    // Show controls
+                    arManager.showARControls();
+                    
+                    // Setup event listeners for Three.js animation
+                    setupThreeJSEventListeners();
+                }
+            };
+            
+            // Setup event listeners for Three.js animation
+            function setupThreeJSEventListeners() {
+                // Data overlay event listeners - EXACT copy from work1.html
+                const canvas = document.getElementById('visualizationCanvas');
+                const overlayClose = document.getElementById('overlayClose');
+                
+                // Canvas click handler for node interactions
+                canvas.addEventListener('click', (event) => {
+                    if (threeJSAnimation && threeJSAnimation.isInitialized) {
+                        threeJSAnimation.handleNodeClick(event, canvas);
+                    }
+                });
+                
+                // Touch handler for mobile devices
+                let isTouchDragging = false;
+                let touchStartTime = 0;
+                
+                canvas.addEventListener('touchstart', (event) => {
+                    isTouchDragging = false;
+                    touchStartTime = Date.now();
+                }, { passive: false });
+                
+                canvas.addEventListener('touchmove', (event) => {
+                    isTouchDragging = true;
+                }, { passive: false });
+                
+                canvas.addEventListener('touchend', (event) => {
+                    event.preventDefault();
+                    const touchDuration = Date.now() - touchStartTime;
+                    
+                    // Only trigger click if it wasn't a drag and was a quick tap
+                    if (!isTouchDragging && touchDuration < 300) {
+                        if (threeJSAnimation && threeJSAnimation.isInitialized && event.changedTouches.length > 0) {
+                            const touch = event.changedTouches[0];
+                            const syntheticEvent = {
+                                clientX: touch.clientX,
+                                clientY: touch.clientY,
+                                target: document.getElementById('visualizationCanvas')
+                            };
+                            threeJSAnimation.handleNodeClick(syntheticEvent, document.getElementById('visualizationCanvas'));
+                        }
+                    }
+                    isTouchDragging = false;
+                }, { passive: false });
+                
+                // Close button handler
+                overlayClose.addEventListener('click', () => {
+                    if (threeJSAnimation) {
+                        threeJSAnimation.hideDataOverlay();
+                    }
+                });
+            }
+            
+            // Setup exit button
+            const exitBtn = document.getElementById('exitBtn');
+            if (exitBtn) {
+                exitBtn.addEventListener('click', function() {
+                    console.log('Exit button clicked');
+                    
+                    // Play click sound if available
+                    if (typeof playClickSound === 'function') {
+                        playClickSound();
+                    }
+                    
+                    // Hide Three.js animation
+                    if (threeJSAnimation) {
+                        threeJSAnimation.hide();
+                        threeJSAnimation.hideDataOverlay();
+                    }
+                    
+                    // Deactivate current module if active
+                    if (arManager.activeModule) {
+                        arManager.deactivateCurrentModule();
+                    }
+                    
+                    // Hide AR controls
+                    arManager.hideARControls();
+                    
+                    // Reset AR detection UI - ready for next marker scan
+                    const arDetection = document.getElementById('arDetection');
+                    const arDetectionBox = document.getElementById('arDetectionBox');
+                    
+                    // Remove success animation class
+                    arDetectionBox.classList.remove('ar-detection-success');
+                    
+                    // Show the AR detection UI again
+                    arDetection.classList.remove('hidden');
+                    
+                    // Navigate back if needed
+                    if (window.history.length > 1) {
+                        window.history.back();
+                    } else {
+                        window.location.href = '../index.html';
+                    }
+                });
+            }
+            
+            // Audio variables
+            let audioElement = null;
+            let audioPlaying = false;
+            let audioProgressInterval = null;
+            
+            // Initialize audio element
+            function initializeAudioElement() {
+                audioElement = new Audio('https://heund.github.io/ea_test1/sounds/ambient1.mp3');
+                audioElement.loop = true;
+                audioElement.volume = 0.3;
+                
+                // iOS-specific error handling
+                audioElement.addEventListener('error', (e) => {
+                    console.error('Audio error:', e);
+                });
+                
+                // Try to prepare audio for iOS
+                audioElement.load();
+            }
+            
+            // Initialize audio on page load
+            initializeAudioElement();
+            
+            // Toggle audio function
+            function toggleAudio() {
+                console.log('Data1Module: toggleAudio called');
+                if (audioPlaying) {
+                    stopAudio();
+                } else {
+                    playAudio();
+                }
+            }
+            
+            // Play audio function
+            function playAudio() {
+                if (audioElement) {
+                    // iOS iframe compatibility - ensure audio is ready
+                    if (audioElement.readyState < 2) {
+                        audioElement.load();
+                    }
+                    
+                    // Try to play with iOS-specific handling
+                    const playPromise = audioElement.play();
+                    
+                    if (playPromise !== undefined) {
+                        playPromise.then(() => {
+                            audioPlaying = true;
+                            updateAudioButton();
+                        }).catch(error => {
+                            console.error('Audio playback failed:', error);
+                            // iOS fallback - try to enable audio context
+                            if (error.name === 'NotAllowedError') {
+                                console.log('Audio blocked by iOS policy - user interaction required');
+                                // Show user feedback that audio requires interaction
+                                showAudioError();
+                            }
+                        });
+                    }
+                }
+            }
+            
+            // Stop audio function
+            function stopAudio() {
+                if (audioElement) {
+                    audioElement.pause();
+                    audioElement.currentTime = 0;
+                    audioPlaying = false;
+                    updateAudioButton();
+                }
+            }
+            
+            // Show audio error function
+            function showAudioError() {
+                // Briefly highlight the audio button to indicate user interaction needed
+                const audioBtn = document.getElementById('audioBtn');
+                audioBtn.style.animation = 'pulse 0.5s ease-in-out 3';
+                setTimeout(() => {
+                    audioBtn.style.animation = '';
+                }, 1500);
+            }
+            
+            // Update audio button function
+            function updateAudioButton() {
+                const audioBtn = document.getElementById('audioBtn');
+                const icon = audioBtn.querySelector('i');
+                
+                if (audioPlaying) {
+                    icon.className = 'bi bi-pause-fill';
+                    audioBtn.classList.add('active');
+                } else {
+                    icon.className = 'bi bi-volume-up-fill';
+                    audioBtn.classList.remove('active');
+                }
+            }
+            
+            // Setup data button
+            const dataBtn = document.getElementById('dataBtn');
+            if (dataBtn) {
+                dataBtn.addEventListener('click', () => {
+                    if (threeJSAnimation && threeJSAnimation.isInitialized) {
+                        threeJSAnimation.toggleDataOverlay();
+                        dataBtn.classList.toggle('active');
+                    }
+                    
+                    // Play click sound if available
+                    if (typeof playClickSound === 'function') {
+                        playClickSound();
+                    }
+                });
+            }
+            
+            // Setup audio button
+            const audioBtn = document.getElementById('audioBtn');
+            if (audioBtn) {
+                audioBtn.addEventListener('click', () => {
+                    toggleAudio();
+                    // Play click sound if available
+                    if (typeof playClickSound === 'function') {
+                        playClickSound();
+                    }
+                });
+            }
+        })
+        console.log('Page loaded - Viewport:', window.innerWidth, 'x', window.innerHeight);
+        console.log('User Agent:', navigator.userAgent);
+        
+        // Variables for AR state tracking
+        let cameraInitialized = false;
+        
+        // Handle loading screen state when page loads
+        window.addEventListener('load', () => {
+            console.log('Auto-starting AR...');
+            console.log('Viewport:', window.innerWidth, 'x', window.innerHeight);
+            
+            // Check if we're coming from the loading screen
+            if (sessionStorage.getItem('loadingScreenActive') === 'true') {
+                console.log('Coming from loading screen, ensuring persistent loading screen is visible');
+                // Use the persistent loading screen instead of the local one
+                if (window.persistentLoadingScreen) {
+                    window.persistentLoadingScreen.show();
+                    window.persistentLoadingScreen.setARMode(true);
+                }
+                // Clear the flag
+                sessionStorage.removeItem('loadingScreenActive');
+            }
+            
+            // Listen for camera stream initialization
+            const scene = document.querySelector('a-scene');
+            
+            // When the AR.js scene is loaded and camera is ready
+            scene.addEventListener('loaded', () => {
+                console.log('A-Frame scene loaded');
+                
+                // Ensure the persistent loading screen is visible during camera initialization
+                if (window.persistentLoadingScreen) {
+                    window.persistentLoadingScreen.show();
+                    window.persistentLoadingScreen.setARMode(true);
+                }
+                
+                // Give a little time for the camera to fully initialize
+                setTimeout(() => {
+                    cameraInitialized = true;
+                    console.log('Camera initialization complete');
+                    
+                    // Add a timeout to hide the loading screen if no marker is found after 15 seconds
+                    setTimeout(() => {
+                        if (window.persistentLoadingScreen) {
+                            console.log('No marker detected after timeout, hiding loading screen');
+                            window.persistentLoadingScreen.hide();
+                        }
+                    }, 15000); // 15 seconds timeout
+                }, 1000); // 1 second delay to ensure camera is fully active
+            });
+            
+            // Make sure the persistent loading screen is visible during AR initialization
+            if (window.persistentLoadingScreen) {
+                window.persistentLoadingScreen.show();
+                window.persistentLoadingScreen.setARMode(true);
+            }
+            
+            // Exit button handler already set up in DOMContentLoaded
+        });
+        
+        // Disable device motion/orientation permissions to prevent invasive prompts
+        if (typeof DeviceMotionEvent !== 'undefined' && DeviceMotionEvent.requestPermission) {
+            DeviceMotionEvent.requestPermission = () => Promise.resolve('denied');
+        }
+        if (typeof DeviceOrientationEvent !== 'undefined' && DeviceOrientationEvent.requestPermission) {
+            DeviceOrientationEvent.requestPermission = () => Promise.resolve('denied');
+        }
+        
+        // Log initial viewport info
+        console.log('Page loaded - Viewport:', window.innerWidth, 'x', window.innerHeight);
+        console.log('User Agent:', navigator.userAgent);
+    </script>
+    <!-- Navigation Buttons -->
+    <button class="back-button" id="backButton">
+        <i class="bi bi-arrow-left"></i>
+    </button>
+    
+    <button class="home-button" id="homeButton">
+        <i class="bi bi-house"></i>
+    </button>
+    
+    <!-- Artwork Module System -->
+    <script src="./shared/artwork-module.js"></script>
+    <script src="./shared/ar-container-manager.js"></script>
+    <script src="./shared/artwork_template.js"></script>
+    
+    <!-- Shared Navigation Script -->
+    <script src="./shared/navigation.js"></script>
+    
+    <!-- Click Sound Implementation with Debounce -->  
+    <script>
+        // Initialize title container when DOM is loaded
+        document.addEventListener('DOMContentLoaded', function() {
+            // Make sure title is visible on page load
+            const titleContainer = document.querySelector('.ar-title-container');
+            if (titleContainer) {
+                titleContainer.classList.add('ar-active');
+            }
+        });
+        
+        // Audio variables
+        let clickSound = null;
+        
+        // Debounce variables
+        let lastClickTime = 0;
+        const clickDebounceTime = 100; // Minimum milliseconds between click sounds
+        
+        // Initialize audio system
+        function initializeAudio() {
+            // Initialize click sound
+            clickSound = new Audio('https://heund.github.io/ea_test1/sounds/click1.wav');
+            clickSound.volume = 0.3; // Set volume to 30% for subtle feedback
+            clickSound.preload = 'auto';
+        }
+        
+        // Play click sound with debounce and error handling
+        function playClickSound() {
+            // Debounce logic - only play if enough time has passed since last click
+            const now = Date.now();
+            if (now - lastClickTime < clickDebounceTime) {
+                console.log('Click sound debounced');
+                return; // Skip this sound - too soon after previous
+            }
+            
+            // Update last click time
+            lastClickTime = now;
+            
+            // Play the sound
+            if (clickSound) {
+                try {
+                    clickSound.currentTime = 0; // Reset to beginning
+                    clickSound.play().catch(e => {
+                        // Silently handle audio play errors (common on mobile)
+                        console.log('Audio play prevented:', e);
+                    });
+                } catch (error) {
+                    console.log('Audio error:', error);
+                }
+            }
+        }
+        
+        // Add click sound to all interactive elements
+        function addClickSounds() {
+            // Add click sounds to all data points
+            const dataPoints = document.querySelectorAll('.data-point');
+            dataPoints.forEach(point => {
+                point.addEventListener('click', playClickSound);
+                point.addEventListener('touchstart', playClickSound);
+            });
+            
+            // Add click sounds to canvas interactions
+            const canvas = document.querySelector('#visualizationCanvas');
+            if (canvas) {
+                canvas.addEventListener('click', playClickSound);
+                canvas.addEventListener('touchstart', playClickSound);
+            }
+            
+            // Add click sounds to all buttons and interactive elements
+            const buttons = document.querySelectorAll('button, .interactive, .data-overlay-close, #dataBtn, #exitBtn');
+            buttons.forEach(button => {
+                button.addEventListener('click', playClickSound);
+                button.addEventListener('touchstart', playClickSound);
+            });
+        }
+        
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            // Initialize audio
+            initializeAudio();
+            
+            // Add click sounds to all interactive elements
+            addClickSounds();
+            
+            // Initialize AR Container Manager with enhanced debugging
+            console.log('Initializing AR Container Manager');
+            const arManager = new ARContainerManager({
+                visualizationContainer: '#visualizationContainer',
+                arScene: '#arScene',
+                debugMode: true
+            });
+            
+            // Add marker detection event listeners directly to the marker
+            setTimeout(() => {
+                const templateMarker = document.querySelector('#template');
+                if (templateMarker) {
+                    console.log('Found template marker element, adding event listeners');
+                    templateMarker.addEventListener('markerFound', function() {
+                        console.log('MARKER FOUND EVENT: template marker detected');
+                    });
+                    
+                    templateMarker.addEventListener('markerLost', function() {
+                        console.log('MARKER LOST EVENT: template marker lost');
+                    });
+                } else {
+                    console.error('Could not find template marker element');
+                }
+            }, 1000); // Give a-frame time to initialize
+            
+            // Create a custom module class for ThreeJSAnimation
+            class Data1Module {
+                constructor(container, options) {
+                    this.container = container;
+                    this.options = options;
+                    this.animation = null;
+                    this.canvas = document.getElementById('visualizationCanvas');
+                    console.log('Data1Module created');
+                }
+                
+                activate() {
+                    console.log('Activating Data1Module');
+                    
+                    // Initialize ThreeJSAnimation if not already created
+                    if (!this.animation) {
+                        console.log('Creating new ThreeJSAnimation instance');
+                        this.animation = new ThreeJSAnimation(this.container);
+                        console.log('Initializing ThreeJSAnimation');
+                        this.animation.init();
+                    } else {
+                        console.log('Using existing ThreeJSAnimation instance');
+                    }
+                    
+                    console.log('Showing ThreeJSAnimation');
+                    this.animation.show();
+                    console.log('Starting ThreeJSAnimation');
+                    this.animation.startAnimation();
+                }
+                
+                toggleDataOverlay() {
+                    console.log('Data1Module: toggleDataOverlay called');
+                    if (this.animation) {
+                        console.log('Toggling data overlay on ThreeJSAnimation');
+                        this.animation.toggleDataOverlay();
+                    } else {
+                        console.warn('Cannot toggle data overlay - animation not initialized');
+                    }
+                }
+                
+                toggleAudio() {
+                    console.log('Data1Module: toggleAudio called');
+                    if (this.animation) {
+                        console.log('Toggling audio on ThreeJSAnimation');
+                        this.animation.toggleAudio();
+                    } else {
+                        console.warn('Cannot toggle audio - animation not initialized');
+                    }
+                }
+                
+                deactivate() {
+                    console.log('Data1Module: deactivate called');
+                    if (this.animation) {
+                        console.log('Hiding ThreeJSAnimation');
+                        this.animation.hide();
+                        console.log('Stopping ThreeJSAnimation');
+                        this.animation.stopAnimation();
+                    } else {
+                        console.warn('Cannot deactivate - animation not initialized');
+                    }
+                }
+                
+                cleanup() {
+                    console.log('Data1Module: cleanup called');
+                    if (this.animation) {
+                        console.log('Hiding ThreeJSAnimation');
+                        this.animation.hide();
+                        console.log('Stopping ThreeJSAnimation');
+                        this.animation.stopAnimation();
+                        console.log('Nullifying animation reference');
+                        this.animation = null;
+                    } else {
+                        console.log('No animation to clean up');
+                    }
+                }
+            }
+            
+            // Register the Data1Module for the template marker
+            arManager.registerModule('template', Data1Module, {
+                title: 'Machine Correction Network',
+                audioFile: 'https://heund.github.io/ea_test1/sounds/ambient1.mp3'
+            });
+            
+            // Setup exit button
+            const exitBtn = document.getElementById('exitBtn');
+            if (exitBtn) {
+                exitBtn.addEventListener('click', function() {
+                    // Deactivate current module if active - this will handle cleanup
+                    if (arManager.activeModule) {
+                        arManager.deactivateCurrentModule();
+                    }
+                    
+                    // Reset AR detection UI - ready for next marker scan
+                    const arDetection = document.getElementById('arDetection');
+                    const arDetectionBox = document.getElementById('arDetectionBox');
+                    
+                    // Remove success animation class
+                    arDetectionBox.classList.remove('ar-detection-success');
+                    
+                    // Show the AR detection UI again
+                    arDetection.classList.remove('hidden');
+                    
+                    // Play click sound if available
+                    playClickSound();
+                    
+                    console.log('AR experience reset - ready for next marker scan');
+                });
+            }
+            
+            // Setup audio button
+            const audioBtn = document.getElementById('audioBtn');
+            let audioEnabled = false;
+            
+            if (audioBtn) {
+                audioBtn.addEventListener('click', function() {
+                    audioEnabled = !audioEnabled;
+                    
+                    // Toggle audio in active module
+                    if (arManager.activeModule) {
+                        arManager.activeModule.toggleAudio();
+                    }
+                    
+                    // Update button icon - now using SVG
+                    if (audioEnabled) {
+                        // Volume up icon
+                        audioBtn.innerHTML = `
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+                                <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+                                <path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+                                <path d="M19.07 4.93a10 10 0 0 1 0 14.14"></path>
+                            </svg>
+                        `;
+                    } else {
+                        // Volume mute icon
+                        audioBtn.innerHTML = `
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+                                <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+                                <line x1="23" y1="9" x2="17" y2="15"></line>
+                                <line x1="17" y1="9" x2="23" y2="15"></line>
+                            </svg>
+                        `;
+                    }
+                    
+                    // Toggle audio in active module
+                    if (arManager.activeModule) {
+                        arManager.activeModule.toggleAudio();
+                    }
+                    
+                    // Play click sound
+                    playClickSound();
+                });
+            }
+            
+            // Data button is now handled below
+            
+            // Setup data button
+            const dataBtn = document.getElementById('dataBtn');
+            if (dataBtn) {
+                dataBtn.addEventListener('click', function() {
+                    // Toggle data overlay if module is active
+                    if (arManager.activeModule && arManager.activeModule.toggleDataOverlay) {
+                        arManager.activeModule.toggleDataOverlay();
+                    }
+                    
+                    // Play click sound
+                    playClickSound();
+                });
+            }
+        });
+    </script>
+</body>
+</html>
