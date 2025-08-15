@@ -363,22 +363,7 @@ if (typeof window.Artwork2 === 'undefined') {
             // Window resize handler
             window.addEventListener('resize', this.boundOnWindowResize);
             
-            // Exit button handler
-            const exitBtn = document.getElementById('exitBtn');
-            if (exitBtn) {
-                this.exitBtnHandler = () => {
-                    this.deactivate();
-                    this.hideVisualization();
-                    
-                    // Play click sound if available
-                    if (typeof playClickSound === 'function') {
-                        playClickSound();
-                    }
-                    
-                    console.log('Exit button clicked, visualization deactivated');
-                };
-                exitBtn.addEventListener('click', this.exitBtnHandler);
-            }
+            // Exit button is handled by ar_detection.html
         }
         
         /**
@@ -447,11 +432,56 @@ if (typeof window.Artwork2 === 'undefined') {
             // Stop animation when visualization is hidden
             this.isAnimating = false;
             
-            // Hide AR interface
+            // Hide AR UI elements when marker is lost
             this.hideARInterface();
             
             // Stop data flow visualization
             this.stopDataFlowVisualization();
+            
+            // Clean up all animation frames and intervals
+            this.cleanupAnimations();
+        }
+        
+        /**
+         * Clean up all animation frames and intervals
+         */
+        cleanupAnimations() {
+            // Cancel the main animation frame
+            if (this.animationFrameId) {
+                cancelAnimationFrame(this.animationFrameId);
+                this.animationFrameId = null;
+            }
+            
+            // Clear all intervals
+            this.stopDataCycling();
+            
+            // Clear data flow interval
+            if (this.dataFlowInterval) {
+                clearInterval(this.dataFlowInterval);
+                this.dataFlowInterval = null;
+            }
+            
+            // Clear any pulse timers on spheres
+            if (this.compressionSpheres) {
+                this.compressionSpheres.forEach(sphere => {
+                    if (sphere.userData && sphere.userData.pulseTimer) {
+                        if (typeof sphere.userData.pulseTimer === 'number') {
+                            cancelAnimationFrame(sphere.userData.pulseTimer);
+                            clearTimeout(sphere.userData.pulseTimer);
+                        }
+                        sphere.userData.pulseTimer = null;
+                    }
+                });
+            }
+            
+            // Hide data overlay if visible
+            const overlay = document.getElementById('dataOverlay');
+            if (overlay) {
+                overlay.classList.remove('active');
+                overlay.classList.remove('fade-out');
+                overlay.style.display = 'none';
+                this.overlayVisible = false;
+            }
         }
         
         /**
@@ -943,7 +973,8 @@ if (typeof window.Artwork2 === 'undefined') {
          * Animation loop
          */
         animate() {
-            requestAnimationFrame(() => this.animate());
+            // Store animation frame ID so we can cancel it later
+            this.animationFrameId = requestAnimationFrame(() => this.animate());
             
             if (this.isAnimating) {
                 const time = Date.now() * 0.001;
@@ -1625,67 +1656,6 @@ if (typeof window.Artwork2 === 'undefined') {
             }
         }
         
-        /**
-         * Clean up resources and dispose objects
-         */
-        cleanupResources() {
-            // Dispose compression spheres and clean up animation timers
-            this.compressionSpheres.forEach(sphere => {
-                // Clean up pulse animation timers
-                if (sphere.userData && sphere.userData.pulseTimer) {
-                    cancelAnimationFrame(sphere.userData.pulseTimer);
-                    clearTimeout(sphere.userData.pulseTimer);
-                    sphere.userData.pulseTimer = null;
-                }
-                
-                if (sphere.geometry) sphere.geometry.dispose();
-                if (sphere.material) sphere.material.dispose();
-                this.scene.remove(sphere);
-            });
-            
-            // Dispose central core
-            if (this.centralCore) {
-                this.scene.remove(this.centralCore);
-                if (this.centralCore.geometry) this.centralCore.geometry.dispose();
-                if (this.centralCore.material) this.centralCore.material.dispose();
-                this.centralCore = null;
-            }
-            
-            // Stop data flow interval
-            if (this.dataFlowInterval) {
-                clearInterval(this.dataFlowInterval);
-                this.dataFlowInterval = null;
-            }
-            
-            // Clear arrays
-            this.compressionSpheres = [];
-            this.dataFlowPulses = [];
-            
-            // Clear scene
-            if (this.scene) {
-                while (this.scene.children.length > 0) {
-                    const object = this.scene.children[0];
-                    if (object.geometry) object.geometry.dispose();
-                    if (object.material) {
-                        if (Array.isArray(object.material)) {
-                            object.material.forEach(material => material.dispose());
-                        } else {
-                            object.material.dispose();
-                        }
-                    }
-                    this.scene.remove(object);
-                }
-            }
-            
-            // Dispose renderer
-            if (this.renderer) {
-                this.renderer.dispose();
-                this.renderer = null;
-            }
-            
-            this.scene = null;
-            this.camera = null;
-        }
     }
     
     // Register this class with the global scope
