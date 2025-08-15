@@ -257,17 +257,7 @@ if (typeof window.Artwork1 === 'undefined') {
                     console.warn('Overlay close button not found');
                 }
                 
-                // Data button functionality
-                const dataBtn = document.getElementById('dataBtn');
-                if (dataBtn) {
-                    dataBtn.addEventListener('click', () => {
-                        try {
-                            this.toggleDataOverlay();
-                        } catch (error) {
-                            console.error('Error in data button handler:', error);
-                        }
-                    });
-                }
+                // Data button functionality is handled by parent class
             } catch (error) {
                 console.error('Error setting up data overlay listeners:', error);
             }
@@ -611,6 +601,9 @@ if (typeof window.Artwork1 === 'undefined') {
             
             console.log('Activating 연간압연 데이터 01: 보정 알고리즘 구조 module');
             
+            // Reset overlay state when activating
+            this.overlayVisible = false;
+            
             // Start animation loop if not already running
             if (!this.animationFrame) {
                 this.animate();
@@ -624,6 +617,11 @@ if (typeof window.Artwork1 === 'undefined') {
             super.deactivate();
             
             console.log('Deactivating 연간압연 데이터 01: 보정 알고리즘 구조 module');
+            
+            // Properly close data overlay if it's open
+            if (this.overlayVisible) {
+                this.hideDataOverlay();
+            }
             
             // Stop animation loop
             if (this.animationFrame) {
@@ -768,6 +766,13 @@ if (typeof window.Artwork1 === 'undefined') {
                 newValue = Math.max(0, newValue);
                 document.getElementById('metricValue').textContent = Math.round(newValue);
             }
+        }
+        
+        /**
+         * Show data when data button is clicked
+         */
+        showData() {
+            this.toggleDataOverlay();
         }
         
         /**

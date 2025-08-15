@@ -218,9 +218,17 @@ class ARContainerManager {
             console.error('Error deactivating module:', error);
         }
         
-        // Reset the module instance in the registry to ensure a fresh instance on next activation
+        // Clean up and reset the module instance in the registry to ensure a fresh instance on next activation
         if (this.activeMarkerId && this.moduleRegistry[this.activeMarkerId]) {
-            console.log(`Resetting module instance for marker: ${this.activeMarkerId}`);
+            console.log(`Cleaning up and resetting module instance for marker: ${this.activeMarkerId}`);
+            const moduleInstance = this.moduleRegistry[this.activeMarkerId].instance;
+            if (moduleInstance && typeof moduleInstance.cleanup === 'function') {
+                try {
+                    moduleInstance.cleanup();
+                } catch (error) {
+                    console.error(`Error cleaning up module for marker ${this.activeMarkerId}:`, error);
+                }
+            }
             this.moduleRegistry[this.activeMarkerId].instance = null;
         }
         

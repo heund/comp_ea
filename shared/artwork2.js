@@ -71,7 +71,7 @@ if (typeof window.Artwork2 === 'undefined') {
             
             // Data for overlay
             this.dataPoints = [
-                { label: 'Rolling Force', value: 1248, unit: 'kN' },
+                { label: 'Rolling Force', value: 95.8, unit: 'kN' },
                 { label: 'Compression', value: 73.3, unit: '%' },
                 { label: 'Process Efficiency', value: 89.2, unit: '%' },
                 { label: 'Material Flow', value: 94.1, unit: '%' }
@@ -426,14 +426,7 @@ if (typeof window.Artwork2 === 'undefined') {
          * Hide visualization
          */
         hideVisualization() {
-            const container = document.querySelector('.visualization-container');
-            container.classList.remove('active');
-            
-            // Stop animation when visualization is hidden
-            this.isAnimating = false;
-            
-            // Hide AR UI elements when marker is lost
-            this.hideARInterface();
+            super.hideVisualization();
             
             // Stop data flow visualization
             this.stopDataFlowVisualization();
@@ -443,19 +436,53 @@ if (typeof window.Artwork2 === 'undefined') {
         }
         
         /**
-         * Clean up all animation frames and intervals
+         * Activate the artwork module
+         */
+        activate() {
+            super.activate();
+            
+            console.log('Activating 연간압연 데이터 02: 압축 알고리즘 시각화 module');
+            
+            // Reset overlay state when activating
+            this.overlayVisible = false;
+            
+            // Start animation loop if not already running
+            if (!this.animationFrameId) {
+                this.animate();
+            }
+        }
+        
+        /**
+         * Deactivate the artwork module
+         */
+        deactivate() {
+            super.deactivate();
+            
+            console.log('Deactivating 연간압연 데이터 02: 압축 알고리즘 시각화 module');
+            
+            // Properly close data overlay if it's open
+            if (this.overlayVisible) {
+                this.hideDataOverlay();
+            }
+            
+            // Stop animation loop
+            if (this.animationFrameId) {
+                cancelAnimationFrame(this.animationFrameId);
+                this.animationFrameId = null;
+            }
+        }
+        
+        /**
+         * Clean up animations and intervals
          */
         cleanupAnimations() {
-            // Cancel the main animation frame
             if (this.animationFrameId) {
                 cancelAnimationFrame(this.animationFrameId);
                 this.animationFrameId = null;
             }
             
-            // Clear all intervals
             this.stopDataCycling();
             
-            // Clear data flow interval
             if (this.dataFlowInterval) {
                 clearInterval(this.dataFlowInterval);
                 this.dataFlowInterval = null;
@@ -474,14 +501,8 @@ if (typeof window.Artwork2 === 'undefined') {
                 });
             }
             
-            // Hide data overlay if visible
-            const overlay = document.getElementById('dataOverlay');
-            if (overlay) {
-                overlay.classList.remove('active');
-                overlay.classList.remove('fade-out');
-                overlay.style.display = 'none';
-                this.overlayVisible = false;
-            }
+            // Reset overlay state without hiding it
+            this.overlayVisible = false;
         }
         
         /**
@@ -603,61 +624,25 @@ if (typeof window.Artwork2 === 'undefined') {
                     });
                 }
                 
-                // Data button functionality
-                const dataBtn = document.getElementById('dataBtn');
-                if (dataBtn) {
-                    // Store bound function reference for later removal
-                    this.toggleDataOverlayHandler = () => {
-                        try {
-                            this.showDataOverlay();
-                        } catch (error) {
-                            console.error('Error in data button handler:', error);
-                        }
-                    };
-                    dataBtn.addEventListener('click', this.toggleDataOverlayHandler);
-                }
+                // Data button functionality is handled by parent class
             } catch (error) {
                 console.error('Error setting up data overlay listeners:', error);
             }
         }
         
         /**
-         * Initialize data overlay with dynamic scaling
+         * Initialize data overlay with consistent formatting
          */
         initializeDataOverlay() {
             try {
-                // Set up data overlay with proper scaling
-                const overlay = document.getElementById('dataOverlay');
-                if (overlay) {
-                    // Initialize overlay state
-                    this.dataRevealed = false;
-                    overlay.classList.remove('active');
-                    overlay.classList.add('fade-out');
-                    
-                    // Set up dynamic scaling based on device size
-                    const minDimension = Math.min(window.innerWidth, window.innerHeight);
-                    let popupScale = 1.0;
-                    
-                    if (minDimension >= 768) {
-                        // iPad size - use original scale
-                        popupScale = 1.0;
-                    } else if (minDimension >= 414) {
-                        // Large phone - scale down slightly
-                        popupScale = 0.85;
-                    } else if (minDimension >= 375) {
-                        // Medium phone - scale down more
-                        popupScale = 0.75;
-                    } else {
-                        // Small phone - scale down most
-                        popupScale = 0.65;
+                // Make sure the default text in the HTML uses line breaks consistently
+                const metricLabel = document.getElementById('metricLabel');
+                if (metricLabel) {
+                    // Check if it's the default "Rolling Force" text
+                    if (metricLabel.innerHTML.includes('Rolling')) {
+                        // Ensure it has a line break
+                        metricLabel.innerHTML = 'Rolling<br>Force';
                     }
-                    
-                    // Apply scaling via CSS custom property
-                    overlay.style.setProperty('--popup-scale', popupScale);
-                    
-                    console.log('Data overlay initialized with scale:', popupScale);
-                } else {
-                    console.warn('Data overlay element not found');
                 }
             } catch (error) {
                 console.error('Error initializing data overlay:', error);
@@ -1335,47 +1320,37 @@ if (typeof window.Artwork2 === 'undefined') {
          * Show data overlay
          */
         showDataOverlay() {
+            this.overlayVisible = true;
             const overlay = document.getElementById('dataOverlay');
-            if (overlay) {
-                // Remove any fade-out class and prepare for fade-in
-                overlay.classList.remove('fade-out');
-                overlay.style.display = 'block';
-                
-                // Force a reflow to ensure the display change takes effect
-                overlay.offsetHeight;
-                
-                // Add active class for smooth fade-in animation
-                overlay.classList.add('active');
-                this.overlayVisible = true;
-                this.dataRevealed = true;
-                
-                // Start dynamic data cycling for control room effect
-                this.startDataCycling();
-            }
+            overlay.classList.add('active');
+            this.startDataCycling();
         }
         
         /**
-         * Hide data overlay with animation
+         * Hide data overlay
          */
         hideDataOverlay() {
+            this.overlayVisible = false;
             const overlay = document.getElementById('dataOverlay');
-            if (overlay) {
-                // Add fade-out class for smooth animation
-                overlay.classList.remove('active');
-                overlay.classList.add('fade-out');
-                this.dataRevealed = false;
-                this.overlayVisible = false;
-                
-                // Stop data cycling
-                this.stopDataCycling();
-                
-                // Hide overlay after fade-out animation completes (400ms)
-                setTimeout(() => {
-                    if (overlay.classList.contains('fade-out')) {
-                        overlay.style.display = 'none';
-                        overlay.classList.remove('fade-out');
-                    }
-                }, 400);
+            overlay.classList.remove('active');
+            this.stopDataCycling();
+        }
+        
+        /**
+         * Show data when data button is clicked
+         */
+        showData() {
+            this.toggleDataOverlay();
+        }
+        
+        /**
+         * Toggle data overlay visibility
+         */
+        toggleDataOverlay() {
+            if (this.overlayVisible) {
+                this.hideDataOverlay();
+            } else {
+                this.showDataOverlay();
             }
         }
         
@@ -1385,8 +1360,7 @@ if (typeof window.Artwork2 === 'undefined') {
          * Start data cycling
          */
         startDataCycling() {
-            // Clear any existing cycling interval
-            this.stopDataCycling();
+            if (this.dataUpdateInterval) return;
             
             // Initialize dynamic calculation system
             this.initializeCalculationSystem();
@@ -1394,30 +1368,22 @@ if (typeof window.Artwork2 === 'undefined') {
             // Start with first metric (Rolling Force)
             this.currentDatasetIndex = 0;
             
-            // Update immediately once
-            this.updateDataDisplay();
-            
             // Store calculation start time for reference
             this.calculationStartTime = Date.now();
+            
+            // Set up interval for data updates
+            this.dataUpdateInterval = setInterval(() => {
+                this.updateDataDisplay();
+            }, 150); // Update every 150ms for rapid cycling
         }
         
         /**
          * Stop data cycling
          */
         stopDataCycling() {
-            if (this.dataCyclingInterval) {
-                clearInterval(this.dataCyclingInterval);
-                this.dataCyclingInterval = null;
-            }
             if (this.dataUpdateInterval) {
                 clearInterval(this.dataUpdateInterval);
                 this.dataUpdateInterval = null;
-            }
-            
-            // Stop parameter evolution
-            if (this.parameterEvolution) {
-                clearInterval(this.parameterEvolution);
-                this.parameterEvolution = null;
             }
         }
         
@@ -1438,9 +1404,12 @@ if (typeof window.Artwork2 === 'undefined') {
                 {
                     label: 'Rolling Force',
                     unit: 'kN',
+                    baseValue: 95.8,
+                    range: 20,
                     calculate: (time, state) => {
-                        // Formula: base + pressure influence + temperature influence + noise
-                        return Math.round(1500 + state.pressure * 1000 + (1 - state.temperature) * 500 + Math.random() * 50);
+                        // Simple baseValue + variation approach like artwork1.js
+                        const variation = (Math.random() - 0.5) * this.metrics[0].range;
+                        return Math.round(this.metrics[0].baseValue + variation);
                     }
                 },
                 {
@@ -1654,6 +1623,80 @@ if (typeof window.Artwork2 === 'undefined') {
                     }
                 });
             }
+        }
+        
+        /**
+         * Clean up resources when module is unloaded
+         */
+        cleanup() {
+            super.cleanup();
+            
+            console.log('Cleaning up 연간압연 데이터 02: 압축 알고리즘 시각화 module');
+            
+            // Stop data cycling if active
+            this.stopDataCycling();
+            
+            // Stop animation loop
+            if (this.animationFrameId) {
+                cancelAnimationFrame(this.animationFrameId);
+                this.animationFrameId = null;
+            }
+            
+            // Remove event listeners
+            if (this.boundOnWindowResize) {
+                window.removeEventListener('resize', this.boundOnWindowResize);
+            }
+            
+            const canvas = document.getElementById('visualizationCanvas');
+            if (canvas) {
+                if (this.boundOnMouseDown) canvas.removeEventListener('mousedown', this.boundOnMouseDown);
+                if (this.boundOnTouchStart) canvas.removeEventListener('touchstart', this.boundOnTouchStart);
+                if (this.boundOnMouseWheel) canvas.removeEventListener('wheel', this.boundOnMouseWheel);
+            }
+            
+            if (this.boundOnMouseMove) document.removeEventListener('mousemove', this.boundOnMouseMove);
+            if (this.boundOnMouseUp) document.removeEventListener('mouseup', this.boundOnMouseUp);
+            if (this.boundOnTouchMove) document.removeEventListener('touchmove', this.boundOnTouchMove);
+            if (this.boundOnTouchEnd) document.removeEventListener('touchend', this.boundOnTouchEnd);
+            
+            // Dispose compression spheres
+            if (this.compressionSpheres) {
+                this.compressionSpheres.forEach(sphere => {
+                    if (sphere.geometry) sphere.geometry.dispose();
+                    if (sphere.material) sphere.material.dispose();
+                    if (this.scene) this.scene.remove(sphere);
+                });
+                this.compressionSpheres = [];
+            }
+            
+            // Clear arrays
+            this.sampleCompressionData = [];
+            this.metrics = [];
+            
+            // Clear scene
+            if (this.scene) {
+                while (this.scene.children.length > 0) {
+                    const object = this.scene.children[0];
+                    if (object.geometry) object.geometry.dispose();
+                    if (object.material) {
+                        if (Array.isArray(object.material)) {
+                            object.material.forEach(material => material.dispose());
+                        } else {
+                            object.material.dispose();
+                        }
+                    }
+                    this.scene.remove(object);
+                }
+            }
+            
+            // Dispose renderer
+            if (this.renderer) {
+                this.renderer.dispose();
+                this.renderer = null;
+            }
+            
+            this.scene = null;
+            this.camera = null;
         }
         
     }
