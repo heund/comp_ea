@@ -1,5 +1,5 @@
 /**
- * 열간압연 데이터 02: 압연 효율 분포 Module
+ * 열간 압연 데이터 02: 압연 효율 분포 Module
  * 
  * AR artwork module that creates a compression spheres visualization.
  * This module visualizes compression data using floating spheres.
@@ -18,7 +18,7 @@ if (typeof window.Artwork2 === 'undefined') {
             super(container, options);
             
             // Default title
-            this.title = options.title || '열간압연 데이터 02: 압연 효율 분포';
+            this.title = options.title || '열간 압연 데이터 02: 압연 효율 분포';
             
             // Three.js objects
             this.scene = null;
@@ -88,7 +88,7 @@ if (typeof window.Artwork2 === 'undefined') {
         initialize() {
             super.initialize();
             
-            console.log('Initializing 연간압연 데이터 02: 압연 압력 시각화 module');
+            console.log('Initializing 열간압연 데이터 02: 압연 압력 시각화 module');
             
             // Set up Three.js scene
             this.setupScene();
@@ -441,7 +441,7 @@ if (typeof window.Artwork2 === 'undefined') {
         activate() {
             super.activate();
             
-            console.log('Activating 연간압연 데이터 02: 압축 알고리즘 시각화 module');
+            console.log('Activating 열간 압연 데이터 02: 압축 알고리즘 시각화 module');
             
             // Reset overlay state when activating
             this.overlayVisible = false;

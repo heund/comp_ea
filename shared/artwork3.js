@@ -1,14 +1,14 @@
 /**
- * 열간 압연 데이터 01: 보정 알고리즘 구조 Module
+ * 열간 압연 데이터 03: 시계열 구간별 변형 제어값 Module
  * 
- * AR artwork module that creates a network graph visualization.
- * This module visualizes a complex network of nodes and connections.
+ * AR artwork module that creates a stratified deformation visualization.
+ * This module visualizes deformation layers with stress analysis.
  */
 
 // Only define the class if it doesn't already exist
-if (typeof window.Artwork1 === 'undefined') {
+if (typeof window.Artwork3 === 'undefined') {
 
-    class Artwork1 extends ArtworkModule {
+    class Artwork3 extends ArtworkModule {
         /**
          * Constructor for the ArtworkTemplate module
          * @param {HTMLElement} container - The container element where the artwork will be rendered
@@ -18,7 +18,7 @@ if (typeof window.Artwork1 === 'undefined') {
             super(container, options);
             
             // Default title
-            this.title = options.title || '열간 압연 데이터 01: 보정 알고리즘 구조';
+            this.title = options.title || '열간 압연 데이터 03: 시계열 구간별 변형 제어값';
             
             // Three.js objects
             this.scene = null;
@@ -26,11 +26,39 @@ if (typeof window.Artwork1 === 'undefined') {
             this.renderer = null;
             this.animationFrame = null;
             
-            // Network graph objects
-            this.networkNodes = [];
-            this.networkEdges = [];
-            this.centralCore = null;
-            this.networkGraph = { nodes: [] };
+            // Audio wave visualization objects
+            this.canvas = null;
+            this.ctx = null;
+            this.waveAnimationId = null;
+            this.time = 0;
+            this.lastFrameTime = 0;
+            
+            // Data overlay system
+            this.currentDataset = 0;
+            this.overlayVisible = false;
+            this.dataUpdateInterval = null;
+            this.sampleDeformationData = [
+                {simulation_step: 1, strain_rate: 0.091, flow_stress: 129.2, total_deformation: 0.0, grain_size: 100.0, recrystallization_fraction: 0.0, material_type: "Medium Carbon Steel", temperature: 1100.0},
+                {simulation_step: 2, strain_rate: 0.095, flow_stress: 135.4, total_deformation: 0.05, grain_size: 98.5, recrystallization_fraction: 0.02, material_type: "Medium Carbon Steel", temperature: 1095.0},
+                {simulation_step: 3, strain_rate: 0.102, flow_stress: 142.1, total_deformation: 0.12, grain_size: 96.8, recrystallization_fraction: 0.05, material_type: "Medium Carbon Steel", temperature: 1090.0},
+                {simulation_step: 4, strain_rate: 0.108, flow_stress: 148.9, total_deformation: 0.21, grain_size: 94.9, recrystallization_fraction: 0.08, material_type: "Medium Carbon Steel", temperature: 1085.0},
+                {simulation_step: 5, strain_rate: 0.115, flow_stress: 155.8, total_deformation: 0.32, grain_size: 92.7, recrystallization_fraction: 0.12, material_type: "Medium Carbon Steel", temperature: 1080.0},
+                {simulation_step: 6, strain_rate: 0.123, flow_stress: 162.9, total_deformation: 0.45, grain_size: 90.3, recrystallization_fraction: 0.16, material_type: "High Carbon Steel", temperature: 1075.0},
+                {simulation_step: 7, strain_rate: 0.131, flow_stress: 170.2, total_deformation: 0.59, grain_size: 87.6, recrystallization_fraction: 0.21, material_type: "High Carbon Steel", temperature: 1070.0},
+                {simulation_step: 8, strain_rate: 0.139, flow_stress: 177.7, total_deformation: 0.75, grain_size: 84.7, recrystallization_fraction: 0.26, material_type: "High Carbon Steel", temperature: 1065.0},
+                {simulation_step: 9, strain_rate: 0.148, flow_stress: 185.4, total_deformation: 0.93, grain_size: 81.5, recrystallization_fraction: 0.32, material_type: "High Carbon Steel", temperature: 1060.0},
+                {simulation_step: 10, strain_rate: 0.157, flow_stress: 193.3, total_deformation: 1.13, grain_size: 78.1, recrystallization_fraction: 0.38, material_type: "Low Carbon Steel", temperature: 1055.0},
+                {simulation_step: 11, strain_rate: 0.167, flow_stress: 201.5, total_deformation: 1.35, grain_size: 74.4, recrystallization_fraction: 0.45, material_type: "Low Carbon Steel", temperature: 1050.0},
+                {simulation_step: 12, strain_rate: 0.177, flow_stress: 209.9, total_deformation: 1.59, grain_size: 70.5, recrystallization_fraction: 0.52, material_type: "Low Carbon Steel", temperature: 1045.0},
+                {simulation_step: 13, strain_rate: 0.188, flow_stress: 218.6, total_deformation: 1.85, grain_size: 66.3, recrystallization_fraction: 0.60, material_type: "Low Carbon Steel", temperature: 1040.0},
+                {simulation_step: 14, strain_rate: 0.199, flow_stress: 227.6, total_deformation: 2.13, grain_size: 61.9, recrystallization_fraction: 0.68, material_type: "Medium Carbon Steel", temperature: 1035.0},
+                {simulation_step: 15, strain_rate: 0.211, flow_stress: 236.9, total_deformation: 2.43, grain_size: 57.2, recrystallization_fraction: 0.77, material_type: "Medium Carbon Steel", temperature: 1030.0},
+                {simulation_step: 16, strain_rate: 0.223, flow_stress: 246.5, total_deformation: 2.76, grain_size: 52.3, recrystallization_fraction: 0.86, material_type: "Medium Carbon Steel", temperature: 1025.0},
+                {simulation_step: 17, strain_rate: 0.236, flow_stress: 256.5, total_deformation: 3.11, grain_size: 47.1, recrystallization_fraction: 0.95, material_type: "High Carbon Steel", temperature: 1020.0},
+                {simulation_step: 18, strain_rate: 0.250, flow_stress: 266.9, total_deformation: 3.48, grain_size: 41.6, recrystallization_fraction: 1.05, material_type: "High Carbon Steel", temperature: 1015.0},
+                {simulation_step: 19, strain_rate: 0.264, flow_stress: 277.7, total_deformation: 3.88, grain_size: 35.8, recrystallization_fraction: 1.15, material_type: "High Carbon Steel", temperature: 1010.0},
+                {simulation_step: 20, strain_rate: 0.279, flow_stress: 288.9, total_deformation: 4.30, grain_size: 29.7, recrystallization_fraction: 1.26, material_type: "Low Carbon Steel", temperature: 1005.0}
+            ];
             
             // Data overlay properties
             this.overlayVisible = false;
@@ -69,10 +97,10 @@ if (typeof window.Artwork1 === 'undefined') {
             
             // Data for overlay
             this.dataPoints = [
-                { label: 'Core Efficiency', value: 87.3, unit: '%' },
-                { label: 'Network Load', value: 64.2, unit: '%' },
-                { label: 'Active Corrections', value: 142, unit: '' },
-                { label: 'Data Integrity', value: 91.8, unit: '%' }
+                { label: 'Strain Rate', value: 0.145, unit: '/s' },
+                { label: 'Flow Stress', value: 185.4, unit: 'MPa' },
+                { label: 'Total Deformation', value: 2.13, unit: 'mm' },
+                { label: 'Grain Size', value: 61.9, unit: 'μm' }
             ];
         }
         
@@ -82,32 +110,26 @@ if (typeof window.Artwork1 === 'undefined') {
         initialize() {
             super.initialize();
             
-            console.log('Initializing 연간압연 데이터 01: 보정 알고리즘 구조 module');
+            console.log('Initializing Artwork3...');
             
-            // Set up Three.js scene
+            // Set up Three.js scene first
             this.setupScene();
+            
+            // Initialize wave canvas for audio wave visualization
+            this.initializeWaveCanvas();
             
             // Set up UI
             this.setupUI(this.title);
             
-            // Create network visualization
-            this.createCorrectionNetwork();
-            
-            // Set up event listeners
-            this.setupEventListeners();
+            // Setup canvas click detection
+            this.setupCanvasClickDetection();
             
             // Initialize and set up data overlay
             this.initializeDataOverlay();
             this.setupDataOverlayListeners();
             
-            // Set up mouse controls
-            this.setupMouseControls();
-            
-            // Start animation loop
-            this.animate();
-            
-            this.title = '열간 압연 데이터 01: 보정 알고리즘 구조'; 
-            console.log('연간압연 데이터 01: 보정 알고리즘 구조 module initialized');
+            this.title = '열간 압연 데이터 03: 시계열 구간별 변형 제어값';
+            console.log('Artwork3 initialized successfully');
         }
         
         /**
@@ -280,6 +302,294 @@ if (typeof window.Artwork1 === 'undefined') {
             }
         }
     
+        /**
+         * Setup canvas click detection for data overlay interaction
+         */
+        setupCanvasClickDetection() {
+            const canvas = document.getElementById('waveCanvas');
+            if (!canvas) return;
+            
+            // Simple click event - just like any other HTML element
+            canvas.addEventListener('click', (event) => {
+                this.handleCanvasClick(event, canvas);
+            });
+            
+            // Simple touch event for mobile
+            canvas.addEventListener('touchend', (event) => {
+                event.preventDefault();
+                this.handleCanvasClick(event, canvas);
+            });
+        }
+        
+        /**
+         * Handle canvas click for data overlay cycling
+         */
+        handleCanvasClick(event, canvas) {
+            // Canvas click detected - show data overlay or cycle datasets
+            if (this.overlayVisible) {
+                this.cycleToNextDataset();
+            } else {
+                this.showDataOverlay();
+            }
+        }
+        
+        /**
+         * Show data overlay with cycling datasets
+         */
+        showDataOverlay() {
+            const overlay = document.getElementById('dataOverlay');
+            if (overlay) {
+                this.overlayVisible = true;
+                overlay.classList.add('active');
+                
+                // Start data cycling
+                this.startDataCycling();
+                
+                // Initialize with first dataset
+                this.updateOverlayData();
+            }
+        }
+        
+        /**
+         * Hide data overlay
+         */
+        hideDataOverlay() {
+            const overlay = document.getElementById('dataOverlay');
+            if (overlay) {
+                this.overlayVisible = false;
+                overlay.classList.remove('active');
+                
+                // Stop data cycling
+                this.stopDataCycling();
+            }
+        }
+        
+        /**
+         * Cycle to next dataset
+         */
+        cycleToNextDataset() {
+            if (this.overlayVisible) {
+                this.currentDataset = (this.currentDataset + 1) % 4;
+                this.updateOverlayData();
+            }
+        }
+        
+        /**
+         * Update overlay data display
+         */
+        updateOverlayData() {
+            const datasets = [
+                { title: 'Strain Rate', unit: '/s', baseValue: 0.091 },
+                { title: 'Flow Stress', unit: 'MPa', baseValue: 129.2 },
+                { title: 'Total Deformation', unit: '', baseValue: 0.0 },
+                { title: 'Grain Size', unit: 'μm', baseValue: 100.0 }
+            ];
+            
+            const dataset = datasets[this.currentDataset];
+            const metricLabel = document.getElementById('metricLabel');
+            const metricUnit = document.getElementById('metricUnit');
+            const metricValue = document.getElementById('metricValue');
+            
+            if (metricLabel) metricLabel.textContent = dataset.title;
+            if (metricUnit) metricUnit.textContent = dataset.unit;
+            if (metricValue) metricValue.textContent = dataset.baseValue;
+        }
+        
+        /**
+         * Update data values with dynamic calculations
+         */
+        updateDataValues() {
+            const time = (Date.now() * 0.001);
+            let value;
+            const metricValue = document.getElementById('metricValue');
+            if (!metricValue) return;
+            
+            switch (this.currentDataset) {
+                case 0: // Strain Rate
+                    value = 0.091 + Math.sin(time * 1.3) * 0.02 + Math.cos(time * 2.7) * 0.015;
+                    value = Math.max(0.05, Math.min(0.15, value));
+                    metricValue.textContent = value.toFixed(3);
+                    break;
+                    
+                case 1: // Flow Stress
+                    value = 129.2 + Math.sin(time * 1.8) * 15 + Math.cos(time * 2.3) * 10;
+                    value = Math.max(100, Math.min(180, value));
+                    metricValue.textContent = value.toFixed(1);
+                    break;
+                    
+                case 2: // Total Deformation
+                    value = 0.0 + Math.sin(time * 1.5) * 0.3 + Math.cos(time * 2.1) * 0.2;
+                    value = Math.max(0.0, Math.min(1.0, value));
+                    metricValue.textContent = value.toFixed(2);
+                    break;
+                    
+                case 3: // Grain Size
+                    value = 100.0 + Math.sin(time * 1.2) * 20 + Math.cos(time * 1.9) * 15;
+                    value = Math.max(60, Math.min(140, value));
+                    metricValue.textContent = value.toFixed(1);
+                    break;
+            }
+        }
+        
+        /**
+         * Start data cycling interval
+         */
+        startDataCycling() {
+            if (this.dataUpdateInterval) return;
+            
+            this.dataUpdateInterval = setInterval(() => {
+                if (this.overlayVisible) {
+                    this.updateDataValues();
+                }
+            }, 200); // Fast updates for dynamic effect
+        }
+        
+        /**
+         * Stop data cycling interval
+         */
+        stopDataCycling() {
+            if (this.dataUpdateInterval) {
+                clearInterval(this.dataUpdateInterval);
+                this.dataUpdateInterval = null;
+            }
+        }
+        
+        /**
+         * Initialize wave canvas for audio wave visualization
+         */
+        initializeWaveCanvas() {
+            this.canvas = document.getElementById('waveCanvas');
+            if (this.canvas) {
+                this.ctx = this.canvas.getContext('2d');
+                
+                // Set canvas to full viewport size
+                this.canvas.width = window.innerWidth;
+                this.canvas.height = window.innerHeight;
+                
+                this.lastFrameTime = performance.now();
+                console.log('Wave canvas initialized:', this.canvas.width, 'x', this.canvas.height);
+            } else {
+                console.error('waveCanvas element not found in DOM');
+            }
+        }
+        
+        /**
+         * Draw flowing audio waves with gradients - matches artwork3.html exactly
+         */
+        drawWaves() {
+            if (!this.canvas || !this.ctx) {
+                console.log('Canvas or context not available for drawing waves');
+                return;
+            }
+            
+            console.log('Drawing waves - canvas size:', this.canvas.width, 'x', this.canvas.height);
+            
+            // Use consistent frame timing to prevent acceleration
+            const currentTime = performance.now();
+            if (this.lastFrameTime === 0) {
+                this.lastFrameTime = currentTime;
+            }
+            const deltaTime = currentTime - this.lastFrameTime;
+            this.lastFrameTime = currentTime;
+            
+            // Update time at consistent rate for natural wave animation
+            this.time += deltaTime * 0.08; // Faster for more engaging wave movement
+            
+            // Clear canvas with transparent background
+            this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+            
+            // Draw densely stacked waves - AR optimized
+            const centerY = this.canvas.height / 2;
+            const numWaves = 60; // Fewer waves for much thicker appearance
+            
+            for (let i = 0; i < numWaves; i++) {
+                const waveOffset = (i - numWaves / 2) * 8; // Much more spacing for AR visibility
+                const baseY = centerY + waveOffset;
+                
+                // Create gradient for each wave with smooth color blending and depth of field
+                const gradient = this.ctx.createLinearGradient(0, 0, this.canvas.width, 0);
+                
+                // Calculate distance from center for depth of field
+                const centerDistance = Math.abs(waveOffset);
+                const maxDistance = 240; // Maximum distance from center
+                const depthRatio = centerDistance / maxDistance; // 0 = center, 1 = edge
+                
+                // Depth of field: closer waves are more saturated and opaque
+                const baseAlpha = Math.max(0.2, 1 - depthRatio * 0.8); // Fade to background
+                const saturation = Math.max(0.3, 1 - depthRatio * 0.7); // Desaturate distant waves
+                
+                // Smooth color transition: red center → orange → cyan edges
+                // Using smooth cubic interpolation for better gradients
+                const smoothRatio = depthRatio * depthRatio * (3 - 2 * depthRatio); // Smooth step function
+                
+                // Color palette with three-stage transitions
+                const centerR = 255, centerG = 80, centerB = 60;      // Coral-orange between orange and pink
+                const midR = 246, midG = 101, midB = 93;               // #F6655D exact color mid
+                const edgeR = 100, edgeG = 149, edgeB = 180;           // Greyish blue edges
+                
+                // Three-stage interpolation: red → orange → cyan
+                let r, g, b;
+                if (smoothRatio < 0.5) {
+                    // First half: red to orange
+                    const t = smoothRatio * 2; // 0 to 1
+                    r = Math.round(centerR + (midR - centerR) * t);
+                    g = Math.round(centerG + (midG - centerG) * t);
+                    b = Math.round(centerB + (midB - centerB) * t);
+                } else {
+                    // Second half: orange to cyan
+                    const t = (smoothRatio - 0.5) * 2; // 0 to 1
+                    r = Math.round(midR + (edgeR - midR) * t);
+                    g = Math.round(midG + (edgeG - midG) * t);
+                    b = Math.round(midB + (edgeB - midB) * t);
+                }
+                
+                // Apply saturation factor
+                const finalR = Math.round(r * saturation + 128 * (1 - saturation));
+                const finalG = Math.round(g * saturation + 128 * (1 - saturation));
+                const finalB = Math.round(b * saturation + 128 * (1 - saturation));
+                
+                // Create gradient with depth-aware opacity
+                gradient.addColorStop(0, `rgba(${finalR}, ${finalG}, ${finalB}, 0)`);
+                gradient.addColorStop(0.1, `rgba(${finalR}, ${finalG}, ${finalB}, ${baseAlpha * 0.6})`);
+                gradient.addColorStop(0.5, `rgba(${finalR}, ${finalG}, ${finalB}, ${baseAlpha})`);
+                gradient.addColorStop(0.9, `rgba(${finalR}, ${finalG}, ${finalB}, ${baseAlpha * 0.6})`);
+                gradient.addColorStop(1, `rgba(${finalR}, ${finalG}, ${finalB}, 0)`);
+                
+                this.ctx.strokeStyle = gradient;
+                this.ctx.lineWidth = 12 + Math.sin(i * 0.1) * 4; // Dramatically thick lines (12-16px) for AR
+                this.ctx.globalAlpha = baseAlpha;
+                
+                // Draw wave path
+                this.ctx.beginPath();
+                
+                for (let x = 0; x <= this.canvas.width; x += 3) { // Lower resolution for smoother curves
+                    // Simplified wave with just 2 frequencies for cleaner look
+                    const frequency1 = 0.008 + Math.sin(i * 0.05) * 0.003; // Primary wave
+                    const frequency2 = 0.020 + Math.cos(i * 0.03) * 0.005; // Secondary wave
+                    
+                    const amplitude1 = 30 + Math.sin(i * 0.1 + this.time * 0.02) * 20; // Large primary amplitude
+                    const amplitude2 = 10 + Math.cos(i * 0.15 + this.time * 0.015) * 8; // Smaller secondary amplitude
+                    
+                    const wave1 = Math.sin(x * frequency1 + this.time * 0.01 + i * 0.1) * amplitude1;
+                    const wave2 = Math.sin(x * frequency2 + this.time * 0.008 + i * 0.15) * amplitude2;
+                    
+                    const y = baseY + wave1 + wave2;
+                    
+                    if (x === 0) {
+                        this.ctx.moveTo(x, y);
+                    } else {
+                        this.ctx.lineTo(x, y);
+                    }
+                }
+                
+                this.ctx.stroke();
+            }
+            
+            this.ctx.globalAlpha = 1;
+            // Continue animation
+            this.waveAnimationId = requestAnimationFrame(() => this.drawWaves());
+        }
+        
         /**
          * Create the network graph visualization
          */
@@ -542,38 +852,16 @@ if (typeof window.Artwork1 === 'undefined') {
         }
         
         /**
-         * Animation loop
+         * Animation loop - only for canvas wave animation
          */
         animate() {
             if (!this.isActive) return;
             
-            // Request next frame
-            this.animationFrame = requestAnimationFrame(this.animate.bind(this));
-            
-            // Auto-rotate if enabled
-            if (this.autoRotate && this.centralCore) {
-                this.centralCore.rotation.y += 0.002;
-                this.centralCore.rotation.x += 0.001;
+            // For artwork3, we only need canvas wave animation
+            // The drawWaves() method handles its own requestAnimationFrame
+            if (this.canvas && this.ctx && !this.waveAnimationId) {
+                this.drawWaves();
             }
-            
-            // Pulse effect on nodes
-            const time = Date.now() * 0.001;
-            this.networkNodes.forEach((node, i) => {
-                if (i % 5 === 0) { // Only animate some nodes for performance
-                    const nodeData = node.userData.nodeData;
-                    const pulseScale = 1 + 0.1 * Math.sin(time * 2 + nodeData.id * 0.1);
-                    node.scale.set(pulseScale, pulseScale, pulseScale);
-                    
-                    // Subtle position animation
-                    const positionOffset = 0.05 * Math.sin(time + nodeData.id * 0.2);
-                    node.position.x = nodeData.x + positionOffset;
-                    node.position.y = nodeData.y + positionOffset;
-                    node.position.z = nodeData.z + positionOffset;
-                }
-            });
-            
-            // Render scene
-            this.renderer.render(this.scene, this.camera);
         }
         
         /**
@@ -595,19 +883,32 @@ if (typeof window.Artwork1 === 'undefined') {
         }
         
         /**
-         * Activate the artwork module
+         * Activate the artwork (called when AR marker is detected)
          */
         activate() {
             super.activate();
             
-            console.log('Activating 연간압연 데이터 01: 보정 알고리즘 구조 module');
+            console.log('Activating Artwork3...');
             
-            // Reset overlay state when activating
+            // Reset overlay state when activating (like artwork1)
             this.overlayVisible = false;
             
-            // Start animation loop if not already running
-            if (!this.animationFrame) {
-                this.animate();
+            // Show wave container and reset display
+            const waveContainer = document.getElementById('waveContainer');
+            if (waveContainer) {
+                waveContainer.style.display = 'block'; // Ensure it's visible
+                waveContainer.classList.add('active');
+                console.log('Wave container activated');
+            }
+            
+            // Initialize canvas if not already done
+            if (!this.canvas) {
+                this.initializeWaveCanvas();
+            }
+            
+            // Start wave animation directly - this should trigger the animation loop
+            if (this.canvas && this.ctx && !this.waveAnimationId) {
+                this.drawWaves();
             }
         }
         
@@ -617,62 +918,35 @@ if (typeof window.Artwork1 === 'undefined') {
         deactivate() {
             super.deactivate();
             
-            console.log('Deactivating 연간압연 데이터 01: 보정 알고리즘 구조 module');
+            console.log('Deactivating 열간 압연 데이터 03: 시계열 구간별 변형 제어값 module');
+            
+            // Hide wave container COMPLETELY
+            const waveContainer = document.getElementById('waveContainer');
+            if (waveContainer) {
+                waveContainer.classList.remove('active');
+                waveContainer.style.display = 'none'; // Force hide
+                console.log('Wave container completely hidden');
+            }
+            
+            // Stop wave animation
+            if (this.waveAnimationId) {
+                cancelAnimationFrame(this.waveAnimationId);
+                this.waveAnimationId = null;
+            }
             
             // Properly close data overlay if it's open
             if (this.overlayVisible) {
                 this.hideDataOverlay();
             }
             
-            // Stop animation loop
-            if (this.animationFrame) {
-                cancelAnimationFrame(this.animationFrame);
-                this.animationFrame = null;
-            }
-        }
-        
-        /**
-         * Handle node click for data interaction
-         */
-        handleNodeClick(event, canvas) {
-            // Check if camera exists before proceeding
-            if (!this.camera) {
-                console.warn('Camera not initialized for node click handling');
-                return;
-            }
+            // Stop data cycling
+            this.stopDataCycling();
             
-            // Calculate mouse position in normalized device coordinates (-1 to +1)
-            const rect = canvas.getBoundingClientRect();
-            this.mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
-            this.mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
-            
-            try {
-                // Update the picking ray with the camera and mouse position
-                this.raycaster.setFromCamera(this.mouse, this.camera);
-                
-                // Get all clickable objects in the scene (including meshes and lines)
-                const clickableObjects = [];
-                this.scene.traverse((child) => {
-                    // Include both mesh objects (nodes) and line objects (connections)
-                    if (child.isMesh || child.isLine || child.isLineSegments || child.type === 'Line') {
-                        clickableObjects.push(child);
-                    }
-                });
-                
-                // Calculate objects intersecting the picking ray
-                const intersects = this.raycaster.intersectObjects(clickableObjects);
-                
-                if (intersects.length > 0) {
-                    console.log('Object clicked:', intersects[0].object);
-                    
-                    if (this.overlayVisible) {
-                        this.cycleToNextDataset();
-                    } else {
-                        this.showDataOverlay();
-                    }
-                }
-            } catch (error) {
-                console.error('Error in handleNodeClick:', error);
+            // Clear canvas completely
+            if (this.canvas && this.ctx) {
+                this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+                this.ctx.fillStyle = 'transparent';
+                this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
             }
         }
         
@@ -793,59 +1067,35 @@ if (typeof window.Artwork1 === 'undefined') {
         cleanup() {
             super.cleanup();
             
-            console.log('Cleaning up 연간압연 데이터 01: 보정 알고리즘 구조 module');
+            console.log('Cleaning up 열간 압연 데이터 03: 시계열 구간별 변형 제어값 module');
             
             // Stop data cycling if active
             this.stopDataCycling();
             
-            // Stop animation loop
-            if (this.animationFrame) {
-                cancelAnimationFrame(this.animationFrame);
-                this.animationFrame = null;
+            // Stop wave animation
+            if (this.waveAnimationId) {
+                cancelAnimationFrame(this.waveAnimationId);
+                this.waveAnimationId = null;
             }
             
             // Remove event listeners
             window.removeEventListener('resize', this.onWindowResize.bind(this));
             
-            const canvas = document.getElementById('visualizationCanvas');
-            if (canvas) {
-                canvas.removeEventListener('mousedown', this.onMouseDown.bind(this));
-                canvas.removeEventListener('touchstart', this.onTouchStart.bind(this));
-                canvas.removeEventListener('wheel', this.onMouseWheel.bind(this));
+            // Remove canvas event listeners (if they exist)
+            const waveCanvas = document.getElementById('waveCanvas');
+            if (waveCanvas && this.onCanvasClick) {
+                waveCanvas.removeEventListener('click', this.onCanvasClick.bind(this));
+            }
+            if (waveCanvas && this.onCanvasTouch) {
+                waveCanvas.removeEventListener('touchstart', this.onCanvasTouch.bind(this));
             }
             
-            document.removeEventListener('mousemove', this.onMouseMove.bind(this));
-            document.removeEventListener('mouseup', this.onMouseUp.bind(this));
-            document.removeEventListener('touchmove', this.onTouchMove.bind(this));
-            document.removeEventListener('touchend', this.onTouchEnd.bind(this));
-            
-            // Dispose network nodes and edges
-            this.networkNodes.forEach(node => {
-                if (node.geometry) node.geometry.dispose();
-                if (node.material) node.material.dispose();
-                this.scene.remove(node);
-            });
-            
-            this.networkEdges.forEach(edge => {
-                if (edge.geometry) edge.geometry.dispose();
-                if (edge.material) edge.material.dispose();
-                this.scene.remove(edge);
-            });
-            
-            // Dispose central core
-            if (this.centralCore) {
-                this.scene.remove(this.centralCore);
-                if (this.centralCore.geometry) this.centralCore.geometry.dispose();
-                if (this.centralCore.material) this.centralCore.material.dispose();
-                this.centralCore = null;
+            // Clear canvas
+            if (this.canvas && this.ctx) {
+                this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
             }
             
-            // Clear arrays
-            this.networkNodes = [];
-            this.networkEdges = [];
-            this.networkGraph.nodes = [];
-            
-            // Clear scene
+            // Clear scene (Three.js cleanup)
             if (this.scene) {
                 while (this.scene.children.length > 0) {
                     const object = this.scene.children[0];
@@ -869,11 +1119,13 @@ if (typeof window.Artwork1 === 'undefined') {
             
             this.scene = null;
             this.camera = null;
+            this.canvas = null;
+            this.ctx = null;
         }
     }
     
     // Register this class with the global scope
-    window.Artwork1 = Artwork1;
+    window.Artwork3 = Artwork3;
     
     } // End of if statement checking for existing class
     

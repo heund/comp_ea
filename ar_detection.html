@@ -5,11 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="연간압연 데이터 01: 보정 알고리즘 구조">
+    <meta name="apple-mobile-web-app-title" content="열간 압연 데이터 01: 보정 알고리즘 구조">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="theme-color" content="#0a0a0a">
     <link rel="manifest" href="../manifest.json">
-    <title>연간압연 데이터 01: 보정 알고리즘 구조</title>
+    <title>열간 압연 데이터 01: 보정 알고리즘 구조</title>
     
     <!-- A-Frame for AR -->
     <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
@@ -17,6 +17,8 @@
     <script src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js@3.4.5/aframe/build/aframe-ar.js"></script>
     <!-- Three.js for 3D visualization -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <!-- D3.js for data visualization -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
     <!-- Bootstrap Icons for UI buttons -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
     <!-- Fonts -->
@@ -38,6 +40,12 @@
     <!-- Three.js Visualization Container -->
     <div class="visualization-container" id="visualizationContainer">
         <canvas id="visualizationCanvas"></canvas>
+    </div>
+    
+    <!-- Wave Visualization Container for Artwork3 -->
+    <div class="wave-container" id="waveContainer">
+        <canvas id="waveCanvas" width="1920" height="1080"></canvas>
+    </div>
         
         <!-- Futuristic Data Overlay - EXACT copy from artwork1.html -->
         <div class="data-overlay" id="dataOverlay">
@@ -83,22 +91,47 @@
         
         <!-- AR Markers for different artworks -->
         
-        <!-- Artwork1 Marker - Using pattern-ar_code_test2.patt -->
+        <!-- Artwork1 Marker - pattern-ar_code_test1.patt -->
         <a-marker
             type="pattern"
-            url="./pattern-ar_code_test2.patt"
-            id="template"
+            url="./pattern-ar_code_test1.patt"
+            id="artwork1"
             smooth="true">
             <!-- Artwork1 Marker -->
         </a-marker>
         
-        <!-- Artwork2 Marker - Using pattern-ar_code_test1.patt -->
+        <!-- Artwork2 Marker - pattern-ar_code_test2.patt -->
         <a-marker
             type="pattern"
-            url="./pattern-ar_code_test1.patt"
+            url="./pattern-ar_code_test2.patt"
             id="artwork2"
             smooth="true">
             <!-- Artwork2 Marker -->
+        </a-marker>
+        
+        <!-- Artwork3 Marker - pattern-D1.patt -->
+        <a-marker
+            type="pattern"
+            url="./pattern-D1.patt"
+            id="artwork3"
+            smooth="true">
+            <!-- Artwork3 Marker -->
+        </a-marker>
+        
+        <!-- Artwork4 Marker - Hiro -->
+        <a-marker
+            preset="hiro"
+            id="artwork4"
+            smooth="true">
+            <!-- Artwork4 Marker -->
+        </a-marker>
+        
+        <!-- Artwork5 Marker - Kanji -->
+        <a-marker
+            preset="kanji"
+            id="artwork5"
+            smooth="true">
+            <!-- Artwork5 Marker -->
         </a-marker>
         
         <!-- Camera -->
@@ -172,6 +205,31 @@
         
         @keyframes spin {
             to { transform: rotate(360deg); }
+        }
+        
+        /* Wave Visualization Container */
+        .wave-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            pointer-events: none;
+            z-index: 100;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.5s ease;
+        }
+
+        .wave-container.active {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .wave-container canvas {
+            width: 100%;
+            height: 100%;
+            display: block;
         }
     </style>
     
@@ -324,6 +382,9 @@
     <script src="./shared/ar-container-manager.js"></script>
     <script src="./shared/artwork1.js"></script>
     <script src="./shared/artwork2.js"></script>
+    <script src="./shared/artwork3.js"></script>
+    <script src="./shared/artwork4.js"></script>
+    <script src="./shared/artwork5.js"></script>
     
     <!-- Shared Navigation Script -->
     <script src="./shared/navigation.js"></script>
@@ -437,17 +498,48 @@
                 });
             }
             
-            // Register artwork1 module
-            arManager.registerModule('template', Artwork1, {
-                title: '연간압연 데이터 01: 보정 알고리즘 구조',
-                audioFile: 'https://heund.github.io/ea_test1/sounds/ambient1.mp3'
-            });
-            
-            // Register artwork2 module
-            arManager.registerModule('artwork2', Artwork2, {
-                title: '연간압연 데이터 02: 압연 압력 시각화',
-                audioFile: 'https://heund.github.io/ea_test1/sounds/ambient1.mp3'
-            });
+            // Wait for all scripts to load before registering modules
+            setTimeout(() => {
+                // Register artwork1 module
+                if (typeof window.Artwork1 !== 'undefined') {
+                    arManager.registerModule('artwork1', Artwork1, {
+                        title: '열간 압연 데이터 01: 보정 알고리즘 구조',
+                        audioFile: 'https://heund.github.io/ea_test1/sounds/ambient1.mp3'
+                    });
+                }
+                
+                // Register artwork2 module
+                if (typeof window.Artwork2 !== 'undefined') {
+                    arManager.registerModule('artwork2', Artwork2, {
+                        title: '열간 압연 데이터 02: 압연 효율 분포',
+                        audioFile: 'https://heund.github.io/ea_test1/sounds/ambient1.mp3'
+                    });
+                }
+                
+                // Register artwork3 module
+                if (typeof window.Artwork3 !== 'undefined') {
+                    arManager.registerModule('artwork3', Artwork3, {
+                        title: '열간 압연 데이터 03: 시계열 구간별 변형 제어값',
+                        audioFile: 'https://heund.github.io/ea_test1/sounds/ambient1.mp3'
+                    });
+                }
+                
+                // Register artwork4 module
+                if (typeof window.Artwork4 !== 'undefined') {
+                    arManager.registerModule('artwork4', Artwork4, {
+                        title: '열간 압연 데이터 04: 응력 누적 분포',
+                        audioFile: 'https://heund.github.io/ea_test1/sounds/ambient1.mp3'
+                    });
+                }
+                
+                // Register artwork5 module
+                if (typeof window.Artwork5 !== 'undefined') {
+                    arManager.registerModule('artwork5', Artwork5, {
+                        title: '열간 압연 데이터 05: 다중 열 변수 시계열 필드값',
+                        audioFile: 'https://heund.github.io/ea_test1/sounds/ambient1.mp3'
+                    });
+                }
+            }, 100);
             
             // Setup exit button
             const exitBtn = document.getElementById('exitBtn');
