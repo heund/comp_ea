@@ -1,566 +1,737 @@
 /**
- * Artwork5 - 열간 압연 데이터 05: 다중 열 변수 시계열 필드값
- * Thermal Dissipation Heatmap Visualization
- * Based on artwork5.html Three.js animation
+ * 열간 압연 데이터 05: 온도 분포 및 열 전달 분석 Module
+ * 
+ * AR artwork module that creates thermal heatmap visualization.
+ * This module visualizes temperature distribution with thermal analysis.
  */
 
-// Check if the class already exists to prevent redefinition
+// Only define the class if it doesn't already exist
 if (typeof window.Artwork5 === 'undefined') {
 
-    class Artwork5 extends ArtworkBase {
-        constructor() {
-            super();
-            this.title = '열간 압연 데이터 05: 다중 열 변수 시계열 필드값';
+    class Artwork5 extends ArtworkModule {
+        /**
+         * Constructor for the ArtworkTemplate module
+         * @param {HTMLElement} container - The container element where the artwork will be rendered
+         * @param {Object} options - Configuration options for the module
+         */
+        constructor(container, options = {}) {
+            super(container, options);
             
-            // Thermal heatmap properties
-            this.heatmapLayers = [];
-            this.temperatureGradients = [];
-            this.thermalContours = [];
-            this.currentHeatmapMode = 0;
-            this.animationSpeed = 1.0;
+            // Default title
+            this.title = options.title || '열간 압연 데이터 05: 온도 분포 및 열 전달 분석';
             
-            // Thermal data for heatmap
-            this.thermalData = {
-                width: 20,
-                height: 15,
-                data: null // Will be generated in generateThermalData
-            };
+            // Three.js objects
+            this.scene = null;
+            this.camera = null;
+            this.renderer = null;
+            this.animationFrame = null;
             
-            // Color schemes for thermal visualization - exact same as original HTML
-            this.colorSchemes = {
-                thermal: [
-                    new THREE.Color(0x000033), // Dark blue (cool)
-                    new THREE.Color(0x000066), // Blue
-                    new THREE.Color(0x003399), // Light blue
-                    new THREE.Color(0x0066cc), // Cyan
-                    new THREE.Color(0x00cc99), // Teal
-                    new THREE.Color(0x66ff66), // Green
-                    new THREE.Color(0xffff00), // Yellow
-                    new THREE.Color(0xff9900), // Orange
-                    new THREE.Color(0xff3300), // Red
-                    new THREE.Color(0xff0066)  // Hot pink (very hot)
-                ],
-                industrial: [
-                    new THREE.Color(0x1a1a2e), // Dark blue-gray
-                    new THREE.Color(0x16213e), // Steel blue
-                    new THREE.Color(0x0f3460), // Industrial blue
-                    new THREE.Color(0x533483), // Purple-blue
-                    new THREE.Color(0x7209b7), // Purple
-                    new THREE.Color(0xa663cc), // Light purple
-                    new THREE.Color(0xf39c12), // Orange
-                    new THREE.Color(0xe74c3c), // Red
-                    new THREE.Color(0xff6b35), // Bright orange
-                    new THREE.Color(0xffffff)  // White hot
-                ],
-                cyber: [
-                    new THREE.Color(0x001122), // Dark cyan
-                    new THREE.Color(0x003344), // Dark teal
-                    new THREE.Color(0x00ff41), // Bright green
-                    new THREE.Color(0x00bfff), // Cyan
-                    new THREE.Color(0x4dd0e1), // Light cyan
-                    new THREE.Color(0x80ff80), // Light green
-                    new THREE.Color(0xffff00), // Yellow
-                    new THREE.Color(0xff8000), // Orange
-                    new THREE.Color(0xff0080), // Pink
-                    new THREE.Color(0xffffff)  // White
-                ],
-                monochrome: [
-                    new THREE.Color(0x000000), // Black
-                    new THREE.Color(0x222222), // Very dark gray
-                    new THREE.Color(0x444444), // Dark gray
-                    new THREE.Color(0x666666), // Medium dark gray
-                    new THREE.Color(0x888888), // Medium gray
-                    new THREE.Color(0xaaaaaa), // Light gray
-                    new THREE.Color(0xcccccc), // Lighter gray
-                    new THREE.Color(0xeeeeee), // Very light gray
-                    new THREE.Color(0xffffff), // White
-                    new THREE.Color(0xffffff)  // White
-                ]
-            };
+            // Thermal visualization objects
+            this.thermalContainer = null;
+            this.thermalLayers = [];
+            this.thermalAnimationActive = false;
+            this.thermalScale = 1.0;
             
-            this.currentColorScheme = 'thermal';
-            
-            // Data points for popup display - based on actual thermal dataset
-            this.dataPoints = [
-                { label: 'Zone 1 온도', value: 1217, unit: '°C', baseValue: 1217 },
-                { label: 'Zone 2 온도', value: 1134, unit: '°C', baseValue: 1134 },
-                { label: '온도 구배', value: 250, unit: '°C/mm', baseValue: 250 },
-                { label: '열 안정성', value: 0.91, unit: '', baseValue: 0.91 }
+            // Data overlay system
+            this.currentDataset = 0;
+            this.overlayVisible = false;
+            this.dataUpdateInterval = null;
+            this.sampleThermalData = [
+                {simulation_step: 1, strain_rate: 0.091, flow_stress: 129.2, total_deformation: 0.0, grain_size: 100.0, recrystallization_fraction: 0.0, material_type: "Medium Carbon Steel", temperature: 1100.0},
+                {simulation_step: 2, strain_rate: 0.095, flow_stress: 135.4, total_deformation: 0.05, grain_size: 98.5, recrystallization_fraction: 0.02, material_type: "Medium Carbon Steel", temperature: 1095.0},
+                {simulation_step: 3, strain_rate: 0.102, flow_stress: 142.1, total_deformation: 0.12, grain_size: 96.8, recrystallization_fraction: 0.05, material_type: "Medium Carbon Steel", temperature: 1090.0},
+                {simulation_step: 4, strain_rate: 0.108, flow_stress: 148.9, total_deformation: 0.21, grain_size: 94.9, recrystallization_fraction: 0.08, material_type: "Medium Carbon Steel", temperature: 1085.0},
+                {simulation_step: 5, strain_rate: 0.115, flow_stress: 155.8, total_deformation: 0.32, grain_size: 92.7, recrystallization_fraction: 0.12, material_type: "Medium Carbon Steel", temperature: 1080.0},
+                {simulation_step: 6, strain_rate: 0.123, flow_stress: 162.9, total_deformation: 0.45, grain_size: 90.3, recrystallization_fraction: 0.16, material_type: "High Carbon Steel", temperature: 1075.0},
+                {simulation_step: 7, strain_rate: 0.131, flow_stress: 170.2, total_deformation: 0.59, grain_size: 87.6, recrystallization_fraction: 0.21, material_type: "High Carbon Steel", temperature: 1070.0},
+                {simulation_step: 8, strain_rate: 0.139, flow_stress: 177.7, total_deformation: 0.75, grain_size: 84.7, recrystallization_fraction: 0.26, material_type: "High Carbon Steel", temperature: 1065.0},
+                {simulation_step: 9, strain_rate: 0.148, flow_stress: 185.4, total_deformation: 0.93, grain_size: 81.5, recrystallization_fraction: 0.32, material_type: "High Carbon Steel", temperature: 1060.0},
+                {simulation_step: 10, strain_rate: 0.157, flow_stress: 193.3, total_deformation: 1.13, grain_size: 78.1, recrystallization_fraction: 0.38, material_type: "Low Carbon Steel", temperature: 1055.0},
+                {simulation_step: 11, strain_rate: 0.167, flow_stress: 201.5, total_deformation: 1.35, grain_size: 74.4, recrystallization_fraction: 0.45, material_type: "Low Carbon Steel", temperature: 1050.0},
+                {simulation_step: 12, strain_rate: 0.177, flow_stress: 209.9, total_deformation: 1.59, grain_size: 70.5, recrystallization_fraction: 0.52, material_type: "Low Carbon Steel", temperature: 1045.0},
+                {simulation_step: 13, strain_rate: 0.188, flow_stress: 218.6, total_deformation: 1.85, grain_size: 66.3, recrystallization_fraction: 0.60, material_type: "Low Carbon Steel", temperature: 1040.0},
+                {simulation_step: 14, strain_rate: 0.199, flow_stress: 227.6, total_deformation: 2.13, grain_size: 61.9, recrystallization_fraction: 0.68, material_type: "Medium Carbon Steel", temperature: 1035.0},
+                {simulation_step: 15, strain_rate: 0.211, flow_stress: 236.9, total_deformation: 2.43, grain_size: 57.2, recrystallization_fraction: 0.77, material_type: "Medium Carbon Steel", temperature: 1030.0},
+                {simulation_step: 16, strain_rate: 0.223, flow_stress: 246.5, total_deformation: 2.76, grain_size: 52.3, recrystallization_fraction: 0.86, material_type: "Medium Carbon Steel", temperature: 1025.0},
+                {simulation_step: 17, strain_rate: 0.236, flow_stress: 256.5, total_deformation: 3.11, grain_size: 47.1, recrystallization_fraction: 0.95, material_type: "High Carbon Steel", temperature: 1020.0},
+                {simulation_step: 18, strain_rate: 0.250, flow_stress: 266.9, total_deformation: 3.48, grain_size: 41.6, recrystallization_fraction: 1.05, material_type: "High Carbon Steel", temperature: 1015.0},
+                {simulation_step: 19, strain_rate: 0.264, flow_stress: 277.7, total_deformation: 3.88, grain_size: 35.8, recrystallization_fraction: 1.15, material_type: "High Carbon Steel", temperature: 1010.0},
+                {simulation_step: 20, strain_rate: 0.279, flow_stress: 288.9, total_deformation: 4.30, grain_size: 29.7, recrystallization_fraction: 1.26, material_type: "Low Carbon Steel", temperature: 1005.0}
             ];
+            
+            // Data overlay properties
+            this.overlayVisible = false;
+            this.currentDataset = 0;
+            this.dataUpdateInterval = null;
+            
+            // Sample data for thermal visualization display
+            this.thermalDataPoints = [
+                { label: 'Surface Temperature', value: 1085.5, unit: '°C' },
+                { label: 'Core Temperature', value: 1120.3, unit: '°C' },
+                { label: 'Thermal Gradient', value: 34.8, unit: '°C' },
+                { label: 'Heat Transfer Rate', value: 12.7, unit: 'kW/m²' }
+            ];
+            
+            // Mouse interaction
+            this.mouse = new THREE.Vector2();
+            this.raycaster = new THREE.Raycaster();
             
             // Animation properties
-            this.animationFrame = null;
-            this.time = 0;
-        }
-        
-        /**
-         * Get the exact thermal dataset from the original HTML file
-         */
-        getThermalDataset() {
-            // Embedded thermal data - exact same as artwork5.html
-            return [
-                {zone_1: 1217.45, zone_2: 1133.62, zone_3: 967.77, zone_4_L: 997.18, zone_4_R: 996.13, temp_gradient: 249.7, thermal_stability: 0.913},
-                {zone_1: 1229.47, zone_2: 1137.59, zone_3: 972.92, zone_4_L: 987.61, zone_4_R: 1000.68, temp_gradient: 256.6, thermal_stability: 0.853},
-                {zone_1: 1210.71, zone_2: 1152.71, zone_3: 961.90, zone_4_L: 986.33, zone_4_R: 1022.54, temp_gradient: 248.8, thermal_stability: 0.946},
-                {zone_1: 1212.46, zone_2: 1151.57, zone_3: 1002.13, zone_4_L: 987.71, zone_4_R: 1026.14, temp_gradient: 224.7, thermal_stability: 0.938},
-                {zone_1: 1236.19, zone_2: 1167.79, zone_3: 971.20, zone_4_L: 1006.91, zone_4_R: 1019.96, temp_gradient: 265.0, thermal_stability: 0.819},
-                {zone_1: 1228.63, zone_2: 1169.43, zone_3: 1006.22, zone_4_L: 1021.98, zone_4_R: 1028.46, temp_gradient: 222.4, thermal_stability: 0.857},
-                {zone_1: 1265.76, zone_2: 1178.55, zone_3: 1003.74, zone_4_L: 1027.83, zone_4_R: 1054.80, temp_gradient: 262.0, thermal_stability: 0.671},
-                {zone_1: 1271.26, zone_2: 1176.89, zone_3: 998.08, zone_4_L: 1028.30, zone_4_R: 1040.06, temp_gradient: 273.2, thermal_stability: 0.644},
-                {zone_1: 1282.11, zone_2: 1183.20, zone_3: 1016.06, zone_4_L: 1045.10, zone_4_R: 1050.06, temp_gradient: 266.0, thermal_stability: 0.589},
-                {zone_1: 1278.37, zone_2: 1211.23, zone_3: 1031.18, zone_4_L: 1028.01, zone_4_R: 1059.49, temp_gradient: 250.4, thermal_stability: 0.608},
-                {zone_1: 1294.43, zone_2: 1213.21, zone_3: 1012.95, zone_4_L: 1039.69, zone_4_R: 1059.10, temp_gradient: 281.5, thermal_stability: 0.528},
-                {zone_1: 1292.95, zone_2: 1230.40, zone_3: 1035.10, zone_4_L: 1054.56, zone_4_R: 1057.89, temp_gradient: 257.8, thermal_stability: 0.535},
-                {zone_1: 1300.00, zone_2: 1227.17, zone_3: 1037.36, zone_4_L: 1064.97, zone_4_R: 1066.93, temp_gradient: 262.6, thermal_stability: 0.500},
-                {zone_1: 1300.00, zone_2: 1221.83, zone_3: 1048.45, zone_4_L: 1060.67, zone_4_R: 1070.49, temp_gradient: 251.6, thermal_stability: 0.500}
+            this.isWireframe = false;
+            this.colorSchemeIndex = 0;
+            
+            // Data overlay system
+            this.overlayVisible = false;
+            this.currentDataset = 0;
+            this.dataUpdateInterval = null;
+            
+            // Color schemes
+            this.colorSchemes = [
+                { name: 'UserGreyGradient', colors: ['#E9EAEB', '#BEC3C5', '#989C9E', '#747779', '#525455', '#323334', '#151616'] },
+                { name: 'GreyGradientAlt', colors: ['#E9EAEB', '#BEC3C5', '#989C9E', '#747779', '#525455', '#323334', '#151616'] },
+                { name: 'MonochromeGradient', colors: ['#E9EAEB', '#BEC3C5', '#989C9E', '#747779', '#525455', '#323334', '#151616'] },
+                { name: 'GreyScale', colors: ['#E9EAEB', '#BEC3C5', '#989C9E', '#747779', '#525455', '#323334', '#151616'] }
+            ];
+            
+            // Sample data for visualization
+            this.sampleData = [
+                {current_corrections_count: 2, data_integrity: 0.85, correction_effectiveness: 0.78, active_corrections_count: 5},
+                {current_corrections_count: 3, data_integrity: 0.92, correction_effectiveness: 0.81, active_corrections_count: 7},
+                {current_corrections_count: 1, data_integrity: 0.76, correction_effectiveness: 0.69, active_corrections_count: 3},
+                {current_corrections_count: 4, data_integrity: 0.88, correction_effectiveness: 0.85, active_corrections_count: 8},
+                {current_corrections_count: 2, data_integrity: 0.91, correction_effectiveness: 0.77, active_corrections_count: 6}
+            ];
+            
+            // Data for overlay
+            this.dataPoints = [
+                { label: 'Strain Rate', value: 0.145, unit: '/s' },
+                { label: 'Flow Stress', value: 185.4, unit: 'MPa' },
+                { label: 'Total Deformation', value: 2.13, unit: 'mm' },
+                { label: 'Grain Size', value: 61.9, unit: 'μm' }
             ];
         }
-
+        
         /**
-         * Generate thermal data for heatmap using exact dataset
+         * Initialize the artwork module
          */
-        generateThermalData(width, height) {
-            const thermalDataset = this.getThermalDataset();
-            const data = [];
+        initialize() {
+            super.initialize();
             
-            for (let y = 0; y < height; y++) {
-                for (let x = 0; x < width; x++) {
-                    // Map position to thermal zone data - same logic as original HTML
-                    const normalizedX = (x / width) * 15 - 7.5; // Convert to -7.5 to 7.5 range
-                    const dataIndex = Math.floor(((normalizedX + 7.5) / 15) * thermalDataset.length);
-                    const data_point = thermalDataset[Math.min(Math.max(dataIndex, 0), thermalDataset.length - 1)];
-                    
-                    // Calculate temperature based on position and zone data - exact same logic
-                    let temperature;
-                    if (normalizedX < -3) {
-                        temperature = data_point.zone_1;
-                    } else if (normalizedX < 0) {
-                        temperature = data_point.zone_2;
-                    } else if (normalizedX < 3) {
-                        temperature = data_point.zone_3;
-                    } else {
-                        temperature = (data_point.zone_4_L + data_point.zone_4_R) / 2;
-                    }
-                    
-                    // Add variation based on Y position and thermal stability - same as original
-                    const normalizedY = (y / height) * 10 - 5; // Convert to -5 to 5 range
-                    const variation = (Math.sin(normalizedY * 0.5) * data_point.thermal_stability * 50);
-                    temperature += variation;
-                    
-                    data.push(temperature);
-                }
-            }
-            return data;
+            console.log('Initializing Artwork5...');
+            
+            // Set up Three.js scene first
+            this.setupScene();
+            
+            // Initialize thermal visualization container
+            this.initializeThermalContainer();
+            
+            // Set up UI
+            this.setupUI(this.title);
+            
+            // Setup canvas click detection
+            this.setupCanvasClickDetection();
+            
+            // Initialize and set up data overlay
+            this.initializeDataOverlay();
+            this.setupDataOverlayListeners();
+            
+            this.title = '열간 압연 데이터 03: 시계열 구간별 변형 제어값';
+            console.log('Artwork5 initialized successfully');
         }
         
         /**
-         * Initialize the thermal heatmap visualization
+         * Set up Three.js scene, camera, and renderer
          */
-        async activate() {
-            await super.activate();
-            console.log('Activating 열간압연 데이터 05: 열 확산 히트맵 시각화 module');
+        setupScene() {
+            const canvas = document.getElementById('visualizationCanvas');
+            if (!canvas) return;
             
-            // Generate thermal data
-            this.thermalData.data = this.generateThermalData(this.thermalData.width, this.thermalData.height);
+            const container = canvas.parentElement;
+            const width = container.clientWidth;
+            const height = container.clientHeight;
             
-            this.initializeVisualization();
-            this.createThermalHeatmap();
-            this.animate();
-            this.startDataCycling();
-        }
-        
-        /**
-         * Initialize Three.js scene for thermal visualization
-         */
-        initializeVisualization() {
-            const container = document.getElementById('visualization-container');
-            if (!container) return;
-            
-            // Scene setup
+            // Create scene
             this.scene = new THREE.Scene();
-            this.scene.background = new THREE.Color(0x0a0a0a);
+            this.scene.background = null;
             
-            // Camera setup
-            const aspect = container.clientWidth / container.clientHeight;
-            this.camera = new THREE.PerspectiveCamera(75, aspect, 0.1, 1000);
-            this.camera.position.set(10, 8, 15);
-            this.camera.lookAt(10, 7.5, 0);
+            // Calculate scale factor based on viewport size
+            const minDimension = Math.min(width, height);
+            const scaleFactor = this.calculateScaleFactor(minDimension);
             
-            // Renderer setup
-            this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-            this.renderer.setSize(container.clientWidth, container.clientHeight);
+            // Create camera with dynamic scaling for different devices
+            this.camera = new THREE.PerspectiveCamera(75, width / height, 0.1, 1000);
+            
+            // Apply dynamic camera positioning
+            const baseDistance = 20;
+            const distance = baseDistance * scaleFactor;
+            this.camera.position.set(distance, distance * 0.6, distance);
+            this.camera.lookAt(0, 0, 0);
+            
+            // Create renderer
+            this.renderer = new THREE.WebGLRenderer({ 
+                canvas: canvas,
+                alpha: true,
+                antialias: true
+            });
+            this.renderer.setSize(width, height);
+            this.renderer.setClearColor(0x000000, 0);
             this.renderer.shadowMap.enabled = true;
             this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-            container.appendChild(this.renderer.domElement);
             
-            // Lighting
-            const ambientLight = new THREE.AmbientLight(0x404040, 0.3);
+            // Add ambient light
+            const ambientLight = new THREE.AmbientLight(0x404040, 0.6);
             this.scene.add(ambientLight);
             
-            const directionalLight = new THREE.DirectionalLight(0xffffff, 0.7);
-            directionalLight.position.set(15, 15, 10);
-            directionalLight.castShadow = true;
+            // Add directional light
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+            directionalLight.position.set(50, 50, 50);
             this.scene.add(directionalLight);
-            
-            // Controls
-            this.controls = new THREE.OrbitControls(this.camera, this.renderer.domElement);
-            this.controls.enableDamping = true;
-            this.controls.dampingFactor = 0.05;
         }
         
         /**
-         * Create thermal heatmap visualization - exact same as original HTML
+         * Setup event listeners
          */
-        createThermalHeatmap() {
-            this.clearHeatmap();
+        setupEventListeners() {
+            // Bind event handlers to this instance
+            this.handleWindowResize = this.onWindowResize.bind(this);
+            this.handleDataOverlayClick = this.cycleToNextDataset.bind(this);
+            this.handleThermalContainerClick = this.handleContainerClick.bind(this);
+            this.handleCanvasClickBound = this.handleCanvasClick.bind(this);
             
-            const gridSize = 20;
-            const geometry = new THREE.PlaneGeometry(15, 10, gridSize - 1, gridSize - 1);
-            const positions = geometry.attributes.position.array;
-            const colors = [];
-            const thermalDataset = this.getThermalDataset();
-
-            // Generate height and color data based on thermal zones - exact same logic
-            for (let i = 0; i < positions.length; i += 3) {
-                const x = positions[i];
-                const y = positions[i + 1];
-                
-                // Map position to thermal zone data
-                const dataIndex = Math.floor(((x + 7.5) / 15) * thermalDataset.length);
-                const data = thermalDataset[Math.min(Math.max(dataIndex, 0), thermalDataset.length - 1)];
-                
-                // Calculate temperature based on position and zone data
-                let temperature;
-                if (x < -3) {
-                    temperature = data.zone_1;
-                } else if (x < 0) {
-                    temperature = data.zone_2;
-                } else if (x < 3) {
-                    temperature = data.zone_3;
-                } else {
-                    temperature = (data.zone_4_L + data.zone_4_R) / 2;
-                }
-                
-                // Add some variation based on Y position and thermal stability
-                const variation = (Math.sin(y * 0.5) * data.thermal_stability * 50);
-                temperature += variation;
-                
-                // Set height based on temperature
-                positions[i + 2] = (temperature - 1000) * 0.01;
-                
-                // Set color based on temperature
-                const normalizedTemp = (temperature - 950) / 350; // Normalize to 0-1
-                const currentScheme = this.colorSchemes[this.currentColorScheme];
-                const colorIndex = Math.floor(normalizedTemp * (currentScheme.length - 1));
-                const color = currentScheme[Math.min(Math.max(colorIndex, 0), currentScheme.length - 1)];
-                
-                colors.push(color.r, color.g, color.b);
+            // Window resize handler
+            window.addEventListener('resize', this.handleWindowResize);
+            
+            // Add data overlay click handler if available
+            if (this.dataOverlay) {
+                this.dataOverlay.addEventListener('click', this.handleDataOverlayClick);
             }
-
-            geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
-            geometry.computeVertexNormals();
-
-            const material = new THREE.MeshLambertMaterial({ 
-                vertexColors: true,
-                transparent: true,
-                opacity: 0.9,
-                side: THREE.DoubleSide
-            });
-
-            this.heatmapMesh = new THREE.Mesh(geometry, material);
-            this.heatmapMesh.position.set(0, 0, 0);
-            this.scene.add(this.heatmapMesh);
-            this.heatmapLayers.push(this.heatmapMesh);
-
-            // Add contour lines
-            this.createContourLines();
+            
+            // Add thermal container click handler if available
+            if (this.thermalContainer) {
+                this.thermalContainer.addEventListener('click', this.handleThermalContainerClick);
+            }
         }
         
         /**
-         * Create contour lines - exact same as original HTML
+         * Initialize data overlay with consistent formatting
          */
-        createContourLines() {
-            const contourGroup = new THREE.Group();
-            const contourLevels = [1000, 1050, 1100, 1150, 1200, 1250];
-            
-            contourLevels.forEach((level, index) => {
-                const points = [];
-                const resolution = 50;
+        initializeDataOverlay() {
+            try {
+                // Make sure the default text in the HTML uses line breaks consistently
+                const metricLabel = document.getElementById('metricLabel');
+                const metricValue = document.getElementById('metricValue');
+                const metricUnit = document.getElementById('metricUnit');
                 
-                for (let i = 0; i <= resolution; i++) {
-                    const angle = (i / resolution) * Math.PI * 2;
-                    const radius = 2 + index * 1.5;
-                    const x = Math.cos(angle) * radius;
-                    const y = Math.sin(angle) * radius;
-                    const z = (level - 1000) * 0.01 + 0.1;
+                if (metricLabel && metricValue && metricUnit) {
+                    // Set initial thermal data
+                    const initialData = this.thermalDataPoints[0];
+                    metricLabel.innerHTML = initialData.label.replace(' ', '<br>');
+                    metricValue.textContent = initialData.value.toFixed(1);
+                    metricUnit.textContent = initialData.unit;
                     
-                    points.push(new THREE.Vector3(x, y, z));
+                    console.log('Thermal data overlay initialized with:', initialData);
+                }
+            } catch (error) {
+                console.error('Error initializing thermal data overlay:', error);
+            }
+        }
+        
+        /**
+         * Set up data overlay event listeners
+         */
+        setupDataOverlayListeners() {
+            try {
+                const canvas = document.getElementById('visualizationCanvas');
+                const overlayClose = document.getElementById('overlayClose');
+                
+                if (canvas) {
+                    console.log('Setting up data overlay listeners for canvas');
+                    
+                    // Canvas click handler for node interactions
+                    canvas.addEventListener('click', (event) => {
+                        try {
+                            this.handleNodeClick(event, canvas);
+                        } catch (error) {
+                            console.error('Error in canvas click handler:', error);
+                        }
+                    });
+                    
+                    // Touch handler for mobile devices
+                    let isTouchDragging = false;
+                    let touchStartTime = 0;
+                    
+                    canvas.addEventListener('touchstart', (event) => {
+                        isTouchDragging = false;
+                        touchStartTime = Date.now();
+                    }, { passive: false });
+                    
+                    canvas.addEventListener('touchmove', (event) => {
+                        isTouchDragging = true;
+                    }, { passive: false });
+                    
+                    canvas.addEventListener('touchend', (event) => {
+                        try {
+                            event.preventDefault();
+                            const touchDuration = Date.now() - touchStartTime;
+                            
+                            // Only trigger click if it wasn't a drag and was a quick tap
+                            if (!isTouchDragging && touchDuration < 300) {
+                                if (event.changedTouches.length > 0) {
+                                    const touch = event.changedTouches[0];
+                                    const syntheticEvent = {
+                                        clientX: touch.clientX,
+                                        clientY: touch.clientY,
+                                        target: canvas
+                                    };
+                                    this.handleNodeClick(syntheticEvent, canvas);
+                                }
+                            }
+                            isTouchDragging = false;
+                        } catch (error) {
+                            console.error('Error in touchend handler:', error);
+                        }
+                    }, { passive: false });
+                } else {
+                    console.warn('Canvas element not found for data overlay listeners');
                 }
                 
-                const geometry = new THREE.BufferGeometry().setFromPoints(points);
-                const material = new THREE.LineBasicMaterial({ 
-                    color: 0x666666,
-                    transparent: true,
-                    opacity: 0.5
-                });
-                
-                const contourLine = new THREE.Line(geometry, material);
-                contourGroup.add(contourLine);
-            });
-            
-            this.scene.add(contourGroup);
-            this.thermalContours.push(contourGroup);
-        }
-        
-        /**
-         * Interpolate color from color array
-         */
-        interpolateColor(colors, t) {
-            t = Math.max(0, Math.min(1, t));
-            const index = t * (colors.length - 1);
-            const i = Math.floor(index);
-            const f = index - i;
-            
-            if (i >= colors.length - 1) {
-                return new THREE.Color(colors[colors.length - 1]);
-            }
-            
-            const c1 = new THREE.Color(colors[i]);
-            const c2 = new THREE.Color(colors[i + 1]);
-            
-            return c1.lerp(c2, f);
-        }
-        
-        /**
-         * Clear heatmap elements
-         */
-        clearHeatmap() {
-            // Remove heatmap layers
-            this.heatmapLayers.forEach(layer => {
-                this.scene.remove(layer);
-                if (layer.geometry) layer.geometry.dispose();
-                if (layer.material) layer.material.dispose();
-            });
-            this.heatmapLayers = [];
-            
-            // Remove thermal contours
-            this.thermalContours.forEach(contour => {
-                this.scene.remove(contour);
-                if (contour.geometry) contour.geometry.dispose();
-                if (contour.material) contour.material.dispose();
-            });
-            this.thermalContours = [];
-        }
-        
-        /**
-         * Animation loop - exact same as original HTML
-         */
-        animate() {
-            if (!this.isActive) return;
-            
-            this.animationFrame = requestAnimationFrame(() => this.animate());
-
-            if (this.heatmapMesh) {
-                // Gentle rotation animation
-                this.heatmapMesh.rotation.z += 0.003;
-                
-                // Subtle breathing effect on the heatmap
-                const time = Date.now() * 0.001;
-                this.heatmapMesh.scale.setScalar(1 + Math.sin(time * 0.5) * 0.02);
-            }
-
-            // Update controls and render
-            if (this.controls) this.controls.update();
-            if (this.renderer && this.scene && this.camera) {
-                this.renderer.render(this.scene, this.camera);
-            }
-        }
-        
-        /**
-         * Start data cycling for popup
-         */
-        startDataCycling() {
-            if (this.dataCycleInterval) {
-                clearInterval(this.dataCycleInterval);
-            }
-            
-            this.dataCycleInterval = setInterval(() => {
-                if (this.overlayVisible) {
-                    this.updateDataPoints();
+                // Close button handler
+                if (overlayClose) {
+                    overlayClose.addEventListener('click', () => {
+                        try {
+                            this.hideDataOverlay();
+                        } catch (error) {
+                            console.error('Error in overlay close handler:', error);
+                        }
+                    });
+                } else {
+                    console.warn('Overlay close button not found');
                 }
-            }, 2000);
-        }
-        
-        /**
-         * Stop data cycling
-         */
-        stopDataCycling() {
-            if (this.dataCycleInterval) {
-                clearInterval(this.dataCycleInterval);
-                this.dataCycleInterval = null;
+                
+                // Data button functionality is handled by parent class
+            } catch (error) {
+                console.error('Error setting up data overlay listeners:', error);
             }
         }
         
         /**
-         * Update data points with actual thermal dataset values
+         * Calculate scale factor based on device size
          */
-        updateDataPoints() {
-            const thermalDataset = this.getThermalDataset();
-            const randomIndex = Math.floor(Math.random() * thermalDataset.length);
-            const currentData = thermalDataset[randomIndex];
-            
-            // Update with actual dataset values
-            this.dataPoints[0].value = Math.round(currentData.zone_1 * 100) / 100;
-            this.dataPoints[1].value = Math.round(currentData.zone_2 * 100) / 100;
-            this.dataPoints[2].value = Math.round(currentData.temp_gradient * 100) / 100;
-            this.dataPoints[3].value = Math.round(currentData.thermal_stability * 1000) / 1000;
-            
-            // Update UI elements
-            this.dataPoints.forEach((point, index) => {
-                const element = document.querySelector(`#data-overlay .metric:nth-child(${index + 1}) .metric-value`);
-                if (element) {
-                    element.textContent = point.value + (point.unit ? ' ' + point.unit : '');
-                }
-            });
-        }
-        
-        /**
-         * Show data when data button is clicked
-         */
-        showData() {
-            this.toggleDataOverlay();
-        }
-        
-        /**
-         * Toggle data overlay
-         */
-        toggleDataOverlay() {
-            if (this.overlayVisible) {
-                this.hideDataOverlay();
+        calculateScaleFactor(minDimension) {
+            // Dynamic scaling based on device size
+            if (minDimension <= 480) {
+                return 0.8; // Phone
+            } else if (minDimension <= 768) {
+                return 0.9; // Small tablet
+            } else if (minDimension <= 1024) {
+                return 1.0; // iPad
             } else {
+                return 1.1; // Desktop
+            }
+        }
+    
+        /**
+         * Setup canvas click detection for data overlay interaction
+         */
+        setupCanvasClickDetection() {
+            const canvas = document.getElementById('waveCanvas');
+            if (!canvas) return;
+            
+            // Simple click event - just like any other HTML element
+            canvas.addEventListener('click', (event) => {
+                this.handleCanvasClick(event, canvas);
+            });
+            
+            // Simple touch event for mobile
+            canvas.addEventListener('touchend', (event) => {
+                event.preventDefault();
+                this.handleCanvasClick(event, canvas);
+            });
+        }
+        
+        /**
+         * Handle container click event
+         */
+        handleContainerClick(event) {
+            // Toggle data overlay
+            if (!this.isDataOverlayVisible) {
                 this.showDataOverlay();
+            } else {
+                this.cycleToNextDataset();
             }
         }
         
         /**
-         * Show data overlay with current metrics
+         * Show data overlay with cycling datasets
          */
         showDataOverlay() {
-            const overlay = document.getElementById('data-overlay');
-            if (!overlay) return;
-            
-            // Update overlay content
-            const content = `
-                <div class="data-content">
-                    <h3>열 확산 히트맵 분석</h3>
-                    <div class="metrics-grid">
-                        ${this.dataPoints.map(point => `
-                            <div class="metric">
-                                <span class="metric-label">${point.label}</span>
-                                <span class="metric-value">${point.value} ${point.unit}</span>
-                            </div>
-                        `).join('')}
-                    </div>
-                </div>
-            `;
-            
-            overlay.innerHTML = content;
-            overlay.style.display = 'flex';
-            overlay.style.opacity = '1';
-            this.overlayVisible = true;
-            
-            // Add click handler to cycle through datasets
-            overlay.addEventListener('click', () => this.cycleDataset());
+            const overlay = document.getElementById('dataOverlay');
+            if (overlay) {
+                this.overlayVisible = true;
+                overlay.classList.add('active');
+                
+                // Start data cycling
+                this.startDataCycling();
+                
+                // Initialize with first dataset
+                this.updateOverlayData();
+            }
         }
         
         /**
          * Hide data overlay
          */
         hideDataOverlay() {
-            const overlay = document.getElementById('data-overlay');
+            const overlay = document.getElementById('dataOverlay');
             if (overlay) {
-                overlay.style.opacity = '0';
-                setTimeout(() => {
-                    overlay.style.display = 'none';
-                    overlay.innerHTML = '';
-                }, 300);
+                this.overlayVisible = false;
+                overlay.classList.remove('active');
+                
+                // Stop data cycling
+                this.stopDataCycling();
             }
-            this.overlayVisible = false;
         }
         
         /**
-         * Cycle through different color schemes
+         * Cycle to next dataset
          */
-        cycleDataset() {
-            // Cycle through color schemes like original HTML
-            const schemes = Object.keys(this.colorSchemes);
-            const currentIndex = schemes.indexOf(this.currentColorScheme);
-            this.currentColorScheme = schemes[(currentIndex + 1) % schemes.length];
+        cycleToNextDataset() {
+            if (this.overlayVisible) {
+                this.currentDataset = (this.currentDataset + 1) % this.thermalDataPoints.length;
+                this.updateOverlayData();
+            }
+        }
+        
+        /**
+         * Update overlay data display
+         */
+        updateOverlayData() {
+            const thermalData = this.thermalDataPoints[this.currentDataset];
             
-            // Regenerate heatmap with new color scheme
-            this.createThermalHeatmap();
+            const metricLabel = document.getElementById('metricLabel');
+            const metricUnit = document.getElementById('metricUnit');
+            const metricValue = document.getElementById('metricValue');
             
-            // Update data points
-            this.updateDataPoints();
+            if (metricLabel) metricLabel.innerHTML = thermalData.label.replace(' ', '<br>');
+            if (metricUnit) metricUnit.textContent = thermalData.unit;
+            if (metricValue) metricValue.textContent = thermalData.value.toFixed(1);
+        }
+        
+        /**
+         * Update data values with dynamic calculations for thermal visualization
+         */
+        updateDataValues() {
+            const time = (Date.now() * 0.001);
+            let value;
+            const metricValue = document.getElementById('metricValue');
+            if (!metricValue) return;
+            
+            const baseData = this.thermalDataPoints[this.currentDataset];
+            
+            switch (this.currentDataset) {
+                case 0: // Surface Temperature
+                    value = baseData.value + Math.sin(time * 0.7) * 5.5 + Math.cos(time * 1.3) * 3.2;
+                    value = Math.max(1070, Math.min(1100, value));
+                    metricValue.textContent = value.toFixed(1);
+                    break;
+                    
+                case 1: // Core Temperature
+                    value = baseData.value + Math.sin(time * 0.5) * 4.8 + Math.cos(time * 0.9) * 3.5;
+                    value = Math.max(1110, Math.min(1130, value));
+                    metricValue.textContent = value.toFixed(1);
+                    break;
+                    
+                case 2: // Thermal Gradient
+                    value = baseData.value + Math.sin(time * 1.1) * 3.2 + Math.cos(time * 1.7) * 2.5;
+                    value = Math.max(30, Math.min(40, value));
+                    metricValue.textContent = value.toFixed(1);
+                    break;
+                    
+                case 3: // Heat Transfer Rate
+                    value = baseData.value + Math.sin(time * 1.5) * 1.8 + Math.cos(time * 2.1) * 1.2;
+                    value = Math.max(10, Math.min(15, value));
+                    metricValue.textContent = value.toFixed(1);
+                    break;
+            }
+        }
+        
+        /**
+         * Start data cycling interval
+         */
+        startDataCycling() {
+            if (this.dataUpdateInterval) return;
+            
+            this.dataUpdateInterval = setInterval(() => {
+                if (this.overlayVisible) {
+                    this.updateDataValues();
+                }
+            }, 200); // Fast updates for dynamic effect
+        }
+        
+        /**
+         * Stop data cycling interval
+         */
+        stopDataCycling() {
+            if (this.dataUpdateInterval) {
+                clearInterval(this.dataUpdateInterval);
+                this.dataUpdateInterval = null;
+            }
+        }
+        
+        /**
+         * Initialize thermal container for thermal visualization
+         */
+        initializeThermalContainer() {
+            this.thermalContainer = document.getElementById('thermalContainer');
+            if (this.thermalContainer) {
+                // Get all thermal layers
+                this.thermalLayers = Array.from(this.thermalContainer.querySelectorAll('.layer'));
+                
+                // Set initial scale
+                this.thermalContainer.style.setProperty('--graphic-scale', this.thermalScale);
+                
+                console.log('Thermal container initialized with', this.thermalLayers.length, 'layers');
+            } else {
+                console.error('thermalContainer element not found in DOM');
+            }
+        }
+        
+        /**
+         * Activate thermal visualization layers
+         */
+        activateThermalVisualization() {
+            if (!this.thermalContainer) {
+                console.log('Thermal container not available for activation');
+                return;
+            }
+            
+            console.log('Activating thermal visualization with', this.thermalLayers.length, 'layers');
+            
+            // Make thermal container visible
+            this.thermalContainer.classList.add('active');
+            this.thermalAnimationActive = true;
+            
+            // Apply dynamic scaling based on viewport
+            this.updateThermalScale();
+            
+            // Apply random subtle animations to each layer for more dynamic effect
+            this.thermalLayers.forEach((layer, index) => {
+                // Add subtle random animation variations
+                const animDuration = 5 + Math.random() * 3; // 5-8s
+                const animDelay = -Math.random() * 5; // Staggered start
+                
+                layer.style.animationDuration = `${animDuration}s`;
+                layer.style.animationDelay = `${animDelay}s`;
+                
+                // Slightly adjust opacity for more dynamic appearance
+                const baseOpacity = 0.5 + Math.random() * 0.4;
+                layer.style.opacity = baseOpacity;
+            });
+        }
+        
+        /**
+         * Deactivate thermal visualization
+         */
+        deactivateThermalVisualization() {
+            if (!this.thermalContainer) return;
+            
+            this.thermalContainer.classList.remove('active');
+            this.thermalAnimationActive = false;
+        }
+        
+        /**
+         * Update thermal visualization scale based on viewport size
+         */
+        updateThermalScale() {
+            if (!this.thermalContainer) return;
+            
+            // Calculate appropriate scale based on viewport dimensions
+            const viewportWidth = window.innerWidth;
+            const viewportHeight = window.innerHeight;
+            
+            // Base scale on the smaller dimension to ensure it fits
+            const baseSize = 600; // Original design size
+            const widthScale = viewportWidth / baseSize;
+            const heightScale = viewportHeight / baseSize;
+            
+            // Use the smaller scale to ensure it fits completely
+            this.thermalScale = Math.min(widthScale, heightScale) * 0.8; // 80% of available space
+            
+            // Apply the scale
+            this.thermalContainer.style.setProperty('--graphic-scale', this.thermalScale);
+            console.log('Updated thermal scale to:', this.thermalScale);
+        }
+        
+        /**
+         * Animate the scene
+         */
+        animate() {
+            if (!this.isActive) return;
+            
+            // For artwork5, we only need to activate thermal visualization once
+            if (this.thermalContainer && !this.thermalAnimationActive) {
+                this.activateThermalVisualization();
+            }
+        }
+        
+        /**
+         * Handle window resize
+         */
+        onWindowResize() {
+            if (!this.camera || !this.renderer) return;
+            
+            const canvas = document.getElementById('visualizationCanvas');
+            if (!canvas) return;
+            
+            const container = canvas.parentElement;
+            const width = container.clientWidth;
+            const height = container.clientHeight;
+            
+            this.camera.aspect = width / height;
+            this.camera.updateProjectionMatrix();
+            this.renderer.setSize(width, height);
+        }
+        
+        /**
+         * Activate the module
+         */
+        activate() {
+            if (this.isActive) return;
+            
+            console.log('Activating Artwork5...');
+            super.activate();
+            
+            // Initialize thermal container if not already done
+            if (!this.thermalContainer) {
+                this.initializeThermalContainer();
+            }
+            
+            // Activate thermal visualization
+            if (this.thermalContainer && !this.thermalAnimationActive) {
+                this.activateThermalVisualization();
+            }
         }
         
         /**
          * Deactivate the module
          */
         deactivate() {
+            if (!this.isActive) return;
+            
+            console.log('Deactivating Artwork5...');
+            
+            // Deactivate thermal visualization
+            this.deactivateThermalVisualization();
+            
+            // Properly close data overlay if it's open
+            this.closeDataOverlay();
+            
             super.deactivate();
-            console.log('Deactivating 열간압연 데이터 05: 열 확산 히트맵 시각화 module');
-            
-            if (this.overlayVisible) {
-                this.hideDataOverlay();
-            }
-            
-            if (this.animationFrame) {
-                cancelAnimationFrame(this.animationFrame);
-                this.animationFrame = null;
-            }
-            
-            this.stopDataCycling();
         }
         
         /**
-         * Clean up resources
+         * Remove all event listeners to prevent memory leaks
          */
-        cleanup() {
-            super.cleanup();
-            console.log('Cleaning up 열간압연 데이터 05: 열 확산 히트맵 시각화 module');
+        removeEventListeners() {
+            console.log('Removing event listeners...');
             
-            this.stopDataCycling();
+            // Remove data overlay click listener
+            if (this.dataOverlay && this.handleDataOverlayClick) {
+                this.dataOverlay.removeEventListener('click', this.handleDataOverlayClick);
+            }
             
+            // Remove window resize listener if any
+            if (this.handleWindowResize) {
+                window.removeEventListener('resize', this.handleWindowResize);
+            }
+            
+            // Remove any other event listeners specific to this artwork
+            if (this.thermalContainer && this.handleThermalContainerClick) {
+                this.thermalContainer.removeEventListener('click', this.handleThermalContainerClick);
+            }
+            
+            // Clean up canvas event listeners if any
+            const canvas = document.getElementById('thermalCanvas');
+            if (canvas && this.handleCanvasClickBound) {
+                canvas.removeEventListener('click', this.handleCanvasClickBound);
+                canvas.removeEventListener('touchend', this.handleCanvasClickBound);
+            }
+        }
+        
+        /**
+         * Dispose of Three.js specific resources
+         */
+        disposeThreeJsResources() {
+            console.log('Disposing Three.js resources...');
+            
+            // Cancel any animation frames
             if (this.animationFrame) {
                 cancelAnimationFrame(this.animationFrame);
                 this.animationFrame = null;
             }
             
-            // Clear heatmap elements
-            this.clearHeatmap();
+            // Dispose of any Three.js textures
+            if (this.textures) {
+                Object.values(this.textures).forEach(texture => {
+                    if (texture && texture.dispose) {
+                        texture.dispose();
+                    }
+                });
+                this.textures = {};
+            }
+        }
+        
+        /**
+         * Clean up and dispose of resources
+         */
+        dispose() {
+            console.log('Disposing Artwork5...');
             
-            // Dispose of Three.js objects
-            if (this.controls) {
-                this.controls.dispose();
-                this.controls = null;
+            // Stop data cycling
+            this.stopDataCycling();
+            
+            // Deactivate thermal visualization
+            this.deactivateThermalVisualization();
+            
+            // Remove event listeners
+            this.removeEventListeners();
+            
+            // Dispose Three.js resources
+            this.disposeThreeJsResources();
+            
+            // Clear scene (Three.js cleanup)
+            if (this.scene) {
+                while (this.scene.children.length > 0) {
+                    const object = this.scene.children[0];
+                    if (object.geometry) object.geometry.dispose();
+                    if (object.material) {
+                        if (Array.isArray(object.material)) {
+                            object.material.forEach(material => material.dispose());
+                        } else {
+                            object.material.dispose();
+                        }
+                    }
+                    this.scene.remove(object);
+                }
             }
             
+            // Dispose renderer
             if (this.renderer) {
-                const container = document.getElementById('visualization-container');
-                if (container && this.renderer.domElement) {
-                    container.removeChild(this.renderer.domElement);
-                }
                 this.renderer.dispose();
                 this.renderer = null;
             }
             
             this.scene = null;
             this.camera = null;
+            this.thermalContainer = null;
+            this.thermalLayers = [];
+            
+            super.dispose();
         }
     }
     
     // Register this class with the global scope
+    console.log('Artwork5 module loaded successfully');
     window.Artwork5 = Artwork5;
-    
 } // End of if statement checking for existing class
+    
