@@ -52,12 +52,12 @@ if (typeof window.Artwork2 === 'undefined') {
             this.currentDataset = 0;
             this.dataUpdateInterval = null;
             
-            // Color schemes for compression spheres
+            // Color schemes for compression spheres - Updated to match reference visualization
             this.colorSchemes = [
-                { name: 'CompressionBlues', colors: ['#E3F2FD', '#BBDEFB', '#90CAF9', '#64B5F6', '#42A5F5', '#2196F3', '#1E88E5', '#1976D2', '#1565C0', '#0D47A1'] },
+                { name: 'CompressionBlues', colors: ['#79cdeb', '#4691ab', '#2f6c81', '#16292f', '#16292f', '#2f6c81', '#4691ab', '#79cdeb', '#79cdeb', '#4691ab'] },
                 { name: 'CompressionGreys', colors: ['#F5F5F5', '#EEEEEE', '#E0E0E0', '#BDBDBD', '#9E9E9E', '#757575', '#616161', '#424242', '#212121'] },
-                { name: 'CompressionCyan', colors: ['#E0F7FA', '#B2EBF2', '#80DEEA', '#4DD0E1', '#26C6DA', '#00BCD4', '#00ACC1', '#0097A7', '#00838F', '#006064'] },
-                { name: 'CompressionTeal', colors: ['#E0F2F1', '#B2DFDB', '#80CBC4', '#4DB6AC', '#26A69A', '#009688', '#00897B', '#00796B', '#00695C', '#004D40'] }
+                { name: 'CompressionCyan', colors: ['#79cdeb', '#4691ab', '#2f6c81', '#16292f', '#16292f', '#2f6c81', '#4691ab', '#79cdeb', '#79cdeb', '#4691ab'] },
+                { name: 'CompressionTeal', colors: ['#79cdeb', '#4691ab', '#2f6c81', '#16292f', '#16292f', '#2f6c81', '#4691ab', '#79cdeb', '#79cdeb', '#4691ab'] }
             ];
             
             // Sample data for compression visualization
@@ -726,9 +726,9 @@ if (typeof window.Artwork2 === 'undefined') {
             // Create central core sphere
             const coreGeometry = new THREE.SphereGeometry(8, 32, 32);
             const coreMaterial = new THREE.MeshPhongMaterial({
-                color: 0x2196F3,
-                emissive: 0x0D47A1,
-                emissiveIntensity: 0.5,
+                color: 0x71cef2,
+                emissive: 0x71cef2,
+                emissiveIntensity: 0.2,
                 shininess: 50,
                 transparent: true,
                 opacity: 0.9
@@ -765,9 +765,18 @@ if (typeof window.Artwork2 === 'undefined') {
                 const data = this.sampleData[dataIndex];
                 const size = 3 + (data.compression_ratio * 5);
                 
-                // Color based on temperature/pressure
-                const colorIndex = Math.floor((data.pressure / 15) * (colors.length - 1));
-                const color = new THREE.Color(colors[colorIndex]);
+                // Color based on vertical position (Y-coordinate)
+                let color;
+                if (y < -10) {
+                    // Bottom spheres - some use lightest blues, others dark
+                    color = new THREE.Color(i % 4 === 0 ? '#79cdeb' : (i % 4 === 1 ? '#4691ab' : '#16292f'));
+                } else if (y < 10) {
+                    // Middle spheres - some use lightest blue, others medium blue
+                    color = new THREE.Color(i % 5 === 0 ? '#79cdeb' : '#2f6c81');
+                } else {
+                    // Top spheres - lighter blues (alternate between two)
+                    color = new THREE.Color(i % 2 === 0 ? '#4691ab' : '#79cdeb');
+                }
                 
                 // Create sphere geometry and material
                 const sphereGeometry = new THREE.SphereGeometry(size, 24, 24);
@@ -969,6 +978,17 @@ if (typeof window.Artwork2 === 'undefined') {
             
             if (this.isAnimating) {
                 const time = Date.now() * 0.001;
+                
+                // Animate central core
+                if (this.centralCore) {
+                    const coreAnimation = time * 0.8;
+                    const coreFloat = Math.sin(coreAnimation) * 0.5;
+                    this.centralCore.position.y = coreFloat;
+                    
+                    // Gentle rotation
+                    this.centralCore.rotation.y = time * 0.3;
+                    this.centralCore.rotation.x = time * 0.1;
+                }
                 
                 // Simple floating animation for compression spheres
                 this.compressionSpheres.forEach((sphere, i) => {

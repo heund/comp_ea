@@ -109,6 +109,11 @@ if (typeof window.Artwork5 === 'undefined') {
                 { label: 'Total Deformation', value: 2.13, unit: 'mm' },
                 { label: 'Grain Size', value: 61.9, unit: 'μm' }
             ];
+            
+            // Audio for this artwork
+            this.artworkAudio = null;
+            this.isAudioPlaying = false;
+            this.audioProgressInterval = null;
         }
         
         /**
@@ -138,7 +143,13 @@ if (typeof window.Artwork5 === 'undefined') {
             this.initializeDataOverlay();
             this.setupDataOverlayListeners();
             
-            this.title = '열간 압연 데이터 03: 시계열 구간별 변형 제어값';
+            // Initialize artwork audio
+            this.initializeArtworkAudio();
+            
+            // Create audio progress bar
+            this.createAudioProgressBar();
+            
+            this.title = '열간 압연 데이터 05: 온도 분포 및 열 전달 분석';
             console.log('Artwork5 initialized successfully');
         }
         
@@ -1075,6 +1086,23 @@ if (typeof window.Artwork5 === 'undefined') {
                 }
             }
             
+            // Clean up audio
+            if (this.artworkAudio) {
+                this.artworkAudio.pause();
+                this.artworkAudio = null;
+            }
+            
+            if (this.audioProgressInterval) {
+                clearInterval(this.audioProgressInterval);
+                this.audioProgressInterval = null;
+            }
+            
+            // Remove audio progress bar
+            const progressBar = document.getElementById('artwork5AudioProgress');
+            if (progressBar) {
+                progressBar.remove();
+            }
+            
             // Dispose renderer
             if (this.renderer) {
                 this.renderer.dispose();
@@ -1087,6 +1115,284 @@ if (typeof window.Artwork5 === 'undefined') {
             this.thermalLayers = [];
             
             super.dispose();
+        }
+
+        /**
+         * Override base class setupControlButtons to use artwork5 audio
+         */
+        setupControlButtons() {
+            console.log('[ARTWORK5] Setting up control buttons with custom audio handling');
+            
+            // Set up audio button (AR controls button, not main synth button)
+            const audioButton = document.getElementById('audioBtn');
+            if (audioButton) {
+                console.log('[ARTWORK5] Found AR audio button, setting up artwork5 audio');
+                audioButton.addEventListener('click', () => {
+                    this.toggleArtworkAudio();
+                });
+            } else {
+                console.warn('[ARTWORK5] AR audio button (audioBtn) not found');
+            }
+            
+            // Set up other control buttons normally
+            const dataButton = document.getElementById('dataBtn');
+            if (dataButton) {
+                dataButton.addEventListener('click', () => {
+                    this.showData();
+                });
+            }
+            
+            const closeOverlayButton = document.getElementById('overlayClose');
+            if (closeOverlayButton) {
+                closeOverlayButton.addEventListener('click', () => {
+                    this.hideDataOverlay();
+                });
+            }
+        }
+
+        /**
+         * Initialize artwork audio
+         */
+        initializeArtworkAudio() {
+            console.log('[ARTWORK5] Initializing artwork audio');
+            
+            this.artworkAudio = new Audio('https://heund.github.io/comp_ea/shared/sounds/artwork5.wav');
+            this.artworkAudio.preload = 'auto';
+            this.artworkAudio.loop = false;
+
+            this.artworkAudio.addEventListener('loadedmetadata', () => {
+                console.log('[ARTWORK5] Audio metadata loaded, duration:', this.artworkAudio.duration);
+            });
+
+            this.artworkAudio.addEventListener('timeupdate', () => {
+                this.updateAudioProgress();
+            });
+
+            this.artworkAudio.addEventListener('ended', () => {
+                this.stopArtworkAudio();
+            });
+            
+            console.log('[ARTWORK5] Artwork audio initialized');
+        }
+
+        /**
+         * Toggle artwork audio playback
+         */
+        toggleArtworkAudio() {
+            console.log('[ARTWORK5] toggleArtworkAudio called, isAudioPlaying:', this.isAudioPlaying);
+            
+            if (!this.artworkAudio) {
+                console.error('[ARTWORK5] No artwork audio element found');
+                return;
+            }
+
+            if (this.isAudioPlaying) {
+                this.stopArtworkAudio();
+            } else {
+                this.playArtworkAudio();
+            }
+        }
+
+        /**
+         * Play artwork audio and show progress bar
+         */
+        playArtworkAudio() {
+            if (!this.artworkAudio) {
+                console.error('[ARTWORK5] No artwork audio element found');
+                return;
+            }
+
+            console.log('[ARTWORK5] Attempting to play audio...');
+            this.artworkAudio.play().then(() => {
+                this.isAudioPlaying = true;
+                console.log('[ARTWORK5] Artwork audio started successfully');
+                
+                // Show progress bar and update button
+                this.showAudioProgress();
+                this.updateAudioButton();
+            }).catch(error => {
+                console.error('[ARTWORK5] Error playing artwork audio:', error);
+            });
+        }
+
+        /**
+         * Stop artwork audio and hide progress bar
+         */
+        stopArtworkAudio() {
+            if (!this.artworkAudio) return;
+
+            this.artworkAudio.pause();
+            this.artworkAudio.currentTime = 0;
+            this.isAudioPlaying = false;
+            
+            // Hide progress bar and update button
+            this.hideAudioProgress();
+            this.updateAudioButton();
+            
+            console.log('[ARTWORK5] Artwork audio stopped');
+        }
+
+        /**
+         * Update audio progress bar
+         */
+        updateAudioProgress() {
+            if (!this.artworkAudio) return;
+
+            const progressFill = document.getElementById('artwork5ProgressFill');
+            const timeDisplay = document.getElementById('artwork5AudioTime');
+            
+            if (progressFill && this.artworkAudio.duration) {
+                const progress = (this.artworkAudio.currentTime / this.artworkAudio.duration) * 100;
+                progressFill.style.width = `${progress}%`;
+            }
+            
+            if (timeDisplay) {
+                const currentTime = this.formatTime(this.artworkAudio.currentTime || 0);
+                const duration = this.formatTime(this.artworkAudio.duration || 0);
+                timeDisplay.textContent = `${currentTime} / ${duration}`;
+            }
+        }
+
+        /**
+         * Format time in MM:SS format
+         */
+        formatTime(seconds) {
+            if (isNaN(seconds)) return '0:00';
+            const minutes = Math.floor(seconds / 60);
+            const secs = Math.floor(seconds % 60);
+            return `${minutes}:${secs.toString().padStart(2, '0')}`;
+        }
+
+        /**
+         * Show audio progress bar
+         */
+        showAudioProgress() {
+            const progressBar = document.getElementById('artwork5AudioProgress');
+            if (progressBar) {
+                progressBar.classList.add('visible');
+                console.log('[ARTWORK5] Audio progress bar shown');
+            }
+        }
+
+        /**
+         * Hide audio progress bar
+         */
+        hideAudioProgress() {
+            const progressBar = document.getElementById('artwork5AudioProgress');
+            if (progressBar) {
+                progressBar.classList.remove('visible');
+                console.log('[ARTWORK5] Audio progress bar hidden');
+            }
+        }
+
+        /**
+         * Update audio button appearance
+         */
+        updateAudioButton() {
+            const audioBtn = document.getElementById('audioBtn');
+            if (audioBtn) {
+                const icon = audioBtn.querySelector('i');
+                if (icon) {
+                    if (this.isAudioPlaying) {
+                        icon.className = 'bi bi-pause-fill';
+                        audioBtn.classList.add('active');
+                    } else {
+                        icon.className = 'bi bi-volume-up-fill';
+                        audioBtn.classList.remove('active');
+                    }
+                    console.log('[ARTWORK5] Audio button updated, playing:', this.isAudioPlaying);
+                } else {
+                    console.warn('[ARTWORK5] Audio button icon not found');
+                }
+            }
+        }
+
+        /**
+         * Create audio progress bar HTML and CSS
+         */
+        createAudioProgressBar() {
+            console.log('[ARTWORK5] Creating audio progress bar');
+            
+            // Create CSS styles
+            const style = document.createElement('style');
+            style.textContent = `
+                /* Audio Progress Bar for Artwork5 */
+                .artwork5-audio-progress-container {
+                    position: fixed;
+                    bottom: 20px;
+                    left: 50%;
+                    transform: translateX(-50%);
+                    width: 300px;
+                    background: rgba(255, 255, 255, 0.1);
+                    backdrop-filter: blur(20px);
+                    border: 1px solid rgba(255, 255, 255, 0.2);
+                    border-radius: 12px;
+                    padding: 12px 16px;
+                    z-index: 1003;
+                    opacity: 0;
+                    visibility: hidden;
+                    transition: all 0.3s ease;
+                    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+                }
+                
+                .artwork5-audio-progress-container.visible {
+                    opacity: 1;
+                    visibility: visible;
+                }
+                
+                .artwork5-audio-info {
+                    display: flex;
+                    align-items: center;
+                    justify-content: space-between;
+                    margin-bottom: 8px;
+                }
+                
+                .artwork5-audio-title {
+                    font-size: 12px;
+                    color: #ffffff;
+                    font-weight: 500;
+                }
+                
+                .artwork5-audio-time {
+                    font-size: 11px;
+                    color: #ffffff;
+                    font-family: 'Inter', sans-serif;
+                }
+                
+                .artwork5-progress-bar {
+                    width: 100%;
+                    height: 4px;
+                    background: rgba(0, 0, 0, 0.3);
+                    border-radius: 2px;
+                    overflow: hidden;
+                }
+                
+                .artwork5-progress-fill {
+                    height: 100%;
+                    background: #ffffff;
+                    border-radius: 2px;
+                    width: 0%;
+                    transition: width 0.1s ease;
+                }
+            `;
+            document.head.appendChild(style);
+            
+            // Create HTML structure
+            const progressContainer = document.createElement('div');
+            progressContainer.className = 'artwork5-audio-progress-container';
+            progressContainer.id = 'artwork5AudioProgress';
+            progressContainer.innerHTML = `
+                <div class="artwork5-audio-info">
+                    <div class="artwork5-audio-title">열간 압연 데이터 05: 온도 분포 및 열 전달 분석</div>
+                    <div class="artwork5-audio-time" id="artwork5AudioTime">0:00 / 0:00</div>
+                </div>
+                <div class="artwork5-progress-bar">
+                    <div class="artwork5-progress-fill" id="artwork5ProgressFill"></div>
+                </div>
+            `;
+            
+            document.body.appendChild(progressContainer);
+            console.log('[ARTWORK5] Audio progress bar created');
         }
     }
     
