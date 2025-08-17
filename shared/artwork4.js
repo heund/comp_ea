@@ -100,422 +100,452 @@ if (typeof window.Artwork4 === 'undefined') {
         }
         
         /**
-         * Initialize the Voronoi visualization
+         * Initialize the artwork module
          */
-        async activate() {
-            await super.activate();
-            console.log('Activating 연간압연 데이터 04: 보로노이 응력 누적 시각화 module');
+        initialize() {
+            console.log(`[INIT] 🎨 Initializing ${this.title} module`);
             
-            this.initializeVisualization();
-            this.createVoronoiVisualization();
-            this.animate();
-            this.startDataCycling();
+            // Set up Three.js scene first
+            this.setupScene();
+            
+            // Set up UI
+            this.setupUI(this.title);
+            
+            // Setup canvas click detection
+            this.setupCanvasClickDetection();
+            
+            // Initialize and set up data overlay
+            this.initializeDataOverlay();
+            this.setupDataOverlayListeners();
+            
+            this.isInitialized = true;
+            console.log(`[INIT] ✅ ${this.title} module initialized successfully`);
         }
         
         /**
-         * Initialize Three.js scene for Voronoi visualization
+         * Set up Three.js scene, camera, and renderer
          */
-        initializeVisualization() {
-            const container = document.getElementById('visualization-container');
-            if (!container) return;
+        setupScene() {
+            const canvas = document.getElementById('visualizationCanvas');
+            if (!canvas) return;
             
-            // Scene setup
+            const container = canvas.parentElement;
+            const width = container.clientWidth;
+            const height = container.clientHeight;
+            
+            // Create scene
             this.scene = new THREE.Scene();
-            this.scene.background = new THREE.Color(0x0a0a0a);
+            this.scene.background = null;
             
-            // Camera setup
-            const aspect = container.clientWidth / container.clientHeight;
-            this.camera = new THREE.PerspectiveCamera(75, aspect, 0.1, 1000);
-            this.camera.position.set(6, 6, 10);
-            this.camera.lookAt(5, 4, 0);
+            // Calculate scale factor based on viewport size
+            const minDimension = Math.min(width, height);
+            const scaleFactor = this.calculateScaleFactor(minDimension);
             
-            // Renderer setup
-            this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-            this.renderer.setSize(container.clientWidth, container.clientHeight);
+            // Create camera with dynamic scaling for different devices
+            this.camera = new THREE.PerspectiveCamera(75, width / height, 0.1, 1000);
+            
+            // Apply dynamic camera positioning - positioned to face Voronoi shape directly
+            const baseDistance = 25;
+            const distance = baseDistance * scaleFactor;
+            this.camera.position.set(0, 0, distance);
+            this.camera.lookAt(0, 0, 0);
+            
+            // Create renderer
+            this.renderer = new THREE.WebGLRenderer({ 
+                canvas: canvas,
+                alpha: true,
+                antialias: true
+            });
+            this.renderer.setSize(width, height);
+            this.renderer.setClearColor(0x000000, 0);
             this.renderer.shadowMap.enabled = true;
             this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-            container.appendChild(this.renderer.domElement);
             
-            // Lighting
-            const ambientLight = new THREE.AmbientLight(0x404040, 0.4);
+            // Add ambient light
+            const ambientLight = new THREE.AmbientLight(0x404040, 0.6);
             this.scene.add(ambientLight);
             
+            // Add directional light
             const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
-            directionalLight.position.set(10, 10, 5);
-            directionalLight.castShadow = true;
+            directionalLight.position.set(50, 50, 50);
             this.scene.add(directionalLight);
             
-            // Controls
-            this.controls = new THREE.OrbitControls(this.camera, this.renderer.domElement);
-            this.controls.enableDamping = true;
-            this.controls.dampingFactor = 0.05;
+            // Add invisible placeholder orb to prevent empty container issues
+            this.createPlaceholderOrb();
         }
         
         /**
-         * Create Voronoi diagram visualization
+         * Create an invisible placeholder orb for the Three.js container
+         */
+        createPlaceholderOrb() {
+            // Create a simple sphere geometry
+            const geometry = new THREE.SphereGeometry(0.5, 32, 32);
+            
+            // Create a completely invisible material
+            const material = new THREE.MeshPhongMaterial({
+                color: 0x000000,
+                transparent: true,
+                opacity: 0.0,
+                visible: false
+            });
+            
+            // Create the mesh
+            this.placeholderOrb = new THREE.Mesh(geometry, material);
+            this.placeholderOrb.position.set(0, 0, 0);
+            
+            // Add to scene
+            this.scene.add(this.placeholderOrb);
+            
+            console.log('[ARTWORK4] 🔮 Invisible placeholder orb created');
+        }
+        
+        /**
+         * Set up event listeners
+         */
+        setupEventListeners() {
+            // Window resize handler
+            window.addEventListener('resize', this.onWindowResize.bind(this));
+        }
+        
+        /**
+         * Calculate scale factor for responsive design
+         */
+        calculateScaleFactor(minDimension) {
+            if (minDimension < 400) return 1.8;      // Small phones
+            if (minDimension < 600) return 1.4;      // Large phones
+            if (minDimension < 900) return 1.2;      // Tablets
+            if (minDimension < 1200) return 1.0;     // Small desktops
+            return 0.8;                              // Large desktops
+        }
+        
+        /**
+         * Create Voronoi diamond visualization
          */
         createVoronoiVisualization() {
-            this.clearScene();
+            // Clear any existing shapes and data points
+            this.voronoiShapes.forEach(shape => this.scene.remove(shape));
+            this.dataPoints.forEach(point => this.scene.remove(point));
+            this.voronoiShapes = [];
+            this.dataPoints = [];
             
-            // Generate sample points for Voronoi diagram
-            const points2D = this.stressData.map(d => [d.x, d.y]);
-            
-            // Create Voronoi diagram using d3-delaunay
-            const delaunay = d3.Delaunay.from(points2D);
-            const voronoi = delaunay.voronoi([0, 0, 10, 8]);
-            
-            // Create Voronoi cells
-            for (let i = 0; i < points2D.length; i++) {
-                const cellPolygon = voronoi.cellPolygon(i);
-                if (cellPolygon) {
-                    this.createVoronoiCell(cellPolygon, this.stressData[i], i, this.stressData);
-                }
-            }
-            
-            // Create seed points
-            this.createSeedPoints(points2D, this.stressData);
-            
-            // Create phase boundary
-            this.createPhaseBoundary();
+            this.createVoronoiShapes();
+            this.createDataPoints();
         }
         
         /**
-         * Create individual Voronoi cell
+         * Create Voronoi diamond shapes
          */
-        createVoronoiCell(cellPolygon, data, index, allData) {
-            if (!cellPolygon || cellPolygon.length < 3) return;
-            
-            const shape = new THREE.Shape();
-            cellPolygon.forEach((point, i) => {
-                if (i === 0) {
-                    shape.moveTo(point[0], point[1]);
-                } else {
-                    shape.lineTo(point[0], point[1]);
-                }
-            });
-            
-            const maxAcc = Math.max(...allData.map(d => d.total_accumulation));
-            const minAcc = Math.min(...allData.map(d => d.total_accumulation));
-            const colorIntensity = maxAcc > minAcc ? (data.total_accumulation - minAcc) / (maxAcc - minAcc) : 0.5;
-            
-            const currentScheme = this.colorSchemes[this.currentColorScheme];
-            const color = this.interpolateColor(currentScheme.colors, colorIntensity);
-            
-            const geometry = new THREE.ShapeGeometry(shape);
-            const material = new THREE.MeshLambertMaterial({ 
-                color: color,
-                transparent: true,
-                opacity: 0.7,
-                side: THREE.DoubleSide,
-                wireframe: this.wireframeMode
-            });
-            
-            const mesh = new THREE.Mesh(geometry, material);
-            mesh.position.z = 0;
-            mesh.receiveShadow = true;
-            
-            mesh.userData = { data: data, index: index };
-            
-            this.scene.add(mesh);
-            this.voronoiCells.push(mesh);
-        }
-        
-        /**
-         * Create seed points visualization
-         */
-        createSeedPoints(points2D, pointData) {
-            points2D.forEach((point, index) => {
-                const data = pointData[index];
+        createVoronoiShapes() {
+            this.voronoiData.forEach((cellData, index) => {
+                const geometry = new THREE.BufferGeometry();
                 
-                const geometry = new THREE.SphereGeometry(0.1, 8, 6);
-                const material = new THREE.MeshLambertMaterial({ 
-                    color: 0xffffff,
+                // Create triangle vertices
+                const vertices = [];
+                cellData.vertices.forEach(vertex => {
+                    vertices.push(vertex.x, vertex.y, vertex.z);
+                });
+                
+                // Create triangle indices (for a single triangle: 0, 1, 2)
+                const indices = [0, 1, 2];
+                
+                geometry.setIndex(indices);
+                geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
+                geometry.computeVertexNormals();
+                
+                // Create material with solid color
+                const material = new THREE.MeshBasicMaterial({
+                    color: cellData.color,
+                    side: THREE.DoubleSide,
+                    wireframe: this.wireframeMode,
                     transparent: true,
                     opacity: 0.8
                 });
                 
-                const sphere = new THREE.Mesh(geometry, material);
-                sphere.position.set(point[0], point[1], 0.05);
-                sphere.userData = { data: data };
+                const mesh = new THREE.Mesh(geometry, material);
                 
-                this.scene.add(sphere);
-                this.seedPoints.push(sphere);
+                // Position the shape at its center coordinates (like original voronoi_test.html)
+                mesh.position.set(cellData.center.x, cellData.center.y, cellData.center.z);
+                
+                mesh.userData = { 
+                    originalPosition: { ...cellData.center },
+                    cellIndex: index,
+                    isVoronoiShape: true
+                };
+                
+                this.scene.add(mesh);
+                this.voronoiShapes.push(mesh);
             });
         }
         
         /**
-         * Create phase boundary line
+         * Create data points for Voronoi visualization
          */
-        createPhaseBoundary() {
-            if (!this.showPhaseLines) return;
-            
-            const points = [];
-            for (let i = 0; i <= 50; i++) {
-                const x = (i / 50) * 10;
-                const y = 4 + Math.sin(x * 0.5) * 0.8;
-                points.push(new THREE.Vector3(x, y, 0.01));
-            }
-            
-            const geometry = new THREE.BufferGeometry().setFromPoints(points);
-            const material = new THREE.LineBasicMaterial({ 
-                color: 0xff6b6b,
-                transparent: true,
-                opacity: 0.6,
-                linewidth: 2
+        createDataPoints() {
+            // Create dots linked directly to their parent shapes
+            this.voronoiShapes.forEach((shape, index) => {
+                const cellData = this.voronoiData[index];
+                
+                // Create dot geometry - extra large for AR readability
+                const dotGeometry = new THREE.SphereGeometry(0.4, 16, 16);
+                const dotMaterial = new THREE.MeshBasicMaterial({
+                    color: 0x591500,  // Brown color from voronoi_test.html
+                    transparent: true,
+                    opacity: 0.9
+                });
+                
+                const dot = new THREE.Mesh(dotGeometry, dotMaterial);
+                
+                // Create canvas for data label - extra large for AR readability
+                const canvas = document.createElement('canvas');
+                const context = canvas.getContext('2d');
+                canvas.width = 400;
+                canvas.height = 200;
+                context.fillStyle = '#591500';
+                context.font = '72px Arial';
+                context.textAlign = 'center';
+                context.fillText(cellData.dataPoint.value.toString(), 200, 130);
+                
+                // Create sprite label - extra large scale
+                const texture = new THREE.CanvasTexture(canvas);
+                const labelMaterial = new THREE.SpriteMaterial({ map: texture, transparent: true });
+                const label = new THREE.Sprite(labelMaterial);
+                label.scale.set(4.0, 2.0, 1);
+                
+                // Group dot and label together
+                const group = new THREE.Group();
+                group.add(dot);
+                group.add(label);
+                
+                // Position at absolute world coordinates (not relative to shape)
+                group.position.set(
+                    cellData.dataPoint.x,
+                    cellData.dataPoint.y,
+                    cellData.dataPoint.z
+                );
+                
+                // Position label well above dot to avoid overlap
+                label.position.set(0, 1.2, 0);
+                
+                // Store references for updates and link to parent shape
+                group.userData = {
+                    canvas: canvas,
+                    context: context,
+                    label: label,
+                    parentShape: shape,
+                    originalPosition: { ...cellData.dataPoint },
+                    baseValue: cellData.dataPoint.value
+                };
+                
+                // Add to scene directly (not as child of shape) for exact positioning
+                this.scene.add(group);
+                this.dataPoints.push(group);
             });
-            
-            this.phaseBoundaryLine = new THREE.Line(geometry, material);
-            this.scene.add(this.phaseBoundaryLine);
         }
         
         /**
-         * Interpolate color from color array
+         * Handle window resize
          */
-        interpolateColor(colors, t) {
-            t = Math.max(0, Math.min(1, t));
-            const index = t * (colors.length - 1);
-            const i = Math.floor(index);
-            const f = index - i;
+        onWindowResize() {
+            if (!this.camera || !this.renderer) return;
             
-            if (i >= colors.length - 1) {
-                return new THREE.Color(colors[colors.length - 1]);
-            }
+            const canvas = document.getElementById('visualizationCanvas');
+            if (!canvas) return;
             
-            const c1 = new THREE.Color(colors[i]);
-            const c2 = new THREE.Color(colors[i + 1]);
+            const container = canvas.parentElement;
+            const width = container.clientWidth;
+            const height = container.clientHeight;
             
-            return c1.lerp(c2, f);
+            this.camera.aspect = width / height;
+            this.camera.updateProjectionMatrix();
+            this.renderer.setSize(width, height);
         }
         
         /**
-         * Clear scene of Voronoi elements
+         * Activate the module
          */
-        clearScene() {
-            // Remove Voronoi cells
-            this.voronoiCells.forEach(cell => {
-                this.scene.remove(cell);
-                if (cell.geometry) cell.geometry.dispose();
-                if (cell.material) cell.material.dispose();
-            });
-            this.voronoiCells = [];
+        activate() {
+            if (this.isActive) return;
             
-            // Remove seed points
-            this.seedPoints.forEach(point => {
-                this.scene.remove(point);
-                if (point.geometry) point.geometry.dispose();
-                if (point.material) point.material.dispose();
-            });
-            this.seedPoints = [];
+            console.log('[ARTWORK4] 🚀 Starting activation');
+            super.activate();
             
-            // Remove phase boundary
-            if (this.phaseBoundaryLine) {
-                this.scene.remove(this.phaseBoundaryLine);
-                if (this.phaseBoundaryLine.geometry) this.phaseBoundaryLine.geometry.dispose();
-                if (this.phaseBoundaryLine.material) this.phaseBoundaryLine.material.dispose();
-                this.phaseBoundaryLine = null;
-            }
+            // Create Voronoi visualization
+            this.createVoronoiVisualization();
+            
+            // Start Three.js render loop for placeholder orb and Voronoi shapes
+            this.startThreeJSRenderLoop();
+            
+            console.log('[ARTWORK4] ✅ Activation complete');
         }
         
         /**
-         * Animation loop
+         * Start Three.js render loop for the Voronoi visualization
          */
-        animate() {
-            if (!this.isActive) return;
+        startThreeJSRenderLoop() {
+            if (!this.renderer || !this.scene || !this.camera) return;
             
-            this.animationFrame = requestAnimationFrame(() => this.animate());
-            this.time += 0.01;
-            
-            // Animate Voronoi cells with subtle pulsing
-            this.voronoiCells.forEach((cell, index) => {
-                const pulse = Math.sin(this.time * 2 + index * 0.5) * 0.05 + 1;
-                cell.scale.set(pulse, pulse, 1);
-            });
-            
-            // Animate seed points
-            this.seedPoints.forEach((point, index) => {
-                const bob = Math.sin(this.time * 3 + index * 0.8) * 0.02;
-                point.position.z = 0.05 + bob;
-            });
-            
-            // Update controls and render
-            if (this.controls) this.controls.update();
-            if (this.renderer && this.scene && this.camera) {
+            const animate = () => {
+                if (!this.isActive) return; // Stop if module is deactivated
+                
+                // Rotate the placeholder orb slowly (even though it's invisible)
+                if (this.placeholderOrb) {
+                    this.placeholderOrb.rotation.x += 0.01;
+                    this.placeholderOrb.rotation.y += 0.01;
+                }
+                
                 this.renderer.render(this.scene, this.camera);
-            }
-        }
-        
-        /**
-         * Start data cycling for popup
-         */
-        startDataCycling() {
-            if (this.dataCycleInterval) {
-                clearInterval(this.dataCycleInterval);
-            }
+                this.threeJSAnimationId = requestAnimationFrame(animate);
+            };
             
-            this.dataCycleInterval = setInterval(() => {
-                if (this.overlayVisible) {
-                    this.updateDataPoints();
-                }
-            }, 2000);
+            animate();
         }
         
         /**
-         * Stop data cycling
+         * Initialize data overlay system
          */
-        stopDataCycling() {
-            if (this.dataCycleInterval) {
-                clearInterval(this.dataCycleInterval);
-                this.dataCycleInterval = null;
-            }
+        initializeDataOverlay() {
+            this.currentDataset = 0;
         }
         
         /**
-         * Update data points with realistic variations
+         * Set up data overlay listeners
          */
-        updateDataPoints() {
-            this.dataPoints.forEach((point, index) => {
-                const variation = (Math.random() - 0.5) * 0.1;
-                const newValue = point.baseValue * (1 + variation);
-                point.value = Math.round(newValue * 100) / 100;
+        setupDataOverlayListeners() {
+            // Data overlay click handler for cycling datasets
+            this.handleDataOverlayClick = () => {
+                this.cycleDataset();
+            };
+        }
+        
+        /**
+         * Set up canvas click detection for data overlay
+         */
+        setupCanvasClickDetection() {
+            const canvas = document.getElementById('visualizationCanvas');
+            if (!canvas) return;
+            
+            this.handleCanvasClick = (event) => {
+                if (!this.isActive) return;
                 
-                const element = document.querySelector(`#data-overlay .metric:nth-child(${index + 1}) .metric-value`);
-                if (element) {
-                    element.textContent = point.value + ' ' + point.unit;
-                }
-            });
-        }
-        
-        /**
-         * Show data when data button is clicked
-         */
-        showData() {
-            this.toggleDataOverlay();
-        }
-        
-        /**
-         * Toggle data overlay
-         */
-        toggleDataOverlay() {
-            if (this.overlayVisible) {
-                this.hideDataOverlay();
-            } else {
+                // Show data overlay when canvas is clicked
                 this.showDataOverlay();
-            }
+            };
+            
+            canvas.addEventListener('click', this.handleCanvasClick);
         }
         
         /**
-         * Show data overlay with current metrics
+         * Show data overlay with current dataset
          */
         showDataOverlay() {
-            const overlay = document.getElementById('data-overlay');
-            if (!overlay) return;
+            const currentData = this.sampleData[this.currentDataset];
             
-            // Update overlay content
-            const content = `
-                <div class="data-content">
-                    <h3>보로노이 응력 누적 분석</h3>
-                    <div class="metrics-grid">
-                        ${this.dataPoints.map(point => `
-                            <div class="metric">
-                                <span class="metric-label">${point.label}</span>
-                                <span class="metric-value">${point.value} ${point.unit}</span>
-                            </div>
-                        `).join('')}
-                    </div>
-                </div>
-            `;
+            this.updateDataOverlay({
+                title: '보로노이 응력 누적 분석',
+                subtitle: '열간 압연 데이터 04',
+                metrics: [
+                    { label: '현재 보정 수', value: currentData.current_corrections_count, unit: '개' },
+                    { label: '데이터 무결성', value: (currentData.data_integrity * 100).toFixed(1), unit: '%' },
+                    { label: '보정 효과성', value: (currentData.correction_effectiveness * 100).toFixed(1), unit: '%' },
+                    { label: '활성 보정 수', value: currentData.active_corrections_count, unit: '개' }
+                ]
+            });
             
-            overlay.innerHTML = content;
-            overlay.style.display = 'flex';
-            overlay.style.opacity = '1';
-            this.overlayVisible = true;
-            
-            // Add click handler to cycle through datasets
-            overlay.addEventListener('click', () => this.cycleDataset());
-        }
-        
-        /**
-         * Hide data overlay
-         */
-        hideDataOverlay() {
-            const overlay = document.getElementById('data-overlay');
-            if (overlay) {
-                overlay.style.opacity = '0';
-                setTimeout(() => {
-                    overlay.style.display = 'none';
-                    overlay.innerHTML = '';
-                }, 300);
+            // Add click listener to data overlay for cycling
+            this.dataOverlay = document.getElementById('data-overlay');
+            if (this.dataOverlay && this.handleDataOverlayClick) {
+                this.dataOverlay.addEventListener('click', this.handleDataOverlayClick);
             }
-            this.overlayVisible = false;
         }
         
         /**
          * Cycle through different datasets
          */
         cycleDataset() {
-            // Cycle color scheme
-            this.currentColorScheme = (this.currentColorScheme + 1) % this.colorSchemes.length;
-            
-            // Regenerate visualization with new color scheme
-            this.createVoronoiVisualization();
-            
-            // Update data points
-            this.updateDataPoints();
+            this.currentDataset = (this.currentDataset + 1) % this.sampleData.length;
+            this.showDataOverlay(); // Refresh with new data
         }
         
         /**
          * Deactivate the module
          */
         deactivate() {
+            if (!this.isActive) return;
+            
+            console.log('[ARTWORK4] 🛑 Starting deactivation');
+            
             super.deactivate();
-            console.log('Deactivating 연간압연 데이터 04: 보로노이 응력 누적 시각화 module');
             
-            if (this.overlayVisible) {
-                this.hideDataOverlay();
+            // Stop Three.js animation
+            if (this.threeJSAnimationId) {
+                cancelAnimationFrame(this.threeJSAnimationId);
+                this.threeJSAnimationId = null;
             }
             
-            if (this.animationFrame) {
-                cancelAnimationFrame(this.animationFrame);
-                this.animationFrame = null;
+            // Clear Three.js renderer but keep the placeholder orb
+            if (this.renderer) {
+                this.renderer.clear();
             }
             
-            this.stopDataCycling();
+            console.log('[ARTWORK4] ✅ Deactivation complete');
+        }
+        
+        /**
+         * Remove all event listeners to prevent memory leaks
+         */
+        removeEventListeners() {
+            console.log('[ARTWORK4] 🧹 Removing event listeners...');
+            
+            // Remove data overlay click listener
+            if (this.dataOverlay && this.handleDataOverlayClick) {
+                this.dataOverlay.removeEventListener('click', this.handleDataOverlayClick);
+            }
+            
+            // Remove canvas click listener
+            const canvas = document.getElementById('visualizationCanvas');
+            if (canvas && this.handleCanvasClick) {
+                canvas.removeEventListener('click', this.handleCanvasClick);
+            }
+            
+            // Remove window resize listener
+            if (this.handleWindowResize) {
+                window.removeEventListener('resize', this.handleWindowResize);
+            }
         }
         
         /**
          * Clean up resources
          */
         cleanup() {
-            super.cleanup();
-            console.log('Cleaning up 연간압연 데이터 04: 보로노이 응력 누적 시각화 module');
+            console.log(`[CLEANUP] 🧹 Starting cleanup for ${this.title} module`);
             
-            this.stopDataCycling();
+            // Remove event listeners
+            this.removeEventListeners();
             
-            if (this.animationFrame) {
-                cancelAnimationFrame(this.animationFrame);
-                this.animationFrame = null;
+            // Clean up Three.js objects
+            if (this.scene) {
+                this.voronoiShapes.forEach(shape => {
+                    if (shape.geometry) shape.geometry.dispose();
+                    if (shape.material) shape.material.dispose();
+                    this.scene.remove(shape);
+                });
+                
+                this.dataPoints.forEach(point => {
+                    point.children.forEach(child => {
+                        if (child.geometry) child.geometry.dispose();
+                        if (child.material) {
+                            if (child.material.map) child.material.map.dispose();
+                            child.material.dispose();
+                        }
+                    });
+                    this.scene.remove(point);
+                });
             }
             
-            // Clear Voronoi elements
-            this.clearScene();
+            this.voronoiShapes = [];
+            this.dataPoints = [];
             
-            // Dispose of Three.js objects
-            if (this.controls) {
-                this.controls.dispose();
-                this.controls = null;
-            }
-            
-            if (this.renderer) {
-                const container = document.getElementById('visualization-container');
-                if (container && this.renderer.domElement) {
-                    container.removeChild(this.renderer.domElement);
-                }
-                this.renderer.dispose();
-                this.renderer = null;
-            }
-            
-            this.scene = null;
-            this.camera = null;
+            console.log(`[CLEANUP] ✅ ${this.title} module cleanup complete`);
         }
     }
     
