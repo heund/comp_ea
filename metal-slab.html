@@ -9,7 +9,7 @@
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="theme-color" content="#0a0a0a">
     <link rel="manifest" href="./manifest.json">
-    <title>S49-YLD-HK250801 - Metal Slab Simulation</title>
+    <title>S49-YLD-HK250801</title>
     
     <!-- Three.js for 3D visualization -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -938,6 +938,33 @@
             .control-panel.expanded,
             .rolling-panel.expanded {
                 transform: translateX(50%) translateY(0) !important;
+            }
+            
+            /* Hide info reveal completely in portrait mode */
+            .info-reveal {
+                display: none !important;
+            }
+            
+            /* Hide data panel completely in portrait mode */
+            .data-panel {
+                display: none !important;
+            }
+            
+            .data-panel.visible {
+                display: none !important;
+            }
+            
+            /* Hide status indicator in portrait mode */
+            .status-indicator {
+                display: none !important;
+            }
+            
+            /* Canvas shrinks and moves up when parameter panels expand in portrait mode */
+            .canvas-container.shifted {
+                transform: translateY(-160px) scale(0.65) !important;
+                transform-origin: center center !important;
+                margin-top: 20px !important;
+                height: calc(100vh - 120px) !important;
             }
         }
         
@@ -2991,77 +3018,7 @@
         });
     </script>
     
-    <!-- Glassmorphism Loading Screen -->
-    <div id="loadingScreen" class="glassmorphism-loading">
-        <div class="loading-spinner"></div>
-    </div>
     
-    <style>
-        /* Glassmorphism Loading Screen */
-        .glassmorphism-loading {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            z-index: 10000;
-            opacity: 0;
-            visibility: hidden;
-            transition: opacity 0.5s ease;
-            overflow: hidden;
-        }
-        
-        /* Simple black background */
-        .glassmorphism-loading::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: #0a0a0a;
-            z-index: -2;
-            opacity: 1;
-        }
-        
-        /* Glassmorphism overlay */
-        .glassmorphism-loading::after {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            backdrop-filter: blur(10px);
-            -webkit-backdrop-filter: blur(10px);
-            background: rgba(255, 255, 255, 0.1);
-            z-index: -1;
-        }
-        
-        .glassmorphism-loading.visible {
-            opacity: 1;
-            visibility: visible;
-        }
-        
-        /* Removed gradient animation keyframes as we're using solid black background */
-        
-        .loading-spinner {
-            width: 80px;
-            height: 80px;
-            border: 4px solid rgba(255, 255, 255, 0.3);
-            border-radius: 50%;
-            border-top-color: #ffffff;
-            animation: spin 1s ease-in-out infinite;
-            z-index: 1;
-        }
-        
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
-    </style>
     
     <!-- Navigation Buttons CSS Only -->
     <link rel="stylesheet" href="./shared/nav-buttons.css">
@@ -3112,9 +3069,6 @@
         <i class="bi bi-arrow-right"></i>
     </button>
     
-    <div class="status-indicator" id="statusIndicator">
-        Metal Slab Simulation
-    </div>
     
     <!-- Shared Navigation Script -->
     <script src="./shared/navigation.js"></script>
