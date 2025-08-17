@@ -1,0 +1,3037 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Metal Slab Sim">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="theme-color" content="#0a0a0a">
+    <link rel="manifest" href="./manifest.json">
+    <title>S49-YLD-HK250801 - Metal Slab Simulation</title>
+    
+    <!-- Three.js for 3D visualization -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    
+    <!-- Tone.js -->
+    <script src="https://unpkg.com/tone@14.7.77/build/Tone.js"></script>
+    <!-- Tone.js Unmute - Official iOS PWA fix -->
+    <script src="https://unpkg.com/unmute" data-add-button="true"></script>
+    
+    <!-- Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600&display=swap" rel="stylesheet">
+    
+    <!-- Bootstrap Icons for Navigation -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" rel="stylesheet">
+    
+    <!-- Navigation Buttons CSS Only -->
+    <link rel="stylesheet" href="./shared/nav-buttons.css">
+    
+    <style>
+        html {
+            /* iOS PWA safe area handling - apply to html element */
+            min-height: calc(100% + env(safe-area-inset-top));
+            padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+            margin: 0;
+            border: none;
+            width: 100%;
+            font-family: 'Inter', 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 50%, #16213e 100%);
+            background-attachment: fixed;
+            color: white;
+            /* iOS touch and interaction fixes */
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
+            -webkit-touch-callout: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+        
+        body {
+            margin: 0;
+            padding: 0;
+            border: none;
+            width: 100%;
+            height: 100%;
+            overflow: visible; /* Allow navigation buttons to be visible */
+        }
+        
+        * {
+            box-sizing: border-box;
+        }
+        
+        :root {
+            --glass-bg: rgba(255, 255, 255, 0.1);
+            --glass-border: rgba(255, 255, 255, 0.2);
+            --glass-hover: rgba(255, 255, 255, 0.15);
+            --glass-white: rgba(255, 255, 255, 0.9);
+            --glass-light: rgba(255, 255, 255, 0.7);
+            --glass-darkest: rgba(0, 0, 0, 0.3);
+        }
+        
+        /* 3D Canvas Container */
+        .canvas-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: 10; /* Ensure canvas stays above data panel during transitions */
+            background: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 50%, #16213e 100%); /* Ensure dark background */
+            transition: transform 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+            overflow: hidden;
+        }
+        
+        .canvas-container.shifted {
+            transform: translateX(-160px); /* Shift left by half the panel width for centering */
+        }
+        
+        /* Data Panel - appears in revealed area when canvas shifts */
+        .data-panel {
+            position: fixed;
+            top: 0;
+            right: 0;
+            width: 160px;
+            height: 100vh;
+            min-height: 100vh; /* Ensure full viewport height */
+            background: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 50%, #16213e 100%) !important;
+            z-index: 1; /* Ensure it's above the background but below canvas */
+            padding: 30px 20px;
+            box-sizing: border-box;
+            display: none; /* Completely hidden by default */
+            opacity: 0;
+            transition: opacity 0.8s ease; /* Consistent transition timing */
+            border: none; /* Ensure no borders */
+            margin: 0; /* Ensure no margins */
+            overflow: hidden; /* Prevent any content overflow */
+            transform: translateZ(0); /* Force hardware acceleration and prevent sub-pixel rendering */
+        }
+        
+        .data-panel.visible {
+            display: block !important; /* Show when visible */
+            opacity: 1;
+            transition: opacity 0.8s ease; /* Same transition timing for consistency */
+        }
+        
+        /* Compact Slab Dimensions in Data Panel */
+        .data-panel .slab-info {
+            margin-bottom: 25px;
+        }
+        
+        /* Landscape mode layout for iPads and tablets */
+        @media screen and (orientation: landscape) and (min-width: 768px) and (max-width: 1366px) {
+            html, body {
+                background: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 50%, #16213e 100%) !important;
+                overflow-x: hidden !important; /* Prevent horizontal scroll that might show white */
+            }
+            
+            .data-panel.visible {
+                display: flex !important; /* Only apply flex layout when panel is visible */
+                flex-direction: column;
+                justify-content: space-between; /* Separate slab dimensions and process data */
+                width: 162px !important; /* Slightly wider to cover any gaps */
+                height: calc(100vh + 2px) !important; /* Slightly taller to cover any gaps */
+                min-height: calc(100vh + 2px) !important; /* Force full height coverage plus buffer */
+                right: -1px !important; /* Extend slightly beyond right edge */
+                top: -1px !important; /* Extend slightly beyond top edge */
+                border: none !important; /* Ensure no borders in landscape */
+                margin: 0 !important; /* Ensure no margins in landscape */
+                box-shadow: none !important; /* Remove any shadows that might appear white */
+                outline: none !important; /* Remove any outlines */
+            }
+            
+            /* Add a pseudo-element to cover any remaining gaps */
+            .data-panel.visible::before {
+                content: '';
+                position: absolute;
+                top: -2px;
+                right: -2px;
+                bottom: -2px;
+                left: -2px;
+                background: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 50%, #16213e 100%);
+                z-index: -1;
+            }
+            
+            /* Force canvas container to have dark background in landscape */
+            .canvas-container {
+                background: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 50%, #16213e 100%) !important;
+                overflow: hidden !important;
+            }
+            
+            .data-panel .slab-info:first-child {
+                margin-bottom: 0; /* Remove margin from slab dimensions */
+            }
+            
+            .data-panel .slab-info:last-child {
+                margin-top: auto; /* Push process data to bottom of slide-out section */
+                margin-bottom: 20px; /* Add some bottom spacing */
+            }
+        }
+        
+        .data-panel .info-title {
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--glass-white);
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            margin-bottom: 12px;
+            border-bottom: 1px solid var(--glass-border);
+            padding-bottom: 6px;
+        }
+        
+        .data-panel .info-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 6px;
+            font-size: 11px;
+            line-height: 1.2;
+        }
+        
+        .data-panel .info-label {
+            color: var(--glass-light);
+            font-weight: 400;
+        }
+        
+        .data-panel .info-value {
+            color: var(--glass-white);
+            font-weight: 500;
+        }
+        
+        #metalSlabCanvas {
+            width: 100%;
+            height: 100%;
+            cursor: grab;
+            border: none;
+            outline: none;
+            margin: 0;
+            padding: 0;
+            background: transparent;
+        }
+        
+        #metalSlabCanvas:active {
+            cursor: grabbing;
+        }
+        
+        /* Sliding Control Panel */
+        .control-panel {
+            position: fixed;
+            top: 50%;
+            right: 0;
+            transform: translateY(-50%) translateX(100%); /* Start completely off-screen */
+            width: 320px;
+            height: auto;
+            max-height: 80vh;
+            background: var(--glass-bg);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--glass-border);
+            border-radius: 20px 0 0 20px;
+            padding: 25px;
+            box-shadow: -8px 0 32px rgba(0, 0, 0, 0.3);
+            z-index: 1000;
+            transition: transform 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94), box-shadow 0.8s ease;
+            overflow-y: auto;
+            box-sizing: border-box;
+        }
+        
+        .control-panel.expanded {
+            transform: translateY(-50%) translateX(0); /* Slide in to visible position */
+            box-shadow: -12px 0 48px rgba(0, 0, 0, 0.4); /* Enhanced shadow when expanded */
+        }
+        
+        .parameter-group {
+            margin-bottom: 20px;
+        }
+        
+        .parameter-label {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--glass-light);
+        }
+        
+        .parameter-value {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--glass-white);
+            background: var(--glass-bg);
+            padding: 4px 8px;
+            border-radius: 6px;
+            border: 1px solid var(--glass-border);
+            min-width: 60px;
+            text-align: center;
+        }
+        
+        .parameter-slider {
+            width: 100%;
+            height: 6px;
+            border-radius: 3px;
+            background: var(--glass-darkest);
+            outline: none;
+            -webkit-appearance: none;
+            appearance: none;
+            cursor: pointer;
+        }
+        
+        .parameter-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: var(--glass-white);
+            cursor: pointer;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+            transition: all 0.2s ease;
+        }
+        
+        .parameter-slider::-webkit-slider-thumb:hover {
+            transform: scale(1.1);
+            box-shadow: 0 4px 12px rgba(255, 255, 255, 0.3);
+        }
+        
+        .parameter-slider::-moz-range-thumb {
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: var(--glass-white);
+            cursor: pointer;
+            border: none;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+        }
+        
+        .parameter-description {
+            font-size: 12px;
+            color: rgba(255, 255, 255, 0.6);
+            margin-top: 4px;
+            line-height: 1.3;
+        }
+        
+        /* Rolling Panel - identical to control panel */
+        .rolling-panel {
+            position: fixed;
+            top: 50%;
+            right: 0;
+            transform: translateY(-50%) translateX(100%); /* Start completely off-screen */
+            width: 320px;
+            height: auto;
+            max-height: 80vh;
+            background: var(--glass-bg);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--glass-border);
+            border-radius: 20px 0 0 20px;
+            padding: 25px;
+            box-shadow: -8px 0 32px rgba(0, 0, 0, 0.3);
+            z-index: 1000;
+            transition: transform 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94), box-shadow 0.8s ease;
+            overflow-y: auto;
+            box-sizing: border-box;
+        }
+        
+        .rolling-panel.expanded {
+            transform: translateY(-50%) translateX(0); /* Slide in to visible position */
+            box-shadow: -12px 0 48px rgba(0, 0, 0, 0.4); /* Enhanced shadow when expanded */
+        }
+        
+        /* Control Panel Tab */
+        .control-tab {
+            position: fixed;
+            top: 50%;
+            right: 0;
+            transform: translateY(-50%) translateY(-60px) translateX(0); /* Position 60px above center */
+            width: 50px;
+            height: 120px;
+            background: var(--glass-bg);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--glass-border);
+            border-right: none;
+            border-radius: 20px 0 0 20px;
+            border-bottom: none; /* Remove bottom border to connect seamlessly */
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            z-index: 1001;
+            transition: transform 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94), background 0.8s ease, opacity 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+            box-shadow: -4px 0 16px rgba(0, 0, 0, 0.2);
+            box-sizing: border-box;
+            margin-left: -1px;
+            /* Prevent iOS from treating as button */
+            -webkit-appearance: none !important;
+            -moz-appearance: none !important;
+            appearance: none !important;
+            -webkit-touch-callout: none !important;
+            -webkit-tap-highlight-color: transparent !important;
+            -webkit-user-select: none !important;
+            user-select: none !important;
+            touch-action: manipulation !important;
+            outline: none !important;
+        }
+        
+        /* Rolling Panel Tab - exact duplicate of CTRL, positioned horizontally below */
+        .rolling-tab {
+            position: fixed;
+            top: 50%;
+            right: 0;
+            transform: translateY(-50%) translateY(60px) translateX(0); /* Position 60px below center */
+            width: 50px;
+            height: 120px;
+            background: var(--glass-bg);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--glass-border);
+            border-right: none;
+            border-radius: 20px 0 0 20px;
+            border-top: none; /* Remove top border to connect seamlessly */
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            z-index: 1001;
+            transition: transform 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94), background 0.8s ease, opacity 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+            box-shadow: -4px 0 16px rgba(0, 0, 0, 0.2);
+            box-sizing: border-box;
+            margin-left: -1px;
+            /* Prevent iOS from treating as button */
+            -webkit-appearance: none !important;
+            -moz-appearance: none !important;
+            appearance: none !important;
+            -webkit-touch-callout: none !important;
+            -webkit-tap-highlight-color: transparent !important;
+            -webkit-user-select: none !important;
+            user-select: none !important;
+            touch-action: manipulation !important;
+            outline: none !important;
+        }
+        
+        .control-tab:hover {
+            background: var(--glass-hover);
+        }
+        
+        .control-tab.expanded {
+            transform: translateY(-50%) translateY(-60px) translateX(-320px); /* Tab moves left with the panel */
+            background: var(--glass-hover); /* Subtle highlight when expanded */
+        }
+        
+        .rolling-tab:hover {
+            background: var(--glass-hover);
+        }
+        
+        .rolling-tab.expanded {
+            transform: translateY(-50%) translateY(60px) translateX(-320px); /* Tab moves left with the panel */
+            background: var(--glass-hover); /* Subtle highlight when expanded */
+        }
+        
+        /* Inactive state - completely hidden when another panel is expanded */
+        .control-tab.inactive {
+            opacity: 0;
+        }
+        
+        .rolling-tab.inactive {
+            opacity: 0;
+        }
+        
+        /* Tab Icon */
+        .tab-icon {
+            writing-mode: vertical-rl;
+            text-orientation: mixed;
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--glass-white);
+            letter-spacing: 2px;
+            text-transform: uppercase;
+        }
+        
+        /* Tab Arrow */
+        .tab-arrow {
+            width: 0;
+            height: 0;
+            border-top: 5px solid transparent;
+            border-bottom: 5px solid transparent;
+            border-left: 8px solid var(--glass-white);
+            border-right: 0;
+            margin-top: 8px;
+            transition: all 0.3s ease;
+            transform: rotate(0deg);
+            margin-left: 0;
+            /* Prevent iOS from treating as button */
+            -webkit-appearance: none !important;
+            -moz-appearance: none !important;
+            appearance: none !important;
+            -webkit-touch-callout: none !important;
+            -webkit-tap-highlight-color: transparent !important;
+            -webkit-user-select: none !important;
+            user-select: none !important;
+            pointer-events: none !important;
+            /* Force as pure CSS shape */
+            background: transparent !important;
+            border-style: solid !important;
+            border-radius: 0 !important;
+            outline: none !important;
+            box-shadow: none !important;
+            /* Ensure clean triangle rendering */
+            font-size: 0;
+            line-height: 0;
+        }
+        
+        /* Triangle rotation for expanded state */
+        .control-tab.expanded .tab-arrow,
+        .rolling-tab.expanded .tab-arrow {
+            transform: rotate(180deg);
+            border-left-color: rgba(255, 255, 255, 0.8);
+        }
+        
+        .panel-title {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--glass-white);
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            margin-bottom: 20px;
+            text-align: left;
+        }
+        
+        .parameter-group {
+            margin-bottom: 20px;
+        }
+        
+        .parameter-label {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--glass-light);
+        }
+        
+        .parameter-value {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--glass-white);
+            background: var(--glass-bg);
+            padding: 4px 8px;
+            border-radius: 6px;
+            border: 1px solid var(--glass-border);
+            min-width: 60px;
+            text-align: center;
+        }
+        
+        .parameter-slider {
+            width: 100%;
+            height: 6px;
+            border-radius: 3px;
+            background: var(--glass-darkest);
+            outline: none;
+            -webkit-appearance: none;
+            appearance: none;
+            cursor: pointer;
+        }
+        
+        .parameter-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: var(--glass-white);
+            cursor: pointer;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+            transition: all 0.2s ease;
+        }
+        
+        .parameter-slider::-webkit-slider-thumb:hover {
+            transform: scale(1.1);
+            box-shadow: 0 4px 12px rgba(255, 255, 255, 0.3);
+        }
+        
+        .parameter-slider::-moz-range-thumb {
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: var(--glass-white);
+            cursor: pointer;
+            border: none;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+        }
+        
+        .parameter-description {
+            font-size: 12px;
+            color: rgba(255, 255, 255, 0.6);
+            margin-top: 4px;
+            line-height: 1.3;
+        }
+        
+        /* Info Panel - moved to top right, pure text */
+        .info-panel {
+            position: fixed;
+            top: 30px;
+            right: 30px;
+            width: auto;
+            background: none;
+            backdrop-filter: none;
+            border: none;
+            border-radius: 0;
+            padding: 0;
+            box-shadow: none;
+            z-index: 1000;
+        }
+        
+        .info-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--glass-white);
+            margin-bottom: 15px;
+        }
+        
+        .info-item {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            font-size: 13px;
+        }
+        
+        .info-label {
+            color: var(--glass-light);
+        }
+        
+        .info-value {
+            color: var(--glass-white);
+            font-weight: 500;
+        }
+        
+        /* Reset Button */
+        .reset-btn {
+            width: 40px;
+            height: 40px;
+            padding: 0;
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: 50%; /* Circular */
+            color: var(--glass-white);
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin: 15px auto 0 auto;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            backdrop-filter: blur(20px);
+        }
+        
+        .reset-btn:hover {
+            background: var(--glass-hover);
+            transform: translateY(-1px) rotate(180deg);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+        }
+        
+        .reset-btn svg {
+            width: 16px;
+            height: 16px;
+            stroke: var(--glass-white);
+            transition: all 0.3s ease;
+        }
+        
+        /* Reset icon - pure icon, no bounding box */
+        .reset-icon {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-top: 20px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .reset-icon svg {
+            width: 20px;
+            height: 20px;
+            stroke: var(--glass-white);
+            stroke-width: 2;
+            fill: none;
+            transition: all 0.3s ease;
+        }
+        
+        .reset-icon:hover svg {
+            stroke: #4a9eff;
+            transform: rotate(180deg);
+        }
+        
+        /* Circular dial styles - more compact */
+        .circular-control {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        
+        .circular-dial-container {
+            position: relative;
+            display: flex;
+            justify-content: center;
+            margin: 10px 0;
+            width: 120px;
+            height: 80px;
+            margin: 10px auto;
+        }
+        
+        .circular-dial {
+            cursor: pointer;
+            width: 120px;
+            height: 80px;
+        }
+        
+        .dial-bg {
+            opacity: 0.3;
+            stroke: var(--glass-white);
+            stroke-width: 3;
+            fill: none;
+        }
+        
+        .dial-progress {
+            transition: all 0.2s ease;
+            stroke: var(--glass-white);
+            stroke-width: 3;
+            fill: none;
+        }
+        
+        .dial-handle {
+            cursor: grab;
+            transition: all 0.2s ease;
+            filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
+            fill: var(--glass-white);
+        }
+        
+        .dial-handle:hover {
+            transform: scale(1.1);
+            filter: drop-shadow(0 4px 8px rgba(74, 158, 255, 0.5));
+        }
+        
+        .dial-handle:active {
+            cursor: grabbing;
+        }
+        
+        /* Vertical controls container - closer spacing */
+        .vertical-controls-container {
+            display: flex;
+            gap: 8px;
+            justify-content: center;
+            margin-top: 15px;
+            padding: 0 10px;
+        }
+        
+        .vertical-control {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            position: relative;
+            min-width: 60px;
+        }
+        
+        .vertical-slider-container {
+            height: 100px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 8px 0;
+            position: relative;
+        }
+        
+        .vertical-slider {
+            writing-mode: bt-lr; /* IE */
+            -webkit-appearance: slider-vertical; /* WebKit */
+            appearance: slider-vertical; /* Standard property for compatibility */
+            width: 18px;
+            height: 90px;
+            background: var(--glass-bg);
+            outline: none;
+            border-radius: 9px;
+            cursor: pointer;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            backdrop-filter: blur(15px);
+            -webkit-backdrop-filter: blur(15px);
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+        }
+        
+        .vertical-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background: var(--glass-bg);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            cursor: pointer;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+            transition: all 0.2s ease;
+            border: 2px solid rgba(255, 255, 255, 0.6);
+        }
+        
+        .vertical-slider::-webkit-slider-thumb:hover {
+            transform: scale(1.1);
+            box-shadow: 0 6px 16px rgba(255, 255, 255, 0.3);
+            border: 2px solid rgba(255, 255, 255, 0.8);
+        }
+        
+        .vertical-slider::-moz-range-thumb {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background: var(--glass-bg);
+            cursor: pointer;
+            border: 2px solid rgba(255, 255, 255, 0.6);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+            transition: all 0.2s ease;
+        }
+        
+        .vertical-slider::-moz-range-thumb:hover {
+            transform: scale(1.1);
+            box-shadow: 0 6px 16px rgba(255, 255, 255, 0.3);
+            border: 2px solid rgba(255, 255, 255, 0.8);
+        }
+        
+        /* Value display at top, title at bottom - matching Roll Force styling exactly */
+        .vertical-control .parameter-value {
+            order: -1;
+            margin-bottom: 5px;
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--glass-white);
+            background: var(--glass-bg);
+            padding: 4px 8px;
+            border-radius: 6px;
+            border: 1px solid var(--glass-border);
+            min-width: 60px;
+            text-align: center;
+        }
+        
+        .vertical-control .parameter-label {
+            order: 1;
+            margin-top: 5px;
+            font-size: 11px;
+            text-align: center;
+        }
+        
+        .vertical-control .parameter-label span:first-child {
+            display: block;
+            margin-bottom: 2px;
+        }
+        
+        .vertical-control .parameter-description {
+            display: none; /* Hide descriptions to save space */
+        }
+        
+        /* Title - iOS Safe Area Aware Positioning */
+        .page-title {
+            position: fixed;
+            top: calc(env(safe-area-inset-top) + 30px);
+            left: calc(env(safe-area-inset-left) + 30px);
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--glass-white);
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            z-index: 1000;
+        }
+        
+        .page-subtitle {
+            position: fixed;
+            top: calc(env(safe-area-inset-top) + 50px);
+            left: calc(env(safe-area-inset-left) + 30px);
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--glass-white);
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            z-index: 1000;
+        }
+    </style>
+</head>
+<body>
+    <div class="page-title">S49-YLD-HK250801</div>
+    <div class="page-subtitle">SOL.YLD.YK.01</div>
+    
+    <!-- 3D Canvas -->
+    <div class="canvas-container">
+        <canvas id="metalSlabCanvas"></canvas>
+    </div>
+    
+    <!-- Data Panel - appears in revealed area when canvas shifts -->
+    <div class="data-panel" id="dataPanel">
+        <div class="slab-info">
+            <div class="info-title">슬래브 치수</div>
+            <div class="info-item">
+                <span class="info-label">두께:</span>
+                <span class="info-value" id="thicknessInfo">6.5 mm</span>
+            </div>
+            <div class="info-item">
+                <span class="info-label">폭:</span>
+                <span class="info-value" id="widthInfo">40.0 mm</span>
+            </div>
+            <div class="info-item">
+                <span class="info-label">길이:</span>
+                <span class="info-value" id="lengthInfo">130.0 mm</span>
+            </div>
+            <div class="info-item">
+                <span class="info-label">부피:</span>
+                <span class="info-value" id="volumeInfo">33,800 mm³</span>
+            </div>
+        </div>
+        
+        <div class="slab-info">
+            <div class="info-title">공정 데이터</div>
+            <div class="info-item">
+                <span class="info-label">온도:</span>
+                <span class="info-value" id="tempInfo">1200°C</span>
+            </div>
+            <div class="info-item">
+                <span class="info-label">롤 속도:</span>
+                <span class="info-value" id="speedInfo">2.5 m/s</span>
+            </div>
+            <div class="info-item">
+                <span class="info-label">압하율:</span>
+                <span class="info-value" id="reductionInfo">25%</span>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Control Tab -->
+    <div class="control-tab" id="controlTab">
+        <div class="tab-icon">CONT</div>
+        <div class="tab-arrow"></div>
+    </div>
+    
+    <!-- Rolling Tab -->
+    <div class="rolling-tab" id="rollingTab">
+        <div class="tab-icon">ROLLING</div>
+        <div class="tab-arrow"></div>
+    </div>
+    
+    <!-- Control Panel -->
+    <div class="control-panel" id="controlPanel">
+        <div class="panel-title">Process Parameters</div>
+        
+        <div class="parameter-group">
+            <div class="parameter-label">
+                <span>압연력 (RF)</span>
+                <span class="parameter-value" id="rollForceValue">0.5</span>
+            </div>
+            <input type="range" class="parameter-slider" id="rollForceSlider" 
+                   min="0" max="1" step="0.01" value="0.5">
+            <div class="parameter-description">
+                높은 압력은 금속을 압축하여 두께를 줄입니다
+            </div>
+        </div>
+        
+        <div class="parameter-group">
+            <div class="parameter-label">
+                <span>간격</span>
+                <span class="parameter-value" id="gapValue">0.5</span>
+            </div>
+            <input type="range" class="parameter-slider" id="gapSlider" 
+                   min="0" max="1" step="0.01" value="0.5">
+            <div class="parameter-description">
+                롤러 간 거리가 슬래브 폭에 영향을 줍니다
+            </div>
+        </div>
+        
+        <div class="parameter-group">
+            <div class="parameter-label">
+                <span>전체 압연량 (FRA)</span>
+                <span class="parameter-value" id="fraValue">0.5</span>
+            </div>
+            <input type="range" class="parameter-slider" id="fraSlider" 
+                   min="0" max="1" step="0.01" value="0.5">
+            <div class="parameter-description">
+                누적 압연이 최종 길이와 연신에 영향을 줍니다
+            </div>
+        </div>
+        
+        <button class="reset-btn" id="resetBtn">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/>
+                <path d="M21 3v5h-5"/>
+                <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/>
+                <path d="M3 21v-5h5"/>
+            </svg>
+        </button>
+    </div>
+    
+    <!-- Rolling Panel -->
+    <div class="rolling-panel" id="rollingPanel">
+        <div class="panel-title">Rolling Parameters</div>
+        
+        <div class="parameter-group">
+            <div class="parameter-label">
+                <span>압연 속도</span>
+                <span class="parameter-value" id="rollingSpeedValue">0.5</span>
+            </div>
+            <input type="range" class="parameter-slider" id="rollingSpeedSlider" 
+                   min="0" max="1" step="0.01" value="0.5">
+            <div class="parameter-description">
+                압연 공정 속도가 결정 구조에 영향을 줍니다
+            </div>
+        </div>
+        
+        <div class="parameter-group">
+            <div class="parameter-label">
+                <span>온도</span>
+                <span class="parameter-value" id="temperatureValue">0.5</span>
+            </div>
+            <input type="range" class="parameter-slider" id="temperatureSlider" 
+                   min="0" max="1" step="0.01" value="0.5">
+            <div class="parameter-description">
+                압연 온도가 재료 특성에 영향을 줍니다
+            </div>
+        </div>
+        
+        <div class="parameter-group">
+            <div class="parameter-label">
+                <span>패스 압하율</span>
+                <span class="parameter-value" id="passReductionValue">0.5</span>
+            </div>
+            <input type="range" class="parameter-slider" id="passReductionSlider" 
+                   min="0" max="1" step="0.01" value="0.5">
+            <div class="parameter-description">
+                패스당 압하율이 최종 두께 균일성에 영향을 줍니다
+            </div>
+        </div>
+        
+        <button class="reset-btn" id="resetRollingBtn">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/>
+                <path d="M21 3v5h-5"/>
+                <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/>
+                <path d="M3 21v-5h5"/>
+            </svg>
+        </button>
+    </div>
+
+    
+    <script>
+        // Three.js scene setup
+        let scene, camera, renderer, metalSlab;
+        let mouseX = 0, mouseY = 0;
+        let isMouseDown = false;
+        
+        // Base dimensions
+        const baseDimensions = {
+            thickness: 10,
+            width: 50,
+            length: 100
+        };
+        
+        // Current parameters
+        let parameters = {
+            rollForce: 0.5,
+            gap: 0.5,
+            fra: 0.5
+        };
+        
+        // Rolling parameters
+        let rollingParameters = {
+            rollingSpeed: 0.5,
+            temperature: 0.5,
+            passReduction: 0.5
+        };
+        
+        // Animation control variables
+        let isSliderActive = false;
+        let sliderTimeout = null;
+        
+        // Animation mode control
+        let animationMode = 'slab'; // 'slab' or 'rolling'
+        let rollingScene = null;
+        let rollingRolls = [];
+        let rollingMetal = null;
+        let slabGlowLines = []; // Global array for glow lines
+        
+        // Audio feedback system
+        let clickSound = null;
+        let backgroundMusic = null;
+        
+        // Tone.js pad system
+        let padSynth = null;
+        let padReverb = null;
+        let padVolume = null;
+        let padPlaying = false;
+        let padEvolutionInterval = null;
+        
+        // Individual note tracking for smooth morphing
+        let currentChord = {
+            bb: { note: 'Bb', octave: 2 },
+            d: { note: 'D', octave: 3 },
+            f: { note: 'F', octave: 3 }
+        };
+        
+        // Individual synths for each note to allow smooth morphing
+        let bbSynth = null;
+        let dSynth = null;
+        let fSynth = null;
+        
+        // Parameter-to-audio mappings
+        let currentRF = 0.5; // Roll Force parameter (0-1) - controls base note amplitude
+        let currentGap = 0.5; // Gap parameter (간격) (0-1) - controls middle note amplitude  
+        let currentFRA = 0.5; // FRA parameter (0-1) - controls overall chord amplitude
+        
+        // Individual volume controls for each note
+        let bbVolume = null; // Base note (Bb) volume control
+        let dVolume = null;  // Middle note (D) volume control  
+        let fVolume = null;  // Top note (F) volume control
+        
+        // Initialize audio system
+        function initializeAudio() {
+            // Initialize click sound
+            clickSound = new Audio('https://heund.github.io/ea_test1/sounds/click1.wav');
+            clickSound.volume = 0.3; // Set volume to 30% for subtle feedback
+            clickSound.preload = 'auto';
+            
+            // Initialize background music
+            backgroundMusic = new Audio('https://heund.github.io/ea_test1/sounds/INTRO_APPBG.wav');
+            backgroundMusic.volume = 0.15; // Set volume to 15% for ambient background
+            backgroundMusic.loop = true; // Enable looping
+            backgroundMusic.preload = 'auto';
+            
+            // Initialize Tone.js pad system
+            initializeTonePad();
+        }
+        
+        // Initialize Tone.js pad with Bb major chord and reverb
+        function initializeTonePad() {
+            try {
+                // iOS PWA audio context fix - comprehensive solution based on web research
+                if (Tone.context.state !== 'running') {
+                    console.log('Tone.js context not running, attempting to start...');
+                    
+                    // Method 1: Standard Tone.start()
+                    Tone.start().then(() => {
+                        console.log('Tone.js context started successfully');
+                        // Method 2: Additional iOS fix - resume context
+                        if (Tone.context.state === 'suspended') {
+                            Tone.context.resume().then(() => {
+                                console.log('iOS PWA: AudioContext resumed successfully');
+                            });
+                        }
+                    }).catch(error => {
+                        console.log('Tone.js context start failed:', error);
+                        // Method 3: Fallback - direct context resume for iOS PWA
+                        if (Tone.context.state === 'suspended') {
+                            Tone.context.resume().then(() => {
+                                console.log('iOS PWA fallback: AudioContext resumed');
+                            });
+                        }
+                    });
+                }
+                
+                // Create reverb effect with more reverb
+                padReverb = new Tone.Reverb({
+                    decay: 15,
+                    wet: 0.85,
+                    preDelay: 0.15
+                }).toDestination();
+                
+                // Create volume control for fading
+                padVolume = new Tone.Volume(-7).connect(padReverb); // Start at audible level
+                
+                // Create individual volume controls for each note
+                bbVolume = new Tone.Volume(-15).connect(padVolume); // Base note volume
+                dVolume = new Tone.Volume(-15).connect(padVolume);  // Middle note volume  
+                fVolume = new Tone.Volume(-15).connect(padVolume);  // Top note volume
+                
+                // Create volume controls for sawtooth oscillators (for FRA blend)
+                bbSawVolume = new Tone.Volume(-15).connect(padVolume); // Start at audible level for testing
+                dSawVolume = new Tone.Volume(-15).connect(padVolume);
+                fSawVolume = new Tone.Volume(-15).connect(padVolume);
+                
+                // Create sine wave synths (smooth, default)
+                const sineSettings = {
+                    oscillator: {
+                        type: "sine",
+                        volume: -15
+                    },
+                    envelope: {
+                        attack: 0.8,
+                        decay: 0.5,
+                        sustain: 0.8,
+                        release: 4
+                    },
+                    filter: {
+                        frequency: 800,
+                        rolloff: -24
+                    }
+                };
+                
+                // Create sawtooth wave synths (aggressive, for FRA blend)
+                const sawSettings = {
+                    oscillator: {
+                        type: "sawtooth",
+                        volume: -15
+                    },
+                    envelope: {
+                        attack: 0.8,
+                        decay: 0.5,
+                        sustain: 0.8,
+                        release: 4
+                    },
+                    filter: {
+                        frequency: 600, // Slightly darker for subtlety
+                        rolloff: -24
+                    }
+                };
+                
+                // Create sine synths (default smooth sound)
+                bbSynth = new Tone.Synth(sineSettings).connect(bbVolume);
+                dSynth = new Tone.Synth(sineSettings).connect(dVolume);
+                fSynth = new Tone.Synth(sineSettings).connect(fVolume);
+                
+                // Create sawtooth synths (aggressive sound for FRA blend)
+                bbSawSynth = new Tone.Synth(sawSettings).connect(bbSawVolume);
+                dSawSynth = new Tone.Synth(sawSettings).connect(dSawVolume);
+                fSawSynth = new Tone.Synth(sawSettings).connect(fSawVolume);
+                
+                console.log('Tone.js pad system initialized');
+            } catch (error) {
+                console.log('Tone.js initialization error:', error);
+            }
+        }
+        
+        // Start the Tone.js pad when CONT or ROLLING panel is expanded
+        function startTonePad() {
+            if (padPlaying || !bbSynth || !dSynth || !fSynth || !bbSawSynth || !dSawSynth || !fSawSynth) {
+                return; // Already playing or synths not ready
+            }
+            
+            try {
+                // Enhanced iOS PWA audio context handling
+                if (Tone.context.state !== 'running') {
+                    console.log('Starting Tone.js context for iOS PWA...');
+                    Tone.start().then(() => {
+                        console.log('Tone.js context started, triggering pad...');
+                        triggerPadNotes();
+                    }).catch(error => {
+                        console.log('Tone.js context start failed:', error);
+                        // Try alternative approach for iOS PWA
+                        setTimeout(() => {
+                            if (Tone.context.state === 'running') {
+                                triggerPadNotes();
+                            }
+                        }, 100);
+                    });
+                } else {
+                    triggerPadNotes();
+                }
+                
+                function triggerPadNotes() {
+                    // Start with initial chord: Bb2, D3, F3 (both sine and sawtooth layers)
+                    bbSynth.triggerAttack(`${currentChord.bb.note}${currentChord.bb.octave}`);
+                    dSynth.triggerAttack(`${currentChord.d.note}${currentChord.d.octave}`);
+                    fSynth.triggerAttack(`${currentChord.f.note}${currentChord.f.octave}`);
+                    
+                    // Start sawtooth layer (initially very quiet for FRA blend)
+                    bbSawSynth.triggerAttack(`${currentChord.bb.note}${currentChord.bb.octave}`);
+                    dSawSynth.triggerAttack(`${currentChord.d.note}${currentChord.d.octave}`);
+                    fSawSynth.triggerAttack(`${currentChord.f.note}${currentChord.f.octave}`);
+                    
+                    // Initialize process parameters to their default 0.5 values immediately
+                    setTimeout(() => {
+                        updateBaseNoteAmplitude(0.5);   // Initialize RF control
+                        updateMiddleNoteAmplitude(0.5); // Initialize Gap control  
+                        updateOverallAmplitude(0.5);    // Initialize FRA control
+                    }, 100); // Small delay to ensure audio context is ready
+                    
+                    padPlaying = true;
+                    
+                    // Start slow evolution of individual notes
+                    startPadEvolution();
+                    
+                    console.log('Bb major pad started with iOS PWA compatibility');
+                }
+                
+            } catch (error) {
+                console.log('Pad start error:', error);
+            }
+        }
+        
+        // Start the Bb major pad with individual notes
+        function startPad() {
+            if (bbSynth && dSynth && fSynth && !padPlaying) {
+                try {
+                    // Ensure Tone.js audio context is started
+                    if (Tone.context.state !== 'running') {
+                        Tone.start();
+                    }
+                    
+                    // Start with initial chord: Bb2, D3, F3
+                    bbSynth.triggerAttack(`${currentChord.bb.note}${currentChord.bb.octave}`);
+                    dSynth.triggerAttack(`${currentChord.d.note}${currentChord.d.octave}`);
+                    fSynth.triggerAttack(`${currentChord.f.note}${currentChord.f.octave}`);
+                    
+                    padPlaying = true;
+                    
+                    // Fade in the pad volume over 2 seconds
+                    padVolume.volume.rampTo(-7, 2);
+                    
+                    // Start slow evolution of individual notes
+                    startPadEvolution();
+                    
+                    console.log('Bb major pad started with smooth morphing evolution');
+                } catch (error) {
+                    console.log('Pad start error:', error);
+                }
+            }
+        }
+        
+        // Smoothly morph individual notes between octaves
+        function startPadEvolution() {
+            if (padEvolutionInterval) {
+                clearInterval(padEvolutionInterval);
+            }
+            
+            padEvolutionInterval = setInterval(() => {
+                if (bbSynth && dSynth && fSynth && padPlaying) {
+                    try {
+                        // Randomly choose which note to morph (bb, d, or f)
+                        const noteToMorph = ['bb', 'd', 'f'][Math.floor(Math.random() * 3)];
+                        
+                        // Choose a new octave with safety cap - no note above octave 3 for comfortable listening
+                        const currentOctave = currentChord[noteToMorph].octave;
+                        const maxOctave = 3; // Safety cap: nothing above octave 3 to prevent ear pain
+                        const possibleOctaves = [1, 2, 3].filter(oct => 
+                            oct !== currentOctave && oct <= maxOctave
+                        );
+                        const newOctave = possibleOctaves[Math.floor(Math.random() * possibleOctaves.length)];
+                        
+                        // Get the synth for this note
+                        let synthToMorph;
+                        if (noteToMorph === 'bb') synthToMorph = bbSynth;
+                        else if (noteToMorph === 'd') synthToMorph = dSynth;
+                        else synthToMorph = fSynth;
+                        
+                        // Create smooth crossfade by using volume ramping
+                        const newNote = `${currentChord[noteToMorph].note}${newOctave}`;
+                        
+                        // Create a temporary volume node for crossfading
+                        const tempVolume = new Tone.Volume(-60).connect(padReverb);
+                        const tempSynth = new Tone.Synth({
+                            oscillator: { type: "sine", volume: -20 },
+                            envelope: { attack: 0.8, decay: 0.5, sustain: 0.8, release: 4 },
+                            filter: { frequency: 800, rolloff: -24 }
+                        }).connect(tempVolume);
+                        
+                        // Start new note quietly
+                        tempSynth.triggerAttack(newNote);
+                        
+                        // Crossfade over 4 seconds
+                        tempVolume.volume.rampTo(-20, 4); // Fade in new note
+                        synthToMorph.volume.rampTo(-60, 4); // Fade out old note
+                        
+                        // After crossfade, replace the old synth
+                        setTimeout(() => {
+                            try {
+                                synthToMorph.triggerRelease();
+                                synthToMorph.dispose();
+                                
+                                // Replace with new synth at correct volume
+                                const newSynth = new Tone.Synth({
+                                    oscillator: { type: "sine", volume: -20 },
+                                    envelope: { attack: 0.8, decay: 0.5, sustain: 0.8, release: 4 },
+                                    filter: { frequency: 800, rolloff: -24 }
+                                }).connect(padVolume);
+                                
+                                newSynth.triggerAttack(newNote);
+                                
+                                // Update synth reference
+                                if (noteToMorph === 'bb') bbSynth = newSynth;
+                                else if (noteToMorph === 'd') dSynth = newSynth;
+                                else fSynth = newSynth;
+                                
+                                // Clean up temp synth
+                                tempSynth.triggerRelease();
+                                tempSynth.dispose();
+                                tempVolume.dispose();
+                                
+                            } catch (cleanupError) {
+                                console.log('Cleanup error:', cleanupError);
+                            }
+                        }, 4500);
+                        
+                        // Update our chord tracking
+                        currentChord[noteToMorph].octave = newOctave;
+                        
+                        console.log(`Morphing ${noteToMorph} from octave ${currentOctave} to ${newOctave}`);
+                        
+                    } catch (error) {
+                        console.log('Pad evolution error:', error);
+                    }
+                }
+            }, 20000); // Morph every 20 seconds for slow, organic evolution
+        }
+        
+        // Update overall Tone.js volume based on RF parameter
+        function updateBaseNoteAmplitude(rfValue) {
+            currentRF = rfValue;
+            
+            if (padVolume && padPlaying) {
+                try {
+                    // Map RF to overall Tone.js pad volume: 0.0 = -30dB, 1.0 = +5dB
+                    const minVolume = -30;
+                    const maxVolume = 5;
+                    const targetVolume = minVolume + (rfValue * (maxVolume - minVolume));
+                    
+                    // Instant volume response
+                    padVolume.volume.value = targetVolume;
+                    
+                    console.log(`RF: Overall Tone.js volume set to ${targetVolume.toFixed(1)}dB (RF: ${rfValue.toFixed(2)})`);
+                    
+                } catch (error) {
+                    console.log('RF amplitude update error:', error);
+                }
+            }
+        }
+        
+        // Gap parameter - DISABLED per user request
+        function updateMiddleNoteAmplitude(gapValue) {
+            currentGap = gapValue;
+            console.log(`Gap parameter: ${gapValue.toFixed(2)} (disabled per user request)`);
+            // Gap parameter left blank as requested
+        }
+        
+        // Update waveform blend based on FRA parameter (sine to sawtooth)
+        function updateOverallAmplitude(fraValue) {
+            currentFRA = fraValue;
+            
+            if (padPlaying && bbSawVolume && dSawVolume && fSawVolume) {
+                try {
+                    // FRA controls blend between sine (smooth) and sawtooth (aggressive)
+                    // 0.0 = pure sine (smooth), 1.0 = much more sawtooth (aggressive)
+                    
+                    // SUPER AGGRESSIVE sawtooth for debugging - should be VERY obvious
+                    const sawLevel = fraValue; // Direct mapping: 0.0 = silent, 1.0 = LOUD
+                    
+                    // Map to EXTREME dB range: 0.0 = -60dB (silent), 1.0 = +10dB (VERY LOUD)
+                    const minSawVolume = -60; // Silent
+                    const maxSawVolume = 10;  // VERY LOUD - should be impossible to miss
+                    const sawVolumeDb = minSawVolume + (sawLevel * (maxSawVolume - minSawVolume));
+                    
+                    // Apply EXTREME sawtooth volume for debugging
+                    bbSawVolume.volume.value = sawVolumeDb;
+                    dSawVolume.volume.value = sawVolumeDb;
+                    fSawVolume.volume.value = sawVolumeDb;
+                    
+                    console.log(`FRA: Sawtooth blend - Saw: ${sawVolumeDb.toFixed(1)}dB (FRA: ${fraValue.toFixed(2)})`);
+                    
+                } catch (error) {
+                    console.log('FRA waveform blend error:', error);
+                }
+            }
+        }
+        
+        // Start background music with user interaction handling
+        function startBackgroundMusic() {
+            if (backgroundMusic) {
+                try {
+                    backgroundMusic.play().then(() => {
+                        console.log('Background music started');
+                        musicStarted = true;
+                    }).catch(error => {
+                        console.log('Background music autoplay blocked:', error);
+                        // Will be started on first user interaction
+                    });
+                } catch (error) {
+                    console.log('Background music error:', error);
+                }
+            }
+        }
+        
+        // Setup app visibility handling for iOS PWA audio management
+        function setupAppVisibilityHandling() {
+            // Handle page visibility changes (app backgrounding/minimizing)
+            document.addEventListener('visibilitychange', () => {
+                if (document.hidden) {
+                    // App is being backgrounded/minimized
+                    console.log('App backgrounded - pausing audio');
+                    appIsVisible = false;
+                    
+                    // Pause background music
+                    if (backgroundMusic && !backgroundMusic.paused) {
+                        backgroundMusic.pause();
+                        audioWasPausedByVisibility = true;
+                    }
+                    
+                    // Suspend Tone.js context to save battery and stop audio
+                    if (Tone.context.state === 'running') {
+                        Tone.context.suspend().then(() => {
+                            console.log('Tone.js context suspended');
+                        }).catch(error => {
+                            console.log('Tone.js suspend error:', error);
+                        });
+                    }
+                } else {
+                    // App is being foregrounded/restored
+                    console.log('App foregrounded - resuming audio');
+                    appIsVisible = true;
+                    
+                    // Resume background music if it was paused by visibility change
+                    if (backgroundMusic && audioWasPausedByVisibility) {
+                        backgroundMusic.play().catch(error => {
+                            console.log('Background music resume error:', error);
+                        });
+                        audioWasPausedByVisibility = false;
+                    }
+                    
+                    // Resume Tone.js context
+                    if (Tone.context.state === 'suspended') {
+                        Tone.context.resume().then(() => {
+                            console.log('Tone.js context resumed');
+                        }).catch(error => {
+                            console.log('Tone.js resume error:', error);
+                        });
+                    }
+                }
+            });
+            
+            // Additional iOS PWA specific events
+            window.addEventListener('pagehide', () => {
+                console.log('Page hide - pausing all audio');
+                if (backgroundMusic && !backgroundMusic.paused) {
+                    backgroundMusic.pause();
+                    audioWasPausedByVisibility = true;
+                }
+                if (Tone.context.state === 'running') {
+                    Tone.context.suspend();
+                }
+            });
+            
+            window.addEventListener('pageshow', () => {
+                console.log('Page show - checking audio resume');
+                if (backgroundMusic && audioWasPausedByVisibility) {
+                    setTimeout(() => {
+                        backgroundMusic.play().catch(error => {
+                            console.log('Background music pageshow resume error:', error);
+                        });
+                        audioWasPausedByVisibility = false;
+                    }, 100);
+                }
+                if (Tone.context.state === 'suspended') {
+                    setTimeout(() => {
+                        Tone.context.resume();
+                    }, 100);
+                }
+            });
+            
+            console.log('App visibility handling setup complete');
+        }
+        
+        // Try to start background music on first user interaction
+        let musicStarted = false;
+        
+        // App visibility state for audio management
+        let appIsVisible = true;
+        let audioWasPausedByVisibility = false;
+        function tryStartMusicOnInteraction() {
+            if (!musicStarted && backgroundMusic) {
+                startBackgroundMusic();
+                musicStarted = true;
+            }
+            
+            // Also ensure Tone.js context is started on first interaction
+            if (typeof Tone !== 'undefined' && Tone.context.state !== 'running') {
+                Tone.start();
+            }
+        }
+        
+        // Play click sound with error handling
+        function playClickSound() {
+            // Try to start background music on first interaction
+            tryStartMusicOnInteraction();
+            
+            if (clickSound) {
+                try {
+                    clickSound.currentTime = 0; // Reset to beginning for rapid clicks
+                    clickSound.play().catch(e => {
+                        // Silently handle audio play errors (common on mobile)
+                        console.log('Audio play prevented:', e);
+                    });
+                } catch (error) {
+                    console.log('Audio error:', error);
+                }
+            }
+        }
+        
+        // Add click sound to all interactive elements
+        function addClickSounds() {
+            // Tab buttons
+            const controlTab = document.getElementById('controlTab');
+            const rollingTab = document.getElementById('rollingTab');
+            
+            // Reset buttons
+            const resetBtn = document.getElementById('resetBtn');
+            const resetRollingBtn = document.getElementById('resetRollingBtn');
+            
+            // Add click sound to tab buttons
+            if (controlTab) {
+                controlTab.addEventListener('click', playClickSound);
+                controlTab.addEventListener('touchstart', playClickSound);
+            }
+            if (rollingTab) {
+                rollingTab.addEventListener('click', playClickSound);
+                rollingTab.addEventListener('touchstart', playClickSound);
+            }
+            
+            // Add click sound to reset buttons
+            if (resetBtn) {
+                resetBtn.addEventListener('click', playClickSound);
+                resetBtn.addEventListener('touchstart', playClickSound);
+            }
+            if (resetRollingBtn) {
+                resetRollingBtn.addEventListener('click', playClickSound);
+                resetRollingBtn.addEventListener('touchstart', playClickSound);
+            }
+        }
+        
+        // Helper functions for slider interaction
+        function pauseRotationForSlider() {
+            isSliderActive = true;
+            // Clear any existing timeout
+            if (sliderTimeout) {
+                clearTimeout(sliderTimeout);
+            }
+            // Resume rotation after 1 second of inactivity
+            sliderTimeout = setTimeout(() => {
+                isSliderActive = false;
+            }, 1000);
+        }
+        
+        // Initialize the 3D scene
+        function initThreeJS() {
+            try {
+                const canvas = document.getElementById('metalSlabCanvas');
+                if (!canvas) {
+                    console.error('Canvas not found');
+                    return;
+                }
+                
+                // Check if Three.js is loaded
+                if (typeof THREE === 'undefined') {
+                    console.error('Three.js not loaded');
+                    return;
+                }
+                
+                // Scene
+                scene = new THREE.Scene();
+                scene.background = new THREE.Color(0x0a0a0a); // Dark background instead of transparent
+                
+                // Camera
+                camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+                camera.position.set(80, 60, 80);
+                camera.lookAt(0, 0, 0);
+                
+                // Renderer
+                renderer = new THREE.WebGLRenderer({ 
+                    canvas: canvas, 
+                    antialias: true, 
+                    alpha: false // Changed to false for better visibility
+                });
+                renderer.setSize(window.innerWidth, window.innerHeight);
+                renderer.setClearColor(0x0a0a0a, 1); // Solid dark background
+                renderer.shadowMap.enabled = true;
+                renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+                
+                // Enhanced lighting for better visibility
+                const ambientLight = new THREE.AmbientLight(0x404040, 0.8);
+                scene.add(ambientLight);
+                
+                const directionalLight = new THREE.DirectionalLight(0xffffff, 1.0);
+                directionalLight.position.set(100, 100, 50);
+                directionalLight.castShadow = true;
+                scene.add(directionalLight);
+                
+                // Additional point light for better illumination
+                const pointLight = new THREE.PointLight(0xffffff, 0.5, 300);
+                pointLight.position.set(50, 50, 50);
+                scene.add(pointLight);
+                
+                // Create metal slab
+                createMetalSlab();
+                
+                // Mouse controls
+                setupMouseControls();
+                
+                // Start animation loop
+                animate();
+                
+                // Handle window resize
+                window.addEventListener('resize', onWindowResize);
+                
+                console.log('Three.js initialized successfully');
+                
+            } catch (error) {
+                console.error('Error initializing Three.js:', error);
+            }
+        }
+        
+        function createMetalSlab() {
+            try {
+                // Remove existing slab completely
+                if (metalSlab) {
+                    scene.remove(metalSlab);
+                    metalSlab = null;
+                }
+                
+                // Calculate dimensions based on parameters
+                const dimensions = calculateDimensions();
+                console.log('Creating DEFAULT slab with dimensions:', dimensions);
+                
+                // Create wireframe geometry
+                const geometry = new THREE.BoxGeometry(
+                    dimensions.length, 
+                    dimensions.thickness, 
+                    dimensions.width
+                );
+                
+                // Create CONSISTENT see-through wireframe slab - ALWAYS the same
+                const wireframeMaterial = new THREE.MeshBasicMaterial({
+                    color: 0xffffff,           // Always white
+                    wireframe: true,           // Always wireframe
+                    transparent: false,        // Never transparent
+                    opacity: 1.0,             // Always fully opaque
+                    side: THREE.DoubleSide     // Always double-sided
+                });
+                
+                // Create edges for crisp wireframe lines
+                const edges = new THREE.EdgesGeometry(geometry);
+                const edgeMaterial = new THREE.LineBasicMaterial({
+                    color: 0xffffff,           // Always white
+                    transparent: false,        // Never transparent
+                    opacity: 1.0,             // Always fully opaque
+                    linewidth: 3               // Always thick lines
+                });
+                
+                // Create ONLY wireframe meshes - no solid fill
+                const wireframeMesh = new THREE.Mesh(geometry, wireframeMaterial);
+                const edgeLines = new THREE.LineSegments(edges, edgeMaterial);
+                
+                // Force material updates
+                wireframeMesh.material.needsUpdate = true;
+                edgeLines.material.needsUpdate = true;
+                
+                // Create group with CONSISTENT see-through appearance
+                metalSlab = new THREE.Group();
+                metalSlab.add(wireframeMesh);
+                metalSlab.add(edgeLines);
+                
+                // FORCE consistent positioning
+                metalSlab.position.set(0, 0, 0);
+                metalSlab.rotation.set(0, 0, 0);
+                metalSlab.scale.set(1, 1, 1);
+                
+                scene.add(metalSlab);
+                
+                // Update data panel with new dimensions
+                updateDataPanel(dimensions);
+                
+                console.log('DEFAULT metal slab created with CONSISTENT appearance');
+                
+            } catch (error) {
+                console.error('Error creating metal slab:', error);
+            }
+        }
+        
+        // Create hot rolling animation scene
+        function createHotRollingAnimation() {
+            // Clear existing objects completely
+            while(scene.children.length > 0) {
+                scene.remove(scene.children[0]);
+            }
+            
+            // Clear rolling objects array
+            rollingRolls = [];
+            
+            // Reset metalSlab reference to avoid conflicts
+            metalSlab = null;
+            
+            // Add lighting (same as default)
+            const ambientLight = new THREE.AmbientLight(0x404040, 0.6);
+            scene.add(ambientLight);
+            
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+            directionalLight.position.set(10, 10, 5);
+            scene.add(directionalLight);
+            
+            // Set camera to side view (like reference image)
+            camera.position.set(0, 0, 10);
+            camera.lookAt(0, 0, 0);
+            
+            // Create the metal slab as simple 4-line rectangle (side view profile)
+            const slabWidth = 12; // Length of slab flowing left to right
+            const slabHeight = 0.8; // Thickness (what gets reduced by rolling)
+            
+            // Create line material with thicker lines for smoother appearance
+            const slabLineMaterial = new THREE.LineBasicMaterial({
+                color: 0xffffff,
+                linewidth: 2
+            });
+            
+            // Create soft, blurred glow materials with many layers for diffuse effect
+            const slabGlowMaterials = [];
+            const numGlowLayers = 8; // More layers for smoother blur
+            
+            for (let i = 0; i < numGlowLayers; i++) {
+                const opacity = 0.15 * Math.exp(-i * 0.4); // Exponential falloff for smooth blur
+                slabGlowMaterials.push(new THREE.LineBasicMaterial({
+                    color: 0xff0000,
+                    transparent: true,
+                    opacity: opacity,
+                    blending: THREE.AdditiveBlending
+                }));
+            }
+            
+            // Create slab with thickness reduction from center to right
+            const halfWidth = slabWidth / 2;
+            const halfHeight = slabHeight / 2;
+            
+            // Function to create slab points with smooth thickness reduction at roll contact point
+            function createSlabPoints(reductionFactor, dynamicCompressionFactor = 1.0) {
+                const reducedHeight = halfHeight * reductionFactor * dynamicCompressionFactor;
+                const transitionWidth = 0.8; // Width of smooth transition zone
+                
+                const points = [
+                    // Left side (full thickness) - maintain full height until rolls
+                    new THREE.Vector3(-halfWidth, -halfHeight, 0), // Bottom left
+                    new THREE.Vector3(-transitionWidth, -halfHeight, 0), // Bottom approach to rolls
+                    
+                    // Smoother transition into roll contact zone (more curve points)
+                    new THREE.Vector3(-transitionWidth * 0.75, -halfHeight * 0.95, 0), // Very gradual start
+                    new THREE.Vector3(-transitionWidth * 0.5, -halfHeight * 0.85, 0), // Gentle curve
+                    new THREE.Vector3(-transitionWidth * 0.25, -reducedHeight * 1.1, 0), // Approach target
+                    new THREE.Vector3(0, -reducedHeight, 0), // Bottom center (fully reduced)
+                    new THREE.Vector3(transitionWidth * 0.25, -reducedHeight, 0), // Start exit
+                    new THREE.Vector3(transitionWidth * 0.5, -reducedHeight, 0), // Continue reduced
+                    
+                    // Right side (stays reduced after rolling)
+                    new THREE.Vector3(halfWidth, -reducedHeight, 0), // Bottom right (reduced)
+                    new THREE.Vector3(halfWidth, reducedHeight, 0),  // Top right (reduced)
+                    
+                    // Smoother transition out of roll contact zone (more curve points)
+                    new THREE.Vector3(transitionWidth * 0.5, reducedHeight, 0), // Continue reduced
+                    new THREE.Vector3(transitionWidth * 0.25, reducedHeight, 0), // Start exit
+                    new THREE.Vector3(0, reducedHeight, 0),  // Top center (fully reduced)
+                    new THREE.Vector3(-transitionWidth * 0.25, reducedHeight * 1.1, 0), // Approach expansion
+                    new THREE.Vector3(-transitionWidth * 0.5, halfHeight * 0.85, 0), // Gentle curve
+                    new THREE.Vector3(-transitionWidth * 0.75, halfHeight * 0.95, 0), // Very gradual end
+                    
+                    // Left side (full thickness) - maintain full height until rolls
+                    new THREE.Vector3(-transitionWidth, halfHeight, 0),   // Top approach to rolls
+                    new THREE.Vector3(-halfWidth, halfHeight, 0),   // Top left
+                    new THREE.Vector3(-halfWidth, -halfHeight, 0)   // Back to bottom left to close
+                ];
+                
+                return points;
+            }
+            
+            const slabPoints = createSlabPoints(1 - rollingParameters.passReduction * 0.5);
+            const slabGeometry = new THREE.BufferGeometry().setFromPoints(slabPoints);
+            metalSlab = new THREE.Line(slabGeometry, slabLineMaterial);
+            
+            // Reset and create multiple glow lines for layered bloom effect
+            slabGlowLines = []; // Reset global array
+            slabGlowMaterials.forEach((material, index) => {
+                // Create progressively larger scaling for diffuse blur effect
+                const glowScale = 1 + (index * 0.05); // Back to original scaling
+                const glowOffset = index * 0.1; // Back to original offset
+                const glowPoints = slabPoints.map(point => {
+                    return new THREE.Vector3(
+                        point.x * glowScale,
+                        point.y * glowScale + (point.y > 0 ? glowOffset : -glowOffset),
+                        point.z
+                    );
+                });
+                
+                const glowGeometry = new THREE.BufferGeometry().setFromPoints(glowPoints);
+                const glowLine = new THREE.Line(glowGeometry, material);
+                glowLine.position.set(0, 0, -0.01 - (index * 0.001)); // Layer behind main line
+                scene.add(glowLine);
+                slabGlowLines.push(glowLine);
+                console.log(`Created glow line ${index} with scale ${glowScale}:`, glowLine);
+            });
+            console.log('Total glow lines created:', slabGlowLines.length);
+            
+            // Store the creation function for updates
+            metalSlab.updateShape = function(reductionFactor, dynamicCompressionFactor = 1.0) {
+                const newPoints = createSlabPoints(reductionFactor, dynamicCompressionFactor);
+                this.geometry.setFromPoints(newPoints);
+                this.geometry.attributes.position.needsUpdate = true;
+                
+                // Update all glow lines with scaled points for blur effect
+                slabGlowLines.forEach((glowLine, index) => {
+                    const glowScale = 1 + (index * 0.05);
+                    const glowOffset = index * 0.1;
+                    const glowPoints = newPoints.map(point => {
+                        return new THREE.Vector3(
+                            point.x * glowScale,
+                            point.y * glowScale + (point.y > 0 ? glowOffset : -glowOffset),
+                            point.z
+                        );
+                    });
+                    glowLine.geometry.setFromPoints(glowPoints);
+                    glowLine.geometry.attributes.position.needsUpdate = true;
+                });
+            };
+            
+            // Store glow lines reference for temperature updates
+            metalSlab.glowLines = slabGlowLines;
+            
+            // Function to update temperature glow
+            metalSlab.updateTemperature = function(temperature) {
+                console.log('updateTemperature called with:', temperature);
+                console.log('slabGlowLines available:', slabGlowLines.length);
+                
+                // Temperature 0-1 maps to opacity and color intensity
+                const baseOpacity = temperature * 0.8; // Increased for visibility
+                const heatIntensity = temperature;
+                
+                // Color transition: white -> yellow -> orange -> red
+                let glowColor;
+                if (heatIntensity < 0.3) {
+                    // White to yellow
+                    const t = heatIntensity / 0.3;
+                    glowColor = new THREE.Color().lerpColors(
+                        new THREE.Color(0xffffff), // White
+                        new THREE.Color(0xffff00), // Yellow
+                        t
+                    );
+                } else if (heatIntensity < 0.7) {
+                    // Yellow to orange
+                    const t = (heatIntensity - 0.3) / 0.4;
+                    glowColor = new THREE.Color().lerpColors(
+                        new THREE.Color(0xffff00), // Yellow
+                        new THREE.Color(0xff8800), // Orange
+                        t
+                    );
+                } else {
+                    // Orange to red
+                    const t = (heatIntensity - 0.7) / 0.3;
+                    glowColor = new THREE.Color().lerpColors(
+                        new THREE.Color(0xff8800), // Orange
+                        new THREE.Color(0xff2200), // Red
+                        t
+                    );
+                }
+                
+                console.log('Glow color:', glowColor, 'Base opacity:', baseOpacity);
+                
+                // Update all glow lines with layered opacity for bloom effect
+                slabGlowLines.forEach((glowLine, index) => {
+                    glowLine.material.color = glowColor;
+                    // Each layer has different opacity for depth effect
+                    const layerOpacity = baseOpacity * (1 - index * 0.2); // Reduced falloff
+                    glowLine.material.opacity = Math.max(0, layerOpacity);
+                    console.log(`Glow line ${index}: opacity = ${layerOpacity}`);
+                });
+            };
+            
+            metalSlab.position.set(0, 0, 0);
+            scene.add(metalSlab);
+            
+            // Apply initial temperature glow
+            if (metalSlab.updateTemperature) {
+                metalSlab.updateTemperature(rollingParameters.temperature);
+            }
+            
+            // Create large wireframe circles for rolls (matching reference size)
+            const rollRadius = 2.5; // Same size as before
+            const rollGeometry = new THREE.CircleGeometry(rollRadius, 32);
+            const rollMaterial = new THREE.MeshBasicMaterial({ 
+                color: 0x666666, // Gray color
+                wireframe: true,
+                transparent: false, // No transparency
+                opacity: 1.0 // Full opacity for visibility
+            });
+            
+            // Top roll (large circle above slab)
+            const topRoll = new THREE.Mesh(rollGeometry, rollMaterial);
+            topRoll.position.set(0, 3.5, 0); // Position further above slab
+            scene.add(topRoll);
+            rollingRolls.push(topRoll);
+            
+            // Bottom roll (large circle below slab)
+            const bottomRoll = new THREE.Mesh(rollGeometry, rollMaterial);
+            bottomRoll.position.set(0, -3.5, 0); // Position further below slab
+            scene.add(bottomRoll);
+            rollingRolls.push(bottomRoll);
+            
+            console.log('Hot rolling animation created successfully');
+        }
+        
+        // Switch between animation modes
+        function switchAnimationMode(mode) {
+            // Clear the entire scene first - dispose of materials properly
+            while(scene.children.length > 0) {
+                const child = scene.children[0];
+                if (child.material) {
+                    if (Array.isArray(child.material)) {
+                        child.material.forEach(material => material.dispose());
+                    } else {
+                        child.material.dispose();
+                    }
+                }
+                if (child.geometry) {
+                    child.geometry.dispose();
+                }
+                scene.remove(child);
+            }
+            
+            // Reset variables completely
+            animationMode = mode;
+            rollingRolls = [];
+            metalSlab = null;
+            slabGlowLines = []; // Reset glow lines array
+            
+            if (mode === 'slab') {
+                // Reset camera for default slab view
+                camera.position.set(80, 60, 80);
+                camera.lookAt(0, 0, 0);
+                
+                // Force a clean recreation of the default slab
+                createMetalSlab();
+                console.log('Switched to slab animation mode - consistent semi-transparent grey slab');
+            } else if (mode === 'rolling') {
+                createHotRollingAnimation();
+                console.log('Switched to rolling animation mode');
+            }
+            
+            // Force renderer update
+            renderer.render(scene, camera);
+        }
+        
+        // Restore original slab without full scene recreation (preserves original appearance)
+        function restoreOriginalSlab() {
+            // Only clear rolling-specific elements, keep original slab if it exists
+            if (animationMode === 'rolling') {
+                // Clear the entire scene since rolling slab is different from default slab
+                while(scene.children.length > 0) {
+                    scene.remove(scene.children[0]);
+                }
+                
+                // Reset rolling variables
+                rollingRolls = [];
+                slabGlowLines = [];
+                metalSlab = null;
+                
+                // Reset camera for default slab view
+                camera.position.set(80, 60, 80);
+                camera.lookAt(0, 0, 0);
+                
+                // Set animation mode back to slab
+                animationMode = 'slab';
+                
+                // Always create the original default 3D slab
+                createMetalSlab();
+                
+                console.log('Restored original default 3D slab');
+            }
+        }
+        
+        function calculateDimensions() {
+            // Apply parameter transformations based on hot rolling physics
+            const thickness = baseDimensions.thickness * (1 - parameters.rollForce * 0.7); // More force = thinner
+            const width = baseDimensions.width * (0.6 + parameters.gap * 0.4); // Gap affects width
+            const length = baseDimensions.length * (1 + parameters.fra * 0.6); // FRA affects elongation
+            
+            return { thickness, width, length };
+        }
+        
+        function updateDataPanel(dimensions) {
+            // Update the new data panel with current dimensions
+            document.getElementById('thicknessInfo').textContent = `${dimensions.thickness.toFixed(1)} mm`;
+            document.getElementById('widthInfo').textContent = `${dimensions.width.toFixed(1)} mm`;
+            document.getElementById('lengthInfo').textContent = `${dimensions.length.toFixed(1)} mm`;
+            
+            const volume = dimensions.thickness * dimensions.width * dimensions.length;
+            document.getElementById('volumeInfo').textContent = `${Math.round(volume).toLocaleString()} mm³`;
+            
+            // Update process data based on current parameters
+            const tempCelsius = Math.round(800 + (rollingParameters.temperature * 600)); // 800-1400°C range
+            const speedMs = (rollingParameters.rollingSpeed * 4 + 0.5).toFixed(1); // 0.5-4.5 m/s range
+            const reductionPercent = Math.round(rollingParameters.passReduction * 50); // 0-50% range
+            
+            document.getElementById('tempInfo').textContent = `${tempCelsius}°C`;
+            document.getElementById('speedInfo').textContent = `${speedMs} m/s`;
+            document.getElementById('reductionInfo').textContent = `${reductionPercent}%`;
+        }
+        
+        function setupMouseControls() {
+            const canvas = document.getElementById('metalSlabCanvas');
+            
+            canvas.addEventListener('mousedown', (event) => {
+                isMouseDown = true;
+                mouseX = event.clientX;
+                mouseY = event.clientY;
+            });
+            
+            canvas.addEventListener('mousemove', (event) => {
+                if (!isMouseDown) return;
+                
+                const deltaX = event.clientX - mouseX;
+                const deltaY = event.clientY - mouseY;
+                
+                // Rotate camera around the slab
+                const spherical = new THREE.Spherical();
+                spherical.setFromVector3(camera.position);
+                
+                spherical.theta -= deltaX * 0.01;
+                spherical.phi += deltaY * 0.01;
+                
+                // Limit phi to prevent flipping
+                spherical.phi = Math.max(0.1, Math.min(Math.PI - 0.1, spherical.phi));
+                
+                camera.position.setFromSpherical(spherical);
+                camera.lookAt(0, 0, 0);
+                
+                mouseX = event.clientX;
+                mouseY = event.clientY;
+            });
+            
+            canvas.addEventListener('mouseup', () => {
+                isMouseDown = false;
+            });
+            
+            canvas.addEventListener('wheel', (event) => {
+                const distance = camera.position.length();
+                const newDistance = Math.max(50, Math.min(200, distance + event.deltaY * 0.1));
+                camera.position.normalize().multiplyScalar(newDistance);
+            });
+        }
+        
+        function setupParameterControls() {
+            // Roll Force slider
+            const rollForceSlider = document.getElementById('rollForceSlider');
+            const gapSlider = document.getElementById('gapSlider');
+            const fraSlider = document.getElementById('fraSlider');
+            const resetBtn = document.getElementById('resetBtn');
+            
+            if (!rollForceSlider || !gapSlider || !fraSlider) {
+                console.error('Parameter sliders not found!');
+                return;
+            }
+            
+            // Roll Force slider
+            rollForceSlider.addEventListener('input', (e) => {
+                parameters.rollForce = parseFloat(e.target.value);
+                document.getElementById('rollForceValue').textContent = parameters.rollForce.toFixed(2);
+                createMetalSlab();
+                pauseRotationForSlider();
+                
+                // Update base note amplitude based on RF parameter
+                updateBaseNoteAmplitude(parameters.rollForce);
+            });
+            
+            // Gap slider
+            gapSlider.addEventListener('input', (e) => {
+                parameters.gap = parseFloat(e.target.value);
+                document.getElementById('gapValue').textContent = parameters.gap.toFixed(2);
+                createMetalSlab();
+                pauseRotationForSlider();
+                
+                // Update middle note amplitude based on Gap parameter (간격)
+                updateMiddleNoteAmplitude(parameters.gap);
+            });
+            
+            // FRA slider
+            fraSlider.addEventListener('input', (e) => {
+                parameters.fra = parseFloat(e.target.value);
+                document.getElementById('fraValue').textContent = parameters.fra.toFixed(2);
+                createMetalSlab();
+                pauseRotationForSlider();
+                
+                // Update overall chord amplitude based on FRA parameter
+                updateOverallAmplitude(parameters.fra);
+            });
+            
+            // Reset button
+            if (resetBtn) {
+                resetBtn.addEventListener('click', () => {
+                    parameters.rollForce = 0.5;
+                    parameters.gap = 0.5;
+                    parameters.fra = 0.5;
+                    
+                    rollForceSlider.value = 0.5;
+                    gapSlider.value = 0.5;
+                    fraSlider.value = 0.5;
+                    
+                    document.getElementById('rollForceValue').textContent = '0.50';
+                    document.getElementById('gapValue').textContent = '0.50';
+                    document.getElementById('fraValue').textContent = '0.50';
+                    
+                    createMetalSlab();
+                    
+                    // Reset audio parameters to defaults
+                    updateBaseNoteAmplitude(0.5);   // Reset RF to default base note amplitude
+                    updateMiddleNoteAmplitude(0.5); // Reset Gap to default middle note amplitude
+                    updateOverallAmplitude(0.5);    // Reset FRA to default overall amplitude
+                });
+            }
+            
+            console.log('Parameter controls setup complete');
+        }
+        
+        // Setup rolling parameter controls
+        function setupRollingParameterControls() {
+            const rollingSpeedSlider = document.getElementById('rollingSpeedSlider');
+            const temperatureSlider = document.getElementById('temperatureSlider');
+            const passReductionSlider = document.getElementById('passReductionSlider');
+            const resetRollingBtn = document.getElementById('resetRollingBtn');
+            
+            if (!rollingSpeedSlider || !temperatureSlider || !passReductionSlider) {
+                console.error('Rolling parameter sliders not found!');
+                return;
+            }
+            
+            // Rolling Speed slider
+            rollingSpeedSlider.addEventListener('input', (e) => {
+                rollingParameters.rollingSpeed = parseFloat(e.target.value);
+                document.getElementById('rollingSpeedValue').textContent = rollingParameters.rollingSpeed.toFixed(2);
+                
+                // Update data panel with new process data
+                const dimensions = calculateDimensions();
+                updateDataPanel(dimensions);
+                
+                pauseRotationForSlider();
+            });
+            
+            // Temperature slider
+            temperatureSlider.addEventListener('input', (e) => {
+                rollingParameters.temperature = parseFloat(e.target.value);
+                document.getElementById('temperatureValue').textContent = rollingParameters.temperature.toFixed(2);
+                
+                // Update temperature glow effect immediately
+                if (metalSlab && metalSlab.updateTemperature) {
+                    metalSlab.updateTemperature(rollingParameters.temperature);
+                }
+                
+                // Update data panel with new process data
+                const dimensions = calculateDimensions();
+                updateDataPanel(dimensions);
+                
+                pauseRotationForSlider();
+            });
+            
+            // Pass Reduction slider
+            passReductionSlider.addEventListener('input', (e) => {
+                rollingParameters.passReduction = parseFloat(e.target.value);
+                document.getElementById('passReductionValue').textContent = rollingParameters.passReduction.toFixed(2);
+                
+                // Update data panel with new process data
+                const dimensions = calculateDimensions();
+                updateDataPanel(dimensions);
+                
+                pauseRotationForSlider();
+            });
+            
+            // Reset button
+            if (resetRollingBtn) {
+                resetRollingBtn.addEventListener('click', () => {
+                    rollingParameters.rollingSpeed = 0.5;
+                    rollingParameters.temperature = 0.5;
+                    rollingParameters.passReduction = 0.5;
+                    
+                    rollingSpeedSlider.value = 0.5;
+                    temperatureSlider.value = 0.5;
+                    passReductionSlider.value = 0.5;
+                    
+                    document.getElementById('rollingSpeedValue').textContent = '0.50';
+                    document.getElementById('temperatureValue').textContent = '0.50';
+                    document.getElementById('passReductionValue').textContent = '0.50';
+                    
+                    // Update data panel with reset values
+                    const dimensions = calculateDimensions();
+                    updateDataPanel(dimensions);
+                    
+                    // Update temperature glow if in rolling mode
+                    if (metalSlab && metalSlab.updateTemperature) {
+                        metalSlab.updateTemperature(rollingParameters.temperature);
+                    }
+                });
+            }
+            
+            console.log('Rolling parameter controls setup complete');
+        }
+        
+        function animate() {
+            requestAnimationFrame(animate);
+            
+            if (animationMode === 'slab') {
+                // Default slab animation - much slower rotation
+                if (!isMouseDown && !isSliderActive) {
+                    metalSlab.rotation.x += 0.001;  // Slowed down from 0.003
+                    metalSlab.rotation.y += 0.002;  // Slowed down from 0.005
+                }
+            } else if (animationMode === 'rolling') {
+                // Hot rolling animation - much slower speeds
+                const time = Date.now() * 0.0003; // Much slower floating animation (slowed from 0.001)
+                const floatAmount = Math.sin(time) * 0.15; // Reduced to 0.15 units to prevent slab overlap
+                
+                if (!isMouseDown) { // Only pause for mouse interaction, not slider interaction
+                    // Rotate the roll circles based on rolling speed parameter
+                    rollingRolls.forEach((roll, index) => {
+                        const direction = index === 0 ? 1 : -1; // Top and bottom rolls rotate in opposite directions
+                        // Much slower rolling speed (slowed from 0.01 to 0.003)
+                        const speed = 0.003 * (rollingParameters.rollingSpeed * 2 + 0.3);
+                        roll.rotation.z += speed * direction;
+                        
+                        // Add floating animation - both rolls move toward and away from slab together
+                        const baseY = index === 0 ? 3.5 : -3.5; // Updated positions (top: +3.5, bottom: -3.5)
+                        const floatDirection = index === 0 ? -1 : 1; // Top moves toward slab (down), bottom moves toward slab (up)
+                        roll.position.y = baseY + (floatAmount * floatDirection);
+                    });
+                }
+                
+                // Update slab shape with synchronized compression based on roll floating
+                if (metalSlab && metalSlab.updateShape) {
+                    const baseReductionFactor = 1 - (rollingParameters.passReduction * 0.5); // Max 50% reduction from parameter
+                    
+                    // Calculate dynamic compression based on roll floating position
+                    // When floatAmount is POSITIVE (rolls closer to slab), increase compression (make thinner)
+                    // When floatAmount is NEGATIVE (rolls away from slab), reduce compression (return to normal)
+                    const compressionIntensity = 0.3; // How much the floating affects compression
+                    const dynamicCompressionFactor = 1 - (Math.abs(floatAmount) / 0.15) * compressionIntensity * (floatAmount > 0 ? 1 : 0);
+                    
+                    metalSlab.updateShape(baseReductionFactor, dynamicCompressionFactor);
+                    
+                    // Update temperature glow effect
+                    if (metalSlab.updateTemperature) {
+                        metalSlab.updateTemperature(rollingParameters.temperature);
+                    }
+                }
+            }
+            
+            renderer.render(scene, camera);
+        }
+        
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+        
+        // Global panel state management
+        let currentExpandedPanel = null; // 'cont' or 'rolling' or null
+        let panelTransitionInProgress = false; // Prevent rapid toggling conflicts
+        let dataPanelPreloadTimer = null; // Timer for data panel background preload
+        
+        // Function to ensure data panel background is ready before showing
+        function preloadDataPanelBackground() {
+            const dataPanel = document.getElementById('dataPanel');
+            if (dataPanel) {
+                // Force background rendering by briefly making it visible but transparent
+                dataPanel.style.opacity = '0';
+                dataPanel.style.visibility = 'visible';
+                dataPanel.classList.add('visible');
+                
+                // Use double RAF to ensure background is fully rendered
+                requestAnimationFrame(() => {
+                    requestAnimationFrame(() => {
+                        dataPanel.style.opacity = '';
+                        dataPanel.style.visibility = '';
+                    });
+                });
+            }
+        }
+        
+        // Function to close all panels
+        function closeAllPanels(keepDataPanel = false) {
+            const canvasContainer = document.querySelector('.canvas-container');
+            
+            // Close control panel if open
+            if (currentExpandedPanel === 'cont') {
+                const controlPanel = document.getElementById('controlPanel');
+                const controlTab = document.getElementById('controlTab');
+                controlPanel.classList.remove('expanded');
+                controlTab.classList.remove('expanded');
+            }
+            
+            // Close rolling panel if open
+            if (currentExpandedPanel === 'rolling') {
+                const rollingPanel = document.getElementById('rollingPanel');
+                const rollingTab = document.getElementById('rollingTab');
+                rollingPanel.classList.remove('expanded');
+                rollingTab.classList.remove('expanded');
+            }
+            
+            // Remove inactive states from both tabs when closing panels
+            if (!keepDataPanel) {
+                const controlTab = document.getElementById('controlTab');
+                const rollingTab = document.getElementById('rollingTab');
+                if (controlTab) controlTab.classList.remove('inactive');
+                if (rollingTab) rollingTab.classList.remove('inactive');
+            }
+            
+            // Remove canvas shift only if not keeping data panel
+            if (canvasContainer && !keepDataPanel) {
+                canvasContainer.classList.remove('shifted');
+            }
+            
+            // Hide data panel only if not keeping it - FIXED: Don't touch data panel during panel switches
+            if (!keepDataPanel) {
+                const dataPanel = document.getElementById('dataPanel');
+                if (dataPanel) {
+                    // Only hide if we're actually closing everything, not switching panels
+                    dataPanel.classList.remove('visible');
+                }
+            }
+            
+            // Only reset currentExpandedPanel if we're not switching between panels
+            if (!keepDataPanel) {
+                currentExpandedPanel = null;
+            }
+        }
+        
+        // Setup sliding panel functionality
+        function setupSlidingPanel() {
+            const controlTab = document.getElementById('controlTab');
+            const controlPanel = document.getElementById('controlPanel');
+            const canvasContainer = document.querySelector('.canvas-container');
+            
+            function togglePanel() {
+                // Prevent rapid toggling conflicts
+                if (panelTransitionInProgress) {
+                    console.log('Panel transition in progress, ignoring toggle');
+                    return;
+                }
+                
+                panelTransitionInProgress = true;
+                const dataPanel = document.getElementById('dataPanel');
+                
+                if (currentExpandedPanel === 'cont') {
+                    // Close CONT panel
+                    controlPanel.classList.remove('expanded');
+                    controlTab.classList.remove('expanded');
+                    canvasContainer.classList.remove('shifted');
+                    
+                    // Remove inactive state from rolling tab when CONT panel closes
+                    const rollingTab = document.getElementById('rollingTab');
+                    if (rollingTab) rollingTab.classList.remove('inactive');
+                    
+                    // Delay hiding data panel until collapse animation completes (0.8s)
+                    if (dataPanel) {
+                        setTimeout(() => {
+                            dataPanel.classList.remove('visible');
+                            panelTransitionInProgress = false; // Reset transition flag
+                        }, 800); // Match canvas transition duration
+                    } else {
+                        panelTransitionInProgress = false;
+                    }
+                    
+                    currentExpandedPanel = null;
+                    console.log('CONT panel closed');
+                } else {
+                    // Close any other expanded panel first, but keep data panel if switching between CONT/ROLLING
+                    const switchingPanels = (currentExpandedPanel === 'rolling');
+                    closeAllPanels(switchingPanels);
+                    
+                    // Preload data panel background to prevent white flash
+                    if (!switchingPanels) {
+                        preloadDataPanelBackground();
+                    }
+                    
+                    // Open CONT panel with perfect timing synchronization
+                    requestAnimationFrame(() => {
+                        requestAnimationFrame(() => {
+                            // Batch all DOM updates together
+                            controlPanel.classList.add('expanded');
+                            controlTab.classList.add('expanded');
+                            canvasContainer.classList.add('shifted');
+                            
+                            // Ensure data panel is visible with background ready
+                            if (dataPanel && !dataPanel.classList.contains('visible')) {
+                                dataPanel.classList.add('visible');
+                            }
+                            
+                            // Update tab states
+                            controlTab.classList.remove('inactive');
+                            const rollingTab = document.getElementById('rollingTab');
+                            if (rollingTab) rollingTab.classList.add('inactive');
+                            
+                            // Reset transition flag after a short delay to ensure all animations start
+                            setTimeout(() => {
+                                panelTransitionInProgress = false;
+                            }, 100);
+                        });
+                    });
+                    
+                    currentExpandedPanel = 'cont';
+                     
+                     // Switch back to default slab animation if coming from rolling mode
+                     if (animationMode === 'rolling') {
+                         switchAnimationMode('slab');
+                         console.log('Switched back to default slab animation');
+                     }
+                     
+                     // Start the Bb major pad when panel is expanded
+                     startPad();
+                     
+                     console.log('CONT panel opened');
+                }
+            }
+            
+            // Click event for the tab
+            controlTab.addEventListener('click', togglePanel);
+            
+            // Touch event for mobile/tablet
+            controlTab.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                togglePanel();
+            });
+            
+            // Close panel when clicking outside (optional)
+            document.addEventListener('click', (e) => {
+                if (currentExpandedPanel === 'cont' && 
+                    !controlPanel.contains(e.target) && 
+                    !controlTab.contains(e.target)) {
+                    togglePanel();
+                }
+            });
+            
+            // Keyboard shortcut (Space or Enter to toggle)
+            document.addEventListener('keydown', (e) => {
+                if (e.code === 'Space' || e.code === 'Enter') {
+                    e.preventDefault();
+                    togglePanel();
+                }
+            });
+            
+            console.log('Sliding panel setup complete');
+        }
+        
+        function setupRollingPanel() {
+            const rollingTab = document.getElementById('rollingTab');
+            const rollingPanel = document.getElementById('rollingPanel');
+            const canvasContainer = document.querySelector('.canvas-container');
+            
+            function togglePanel() {
+                // Prevent rapid toggling conflicts
+                if (panelTransitionInProgress) {
+                    console.log('Panel transition in progress, ignoring toggle');
+                    return;
+                }
+                
+                panelTransitionInProgress = true;
+                const dataPanel = document.getElementById('dataPanel');
+                
+                if (currentExpandedPanel === 'rolling') {
+                    // Close ROLLING panel
+                    rollingPanel.classList.remove('expanded');
+                    rollingTab.classList.remove('expanded');
+                    canvasContainer.classList.remove('shifted');
+                    
+                    // Remove inactive state from control tab when ROLLING panel closes
+                    const controlTab = document.getElementById('controlTab');
+                    if (controlTab) controlTab.classList.remove('inactive');
+                    
+                    // Delay hiding data panel until collapse animation completes (0.8s)
+                    if (dataPanel) {
+                        setTimeout(() => {
+                            dataPanel.classList.remove('visible');
+                            panelTransitionInProgress = false; // Reset transition flag
+                        }, 800); // Match canvas transition duration
+                    } else {
+                        panelTransitionInProgress = false;
+                    }
+                    
+                    currentExpandedPanel = null;
+                    console.log('ROLLING panel closed');
+                } else {
+                    // Close any other expanded panel first, but keep data panel if switching between CONT/ROLLING
+                    const switchingPanels = (currentExpandedPanel === 'cont');
+                    closeAllPanels(switchingPanels);
+                    
+                    // Preload data panel background to prevent white flash
+                    if (!switchingPanels) {
+                        preloadDataPanelBackground();
+                    }
+                    
+                    // Open ROLLING panel with perfect timing synchronization
+                    requestAnimationFrame(() => {
+                        requestAnimationFrame(() => {
+                            // Batch all DOM updates together
+                            rollingPanel.classList.add('expanded');
+                            rollingTab.classList.add('expanded');
+                            canvasContainer.classList.add('shifted');
+                            
+                            // Ensure data panel is visible with background ready
+                            if (dataPanel && !dataPanel.classList.contains('visible')) {
+                                dataPanel.classList.add('visible');
+                            }
+                            
+                            // Update tab states
+                            rollingTab.classList.remove('inactive');
+                            const controlTab = document.getElementById('controlTab');
+                            if (controlTab) controlTab.classList.add('inactive');
+                            
+                            // Reset transition flag after a short delay to ensure all animations start
+                            setTimeout(() => {
+                                panelTransitionInProgress = false;
+                            }, 100);
+                        });
+                    });
+                    
+                    currentExpandedPanel = 'rolling';
+                    switchAnimationMode('rolling'); // Switch to rolling animation when ROLLING is expanded
+                    
+                    // Start the Bb major pad when panel is expanded
+                    startPad();
+                    
+                    console.log('ROLLING panel opened');
+                }
+            }
+            
+            // Click event for the tab
+            rollingTab.addEventListener('click', togglePanel);
+            
+            // Touch event for mobile/tablet
+            rollingTab.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                togglePanel();
+            });
+            
+            // Close panel when clicking outside (optional)
+            document.addEventListener('click', (e) => {
+                if (currentExpandedPanel === 'rolling' && 
+                    !rollingPanel.contains(e.target) && 
+                    !rollingTab.contains(e.target)) {
+                    togglePanel();
+                }
+            });
+            
+            console.log('Rolling panel setup complete');
+        }
+        
+        // Initialize        // SVG Arc helper functions
+        function polarToCartesian(centerX, centerY, radius, angleInDegrees) {
+            const angleInRadians = (angleInDegrees - 90) * Math.PI / 180.0;
+            return {
+                x: centerX + (radius * Math.cos(angleInRadians)),
+                y: centerY + (radius * Math.sin(angleInRadians))
+            };
+        }
+        
+        function describeArc(x, y, radius, startAngle, endAngle) {
+            const start = polarToCartesian(x, y, radius, endAngle);
+            const end = polarToCartesian(x, y, radius, startAngle);
+            const largeArcFlag = endAngle - startAngle <= 180 ? "0" : "1";
+            const d = [
+                "M", start.x, start.y,
+                "A", radius, radius, 0, largeArcFlag, 0, end.x, end.y
+            ].join(" ");
+            return d;
+        }
+        
+        // Circular dial functionality
+        function setupCircularDial() {
+            const dial = document.querySelector('.circular-dial');
+            const handle = document.getElementById('rollForceHandle');
+            const arc = document.getElementById('rollForceArc');
+            const slider = document.getElementById('rollForceSlider');
+            const valueDisplay = document.getElementById('rollForceValue');
+            
+            if (!dial || !handle || !arc || !slider || !valueDisplay) {
+                console.log('Circular dial elements not found, skipping setup');
+                return;
+            }
+            
+            let isDragging = false;
+            const centerX = 60;  // Updated for smaller dial
+            const centerY = 60;  // Updated for smaller dial
+            const radius = 40;   // Updated for smaller dial
+            
+            function updateDialFromValue(value) {
+                // Convert value (0-1) to angle for semicircle
+                // value 0 = 180° (left), value 1 = 0° (right)
+                const angle = 180 - (value * 180); // 180° to 0°
+                
+                // Calculate handle position using polar coordinates
+                const handlePos = polarToCartesian(centerX, centerY, radius, angle);
+                
+                // Update handle position
+                handle.setAttribute('cx', handlePos.x);
+                handle.setAttribute('cy', handlePos.y);
+                
+                // Update arc path: from 180° (start) to current angle
+                const startAngle = 180;
+                const endAngle = angle;
+                const arcPath = describeArc(centerX, centerY, radius, startAngle, endAngle);
+                arc.setAttribute('d', arcPath);
+                
+                // Update value display
+                valueDisplay.textContent = value.toFixed(2);
+            }
+            
+            function getValueFromMousePosition(event) {
+                const rect = dial.getBoundingClientRect();
+                // Use the SVG coordinate system: center of the semicircle
+                const rectCenterX = rect.left + (rect.width / 2);
+                const rectCenterY = rect.top + (rect.height * 0.75); // 75% down from top (where semicircle center is)
+                
+                const mouseX = event.clientX - rectCenterX;
+                const mouseY = event.clientY - rectCenterY;
+                
+                // Calculate angle from mouse position using atan2
+                // In SVG: 0° = right (3 o'clock), 90° = down (6 o'clock), 180° = left (9 o'clock)
+                let angle = Math.atan2(mouseY, mouseX) * 180 / Math.PI;
+                
+                // Normalize to 0-360 range
+                if (angle < 0) angle += 360;
+                
+                // For semicircle from left to right (180° to 0°):
+                // We want: left edge = 0.0, right edge = 1.0
+                // SVG angles: 180° (left) to 0° (right)
+                if (angle <= 180) {
+                    // Direct mapping: 180° -> 0.0, 0° -> 1.0
+                    angle = (180 - angle) / 180;
+                } else {
+                    // For angles > 180° (bottom half), clamp to nearest edge
+                    if (angle > 270) {
+                        angle = 1.0; // Right edge
+                    } else {
+                        angle = 0.0; // Left edge
+                    }
+                }
+                
+                // Ensure value is in 0-1 range
+                return Math.max(0, Math.min(1, angle));
+            }
+            
+            // Mouse events
+            dial.addEventListener('mousedown', (event) => {
+                isDragging = true;
+                const value = getValueFromMousePosition(event);
+                slider.value = value;
+                parameters.rollForce = value;
+                updateDialFromValue(value);
+                if (typeof updateDataPanel === 'function' && typeof getCurrentDimensions === 'function') {
+                    updateDataPanel(getCurrentDimensions());
+                }
+            });
+            
+            document.addEventListener('mousemove', (event) => {
+                if (isDragging) {
+                    const value = getValueFromMousePosition(event);
+                    slider.value = value;
+                    parameters.rollForce = value;
+                    updateDialFromValue(value);
+                    if (typeof updateDataPanel === 'function' && typeof getCurrentDimensions === 'function') {
+                        updateDataPanel(getCurrentDimensions());
+                    }
+                }
+            });
+            
+            document.addEventListener('mouseup', () => {
+                isDragging = false;
+            });
+            
+            // Touch events for mobile
+            dial.addEventListener('touchstart', (event) => {
+                event.preventDefault();
+                isDragging = true;
+                const touch = event.touches[0];
+                const value = getValueFromMousePosition(touch);
+                slider.value = value;
+                parameters.rollForce = value;
+                updateDialFromValue(value);
+                if (typeof updateDataPanel === 'function' && typeof getCurrentDimensions === 'function') {
+                    updateDataPanel(getCurrentDimensions());
+                }
+            });
+            
+            document.addEventListener('touchmove', (event) => {
+                if (isDragging) {
+                    event.preventDefault();
+                    const touch = event.touches[0];
+                    const value = getValueFromMousePosition(touch);
+                    slider.value = value;
+                    parameters.rollForce = value;
+                    updateDialFromValue(value);
+                    if (typeof updateDataPanel === 'function' && typeof getCurrentDimensions === 'function') {
+                        updateDataPanel(getCurrentDimensions());
+                    }
+                }
+            });
+            
+            document.addEventListener('touchend', () => {
+                isDragging = false;
+            });
+            
+            // Initialize dial position
+            updateDialFromValue(parameters.rollForce);
+        }
+        
+        // Vertical slider functionality
+        function setupVerticalSliders() {
+            const gapSlider = document.getElementById('gapSlider');
+            const fraSlider = document.getElementById('fraSlider');
+            const gapValue = document.getElementById('gapValue');
+            const fraValue = document.getElementById('fraValue');
+            
+            if (!gapSlider || !fraSlider || !gapValue || !fraValue) {
+                console.log('Vertical slider elements not found, skipping setup');
+                return;
+            }
+            
+            // Ensure parameters exist with default values
+            if (!parameters.gap) parameters.gap = 0.5;
+            if (!parameters.fra) parameters.fra = 0.5;
+            
+            // Gap slider event listener
+            gapSlider.addEventListener('input', (e) => {
+                const value = parseFloat(e.target.value);
+                parameters.gap = value;
+                gapValue.textContent = value.toFixed(2);
+                if (typeof updateDataPanel === 'function' && typeof getCurrentDimensions === 'function') {
+                    updateDataPanel(getCurrentDimensions());
+                }
+            });
+            
+            // FRA slider event listener
+            fraSlider.addEventListener('input', (e) => {
+                const value = parseFloat(e.target.value);
+                parameters.fra = value; // Fixed: use 'fra' not 'fullRollingAmount'
+                fraValue.textContent = value.toFixed(2);
+                if (typeof updateDataPanel === 'function' && typeof getCurrentDimensions === 'function') {
+                    updateDataPanel(getCurrentDimensions());
+                }
+            });
+            
+            // Initialize slider values
+            gapSlider.value = parameters.gap;
+            fraSlider.value = parameters.fra; // Fixed: use 'fra' not 'fullRollingAmount'
+            gapValue.textContent = parameters.gap.toFixed(2);
+            fraValue.textContent = parameters.fra.toFixed(2);
+        }
+
+        // DOM ready event
+        document.addEventListener('DOMContentLoaded', () => {
+            console.log('DOM loaded, initializing...');
+            
+            // Add a small delay to ensure Three.js is fully loaded
+            setTimeout(() => {
+                initThreeJS();
+                setupParameterControls();
+                setupSlidingPanel();
+                setupRollingPanel();
+                setupRollingParameterControls();
+                setupCircularDial(); // Add circular dial setup
+                setupVerticalSliders(); // Add vertical slider setup
+            }, 100);
+        });
+        
+        // Also try to initialize when window loads (fallback)
+        window.addEventListener('load', () => {
+            console.log('Window loaded');
+            if (!renderer) {
+                console.log('Renderer not found, trying to initialize again...');
+                setTimeout(() => {
+                    initThreeJS();
+                    setupParameterControls();
+                }, 100);
+            }
+            
+            // Initialize audio system
+            initializeAudio();
+            addClickSounds();
+            
+            // Setup app visibility handling for audio management
+            setupAppVisibilityHandling();
+            
+            // Try to start background music (may be blocked by autoplay policy)
+            setTimeout(() => {
+                startBackgroundMusic();
+            }, 500); // Small delay to ensure audio context is ready
+            
+            console.log('Audio system initialized');
+            
+            // Initialize navigation after everything else is loaded
+            setTimeout(() => {
+                console.log('Initializing navigation...');
+                if (typeof ExhibitionNavigator !== 'undefined') {
+                    window.navigator = new ExhibitionNavigator();
+                    console.log('Navigation initialized successfully');
+                } else {
+                    console.error('ExhibitionNavigator not found');
+                }
+            }, 1000); // Wait 1 second after all other initialization
+        });
+    </script>
+    
+    <!-- Glassmorphism Loading Screen -->
+    <div id="loadingScreen" class="glassmorphism-loading">
+        <div class="loading-spinner"></div>
+    </div>
+    
+    <style>
+        /* Glassmorphism Loading Screen */
+        .glassmorphism-loading {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 10000;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.5s ease;
+            overflow: hidden;
+        }
+        
+        /* Simple black background */
+        .glassmorphism-loading::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #000000;
+            z-index: -2;
+            opacity: 1;
+        }
+        
+        /* Glassmorphism overlay */
+        .glassmorphism-loading::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            background: rgba(255, 255, 255, 0.1);
+            z-index: -1;
+        }
+        
+        .glassmorphism-loading.visible {
+            opacity: 1;
+            visibility: visible;
+        }
+        
+        /* Removed gradient animation keyframes as we're using solid black background */
+        
+        .loading-spinner {
+            width: 80px;
+            height: 80px;
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top-color: #ffffff;
+            animation: spin 1s ease-in-out infinite;
+            z-index: 1;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+    
+    <!-- Navigation Buttons CSS Only -->
+    <link rel="stylesheet" href="./shared/nav-buttons.css">
+    
+    <style>
+        /* Custom Next Button Styling for Landing Page */
+        .next-button {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.2);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            z-index: 9999;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+        }
+        
+        .next-button:hover {
+            transform: scale(1.05);
+            background: rgba(255, 255, 255, 0.25);
+            box-shadow: 0 4px 25px rgba(0, 0, 0, 0.3);
+        }
+        
+        .next-button i {
+            font-size: 24px;
+            color: white;
+        }
+        
+        /* Hide standard navigation buttons on landing page */
+        .back-button, .home-button {
+            display: none !important;
+            visibility: hidden !important;
+            opacity: 0 !important;
+        }
+    </style>
+    
+    <!-- Large Next Button for Landing Page -->
+    <button class="next-button" id="navButton">
+        <i class="bi bi-arrow-right"></i>
+    </button>
+    
+    <div class="status-indicator" id="statusIndicator">
+        Metal Slab Simulation
+    </div>
+    
+    <!-- Shared Navigation Script -->
+    <script src="./shared/navigation.js"></script>
+    
+    <!-- Loading Screen Script -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const navButton = document.getElementById('navButton');
+            const loadingScreen = document.getElementById('loadingScreen');
+            
+            // Check if we're returning from AR detection (back button)
+            if (sessionStorage.getItem('returning_from_ar') === 'true') {
+                // Clear the flag
+                sessionStorage.removeItem('returning_from_ar');
+            }
+            
+            if (navButton && loadingScreen) {
+                navButton.addEventListener('click', function(e) {
+                    // Play click sound if available
+                    if (typeof playClickSound === 'function') {
+                        playClickSound();
+                    }
+                    
+                    // Set a flag in sessionStorage to indicate we're navigating to AR
+                    // and that we've already shown the loading screen
+                    sessionStorage.setItem('loading_ar', 'true');
+                    sessionStorage.setItem('loading_screen_shown', 'true');
+                    
+                    // Show loading screen with smooth transition
+                    loadingScreen.classList.add('visible');
+                    
+                    // Let the loading screen appear fully before navigating (longer delay for smoother transition)
+                    setTimeout(() => {
+                        // Navigate to ar_detection.html using standard window.location
+                        window.location.href = 'ar_detection.html';
+                    }, 800); // Increased from 300ms to 800ms for smoother transition
+                    
+                    // Prevent default navigation
+                    e.preventDefault();
+                });
+            }
+        });
+    </script>
+</body>
+</html>

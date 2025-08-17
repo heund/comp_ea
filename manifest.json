@@ -1,0 +1,53 @@
+{
+  "name": "Data Visualization Exhibition",
+  "short_name": "Exhibition",
+  "description": "Interactive data visualization and AR exhibition for metal slab simulation and artistic works",
+  "id": "/comp_ea/",
+  "start_url": "/comp_ea/metal-slab.html",
+  "display": "standalone",
+  "background_color": "#0a0a0a",
+  "theme_color": "#1a1a2e",
+  "orientation": "any",
+  "scope": "/comp_ea/",
+  "lang": "en",
+  "dir": "ltr",
+  "categories": ["education", "art", "technology"],
+  "icons": [
+    {
+      "src": "https://via.placeholder.com/192x192/1a1a2e/ffffff?text=EX",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "https://via.placeholder.com/512x512/1a1a2e/ffffff?text=EX",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "https://via.placeholder.com/1280x720/0a0a0a/ffffff?text=Exhibition+Gallery",
+      "sizes": "1280x720",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "Exhibition Gallery View"
+    },
+    {
+      "src": "https://via.placeholder.com/750x1334/0a0a0a/ffffff?text=Mobile+View",
+      "sizes": "750x1334",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "Mobile Exhibition View"
+    }
+  ],
+  "prefer_related_applications": false,
+  "related_applications": [],
+  "edge_side_panel": {
+    "preferred_width": 400
+  },
+  "launch_handler": {
+    "client_mode": "navigate-existing"
+  }
+}

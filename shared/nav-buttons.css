@@ -1,0 +1,83 @@
+/* 
+ * Navigation Buttons CSS
+ * Only styles navigation buttons - no global styles
+ */
+
+/* Next Button - Removed as requested */
+/* Keeping the CSS class for compatibility but not using it */
+.nav-button {
+    display: none;
+    visibility: hidden;
+    opacity: 0;
+}
+
+/* Back Button (top left) */
+.back-button {
+    position: fixed;
+    top: calc(env(safe-area-inset-top) + 16px);
+    left: 16px;
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    z-index: 9999 !important;
+    text-decoration: none;
+    opacity: 1 !important;
+    visibility: visible !important;
+    background: none;
+    border: none;
+}
+
+.back-button:hover {
+    transform: scale(1.05);
+}
+
+.back-button svg {
+    width: 24px;
+    height: 24px;
+    stroke: #ffffff;
+    stroke-width: 2.5;
+    fill: none;
+}
+
+/* Home Button (top right) */
+.home-button {
+    position: fixed;
+    top: calc(env(safe-area-inset-top) + 16px);
+    right: 16px;
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    z-index: 9999 !important;
+    text-decoration: none;
+    opacity: 1 !important;
+    visibility: visible !important;
+    background: none;
+    border: none;
+}
+
+.home-button:hover {
+    transform: scale(1.05);
+}
+
+.home-button svg {
+    width: 24px;
+    height: 24px;
+    stroke: #ffffff;
+    stroke-width: 2.5;
+    fill: none;
+}
+
+/* Ensure visibility */
+.back-button.visible,
+.home-button.visible {
+    opacity: 1 !important;
+    visibility: visible !important;
+}

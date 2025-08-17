@@ -1,0 +1,1849 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>AR Desktop Development - Artwork 1 Machine Correction Network</title>
+    
+    <!-- A-Frame for AR -->
+    <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
+    <!-- AR.js for marker tracking -->
+    <script src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js@3.4.5/aframe/build/aframe-ar.js"></script>
+    <!-- Three.js for 3D visualization -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    
+    <!-- Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <!-- iOS-style Icons -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" rel="stylesheet">
+    
+    <style>
+        body {
+            margin: 0;
+            font-family: 'Inter', 'Helvetica Neue', Arial, sans-serif;
+            background: transparent;
+            overflow: hidden;
+        }
+        
+        :root {
+            --glass-bg: rgba(255, 255, 255, 0.1);
+            --glass-border: rgba(255, 255, 255, 0.2);
+            --glass-hover: rgba(255, 255, 255, 0.15);
+            --glass-white: rgba(255, 255, 255, 0.9);
+            --glass-light: rgba(255, 255, 255, 0.7);
+            --glass-darkest: rgba(0, 0, 0, 0.3);
+        }
+        
+        /* Reset body and html for AR */
+        html, body {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            position: fixed;
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
+        }
+        
+        /* AR Controls */
+        .ar-controls-container {
+            position: fixed;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+            z-index: 1000;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.8s ease;
+        }
+        
+        .ar-controls-container.ar-active {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .ar-title {
+            font-family: 'Noto Sans KR', sans-serif;
+            font-size: 14px;
+            font-weight: 500;
+            color: #000000; /* Black text for gallery visibility */
+            background: var(--glass-bg);
+            backdrop-filter: blur(20px);
+            padding: 8px 16px;
+            border-radius: 12px;
+            border: 1px solid var(--glass-border);
+            text-align: center;
+            white-space: nowrap;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        }
+
+        .ar-controls {
+            display: flex;
+            gap: 15px;
+            background: var(--glass-bg);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--glass-border);
+            border-radius: 20px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        }
+
+        .control-btn {
+            width: 50px;
+            height: 50px;
+            border: none;
+            border-radius: 12px;
+            background: var(--glass-bg);
+            backdrop-filter: blur(10px);
+            color: #000000; /* Black icons for gallery visibility */
+            font-size: 18px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 10px;
+            border: 1px solid var(--glass-border);
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+            opacity: 0.8;
+        }
+
+        .control-btn:hover {
+            background: var(--glass-hover);
+            transform: scale(1.05);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+            opacity: 1;
+        }
+
+        .control-btn.active {
+            background: var(--glass-hover);
+            opacity: 1;
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2);
+        }
+        
+
+        
+        /* 3D Visualization Container - Only visible when marker detected */
+        .visualization-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: 100;
+            pointer-events: auto; /* Enable interactions when active */
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s ease;
+        }
+        
+        .visualization-container.active {
+            opacity: 1;
+            visibility: visible;
+        }
+        
+        #visualizationCanvas {
+            width: 100%;
+            height: 100%;
+            background: transparent;
+            cursor: grab;
+        }
+        
+        #visualizationCanvas:active {
+            cursor: grabbing;
+        }
+        
+        /* Data Panel */
+        .data-panel {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: var(--glass-bg);
+            backdrop-filter: blur(20px);
+            color: var(--glass-white);
+            padding: 20px;
+            border-radius: 12px;
+            border: 1px solid var(--glass-border);
+            font-size: 12px;
+            max-width: 300px;
+            opacity: 0;
+            pointer-events: none;
+            transition: all 0.3s ease;
+            z-index: 1001;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        }
+        
+        .data-panel.visible {
+            opacity: 1;
+            pointer-events: auto;
+        }
+        
+        /* Interactive Data Hotspots */
+        .data-hotspot {
+            position: absolute;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            z-index: 1002;
+            opacity: 0;
+            transform: scale(0.8);
+            pointer-events: none;
+        }
+        
+        .data-hotspot.active {
+            opacity: 1;
+            transform: scale(1);
+            pointer-events: auto;
+        }
+        
+        .data-hotspot:hover .data-label-button {
+            background: var(--glass-hover);
+            transform: scale(1.05);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+        }
+        
+        .data-value-large {
+            font-size: 55px;
+            font-weight: 900;
+            color: #000000;
+            text-shadow: 2px 2px 4px rgba(255, 255, 255, 0.8);
+            margin-bottom: 8px;
+            line-height: 1;
+            font-family: 'Inter', sans-serif;
+        }
+        
+        .data-label-button {
+            background: var(--glass-bg);
+            backdrop-filter: blur(10px);
+            color: var(--glass-white);
+            padding: 6px 12px;
+            border-radius: 8px;
+            border: 1px solid var(--glass-border);
+            font-size: 10px;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+            white-space: nowrap;
+        }
+        
+        /* Audio Progress Bar */
+        .audio-progress-container {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 300px;
+            background: var(--glass-bg);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--glass-border);
+            border-radius: 12px;
+            padding: 12px 16px;
+            z-index: 1003;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s ease;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        }
+        
+        .audio-progress-container.visible {
+            opacity: 1;
+            visibility: visible;
+        }
+        
+        .audio-info {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 8px;
+        }
+        
+        .audio-title {
+            font-size: 12px;
+            color: #000000; /* Black text for gallery visibility */
+            font-weight: 500;
+        }
+        
+        .audio-time {
+            font-size: 11px;
+            color: #000000; /* Black text for gallery visibility */
+            font-family: 'Inter', sans-serif;
+        }
+        
+        .progress-bar {
+            width: 100%;
+            height: 4px;
+            background: var(--glass-darkest);
+            border-radius: 2px;
+            overflow: hidden;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: #000000; /* Black progress bar for gallery visibility */
+            border-radius: 2px;
+            width: 0%;
+            transition: width 0.1s ease;
+        }
+        
+        .data-panel h4 {
+            margin: 0 0 10px 0;
+            color: var(--glass-light);
+            font-size: 14px;
+        }
+        
+        .data-item {
+            margin: 8px 0;
+            padding: 5px 0;
+            border-bottom: 1px solid var(--glass-border);
+        }
+        
+        .data-label {
+            color: var(--glass-light);
+            font-weight: 500;
+        }
+        
+        .data-value {
+            color: var(--glass-white);
+            margin-left: 10px;
+        }
+        
+        /* Futuristic Data Overlay */
+        .data-overlay {
+            --popup-scale: 1.0; /* CSS custom property for dynamic scaling */
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) scale(calc(0.8 * var(--popup-scale)));
+            width: 280px;
+            height: 280px;
+            background: radial-gradient(circle, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.02) 100%);
+            border: 2px solid rgba(255,255,255,0.2);
+            border-radius: 50%;
+            backdrop-filter: blur(20px);
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+            z-index: 2000;
+            pointer-events: none;
+        }
+        
+        .data-overlay.active {
+            transform: translate(-50%, -50%) scale(calc(1.0 * var(--popup-scale)));
+            opacity: 1;
+            visibility: visible;
+            pointer-events: auto;
+        }
+        
+        .data-overlay.fade-out {
+            transform: translate(-50%, -50%) scale(calc(0.9 * var(--popup-scale)));
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+        }
+        
+        .data-overlay-inner {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .data-content {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .metric-value {
+            font-size: 32px;
+            font-weight: 700;
+            color: #ffffff;
+            font-family: 'Inter', sans-serif;
+            margin-bottom: 5px;
+            text-shadow: 0 0 10px rgba(255,255,255,0.3);
+        }
+        
+        .metric-label {
+            font-size: 11px;
+            color: rgba(255,255,255,0.7);
+            font-weight: 500;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+        
+        .data-overlay-close {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            width: 36px;
+            height: 36px;
+            background: rgba(255,255,255,0.25);
+            border: 2px solid rgba(255,255,255,0.6);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            color: rgba(255,255,255,0.9);
+            font-size: 18px;
+            font-weight: bold;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(10px);
+        }
+        
+        .data-overlay-close:hover {
+            background: rgba(255,255,255,0.4);
+            border-color: rgba(255,255,255,0.8);
+            transform: scale(1.1);
+        }
+        
+        /* Ring CSS removed to match artwork2 exactly - rings exist in HTML but are invisible */
+        
+        /* Single Metric Display */
+        .single-metric {
+            text-align: center;
+            padding: 30px;
+        }
+        
+        .metric-value-large {
+            font-size: 64px;
+            font-weight: 700;
+            color: #ffffff;
+            font-family: 'Inter', sans-serif;
+            margin-bottom: 5px;
+            text-shadow: 0 0 20px rgba(255,255,255,0.5);
+            line-height: 1;
+        }
+        
+        .metric-unit {
+            font-size: 24px;
+            color: rgba(255,255,255,0.8);
+            font-weight: 300;
+            margin-bottom: 15px;
+        }
+        
+        .metric-label-large {
+            font-size: 14px;
+            color: rgba(255,255,255,0.7);
+            font-weight: 500;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+        }
+    </style>
+</head>
+<body>
+
+    
+    <!-- 3D Visualization Container - Always visible -->
+    <div class="visualization-container">
+        <canvas id="visualizationCanvas"></canvas>
+        
+        <!-- Old data revelation panel removed - replaced with new data overlay system -->
+        
+        <!-- Futuristic Data Overlay -->
+        <div class="data-overlay" id="dataOverlay">
+            <div class="overlay-rings">
+                <div class="ring"></div>
+                <div class="ring"></div>
+            </div>
+            <div class="data-content">
+                <div class="metric-value-large" id="metricValue">0.174</div>
+                <div class="metric-unit" id="metricUnit">MPa</div>
+                <div class="metric-label-large" id="metricLabel">Stress Accumulation</div>
+            </div>
+            <div class="data-overlay-close" id="overlayClose">×</div>
+        </div>
+    </div>
+    
+    <!-- Audio Progress Bar -->
+    <div class="audio-progress-container" id="audioProgress">
+        <div class="audio-info">
+            <div class="audio-title">Stress Accumulation Audio</div>
+            <div class="audio-time" id="audioTime">0:00 / 0:00</div>
+        </div>
+        <div class="progress-bar">
+            <div class="progress-fill" id="progressFill"></div>
+        </div>
+    </div>
+    
+    <!-- AR Controls -->
+    <div class="ar-controls-container">
+        <div class="ar-title">열간압연 데이터 04: 응력 누적 분포</div>
+        <div class="ar-controls">
+            <button class="control-btn" id="dataBtn" title="Reveal Data"><i class="bi bi-bar-chart-fill"></i></button>
+            <button class="control-btn" id="audioBtn" title="Toggle Audio"><i class="bi bi-volume-up-fill"></i></button>
+            <button class="control-btn" id="exitBtn" title="Exit to Gallery"><i class="bi bi-x-circle-fill"></i></button>
+        </div>
+    </div>
+    
+    <!-- Audio Element -->
+    <audio id="artworkAudio" preload="auto">
+        <source src="./artwork1 demo1.mp3" type="audio/mpeg">
+        Your browser does not support the audio element.
+    </audio>
+    
+    <!-- A-Frame AR Scene -->
+    <a-scene
+        embedded
+        arjs="sourceType: webcam; debugUIEnabled: false; detectionMode: mono_and_matrix; matrixCodeType: 3x3;"
+        vr-mode-ui="enabled: false"
+        renderer="logarithmicDepthBuffer: true; colorManagement: true; sortObjects: true"
+        background="color: #000000; transparent: true"
+        id="arScene">
+        
+        <!-- Assets -->
+        <a-assets>
+            <!-- Placeholder for future assets -->
+        </a-assets>
+        
+        <!-- Camera -->
+        <a-camera
+            gps-camera
+            rotation-reader
+            look-controls="enabled: false"
+            arjs-look-controls="smoothingFactor: 0.1">
+        </a-camera>
+        
+        <!-- AR Marker - Custom Pattern -->
+        <a-marker
+            type="pattern"
+            url="./pattern-ar_code_test1.patt"
+            id="markerCustom"
+            smooth="true"
+            smoothCount="10"
+            smoothTolerance="0.01"
+            smoothThreshold="5">
+            
+            <!-- Marker tracking only - 3D visualization handled by Three.js overlay -->
+            
+        </a-marker>
+    </a-scene>
+    
+    <script>
+        // Embedded sample data from artwork1.html
+        const sampleData = [
+            {current_corrections_count: 2, data_integrity: 0.85, correction_effectiveness: 0.78, active_corrections_count: 5},
+            {current_corrections_count: 3, data_integrity: 0.92, correction_effectiveness: 0.81, active_corrections_count: 7},
+            {current_corrections_count: 1, data_integrity: 0.76, correction_effectiveness: 0.69, active_corrections_count: 3},
+            {current_corrections_count: 4, data_integrity: 0.88, correction_effectiveness: 0.85, active_corrections_count: 8},
+            {current_corrections_count: 2, data_integrity: 0.91, correction_effectiveness: 0.77, active_corrections_count: 6}
+        ];
+        
+        // Diamond with seamless triangular wings - scaled to 2.5x with EXACT relative dot positions from voronoi_test.html
+        const voronoiData = [
+            // MAIN DIAMOND - Subdivided into 4 even triangular sections
+            // Top triangle section
+            { center: { x: 0, y: 3.25, z: 0 }, vertices: [
+                { x: 0, y: 10, z: 0 },    // Top point
+                { x: -5, y: 0, z: 0 },   // Left point
+                { x: 0, y: 0, z: 0 }     // Center point
+            ], color: 0xFFA398, dataPoint: { value: 0.174, x: -3.0, y: 0, z: 0.25 }},
+            
+            // Right triangle section
+            { center: { x: 1.75, y: 0, z: 0 }, vertices: [
+                { x: 0, y: 10, z: 0 },    // Top point
+                { x: 0, y: 0, z: 0 },    // Center point
+                { x: 5, y: 0, z: 0 }     // Right point
+            ], color: 0xFFA398, dataPoint: { value: 0.173, x: -1.0, y: 0, z: 0.25 }},
+            
+            // Bottom triangle section
+            { center: { x: 0, y: -3.25, z: 0 }, vertices: [
+                { x: 5, y: 0, z: 0 },    // Right point
+                { x: 0, y: 0, z: 0 },    // Center point
+                { x: 0, y: -10, z: 0 }    // Bottom point
+            ], color: 0xFF603C, dataPoint: { value: 0.172, x: 1.0, y: 0, z: 0.25 }},
+            
+            // Left triangle section
+            { center: { x: -1.75, y: 0, z: 0 }, vertices: [
+                { x: 0, y: -10, z: 0 },   // Bottom point
+                { x: 0, y: 0, z: 0 },    // Center point
+                { x: -5, y: 0, z: 0 }    // Left point
+            ], color: 0xFF603C, dataPoint: { value: 0.171, x: 3.0, y: 0, z: 0.25 }},
+            
+            // Left triangular wing - seamlessly connected
+            { center: { x: -7.5, y: 2.5, z: 0 }, vertices: [
+                { x: 0, y: 10, z: 0 },    // Share diamond's top point
+                { x: -5, y: 0, z: 0 },   // Share diamond's left point
+                { x: -10, y: 5, z: 0 }    // Wing tip point
+            ], color: 0xFFA398, dataPoint: { value: 0.172, x: -6.25, y: 5, z: 0.25 }},
+            
+            // Right triangular wing - seamlessly connected
+            { center: { x: 7.5, y: 2.5, z: 0 }, vertices: [
+                { x: 0, y: 10, z: 0 },    // Share diamond's top point
+                { x: 5, y: 0, z: 0 },    // Share diamond's right point
+                { x: 10, y: 5, z: 0 }     // Wing tip point
+            ], color: 0xFFA398, dataPoint: { value: 0.172, x: 6.25, y: 5, z: 0.25 }},
+            
+            // Left bottom triangular wing - flipped downward
+            { center: { x: -7.5, y: -2.5, z: 0 }, vertices: [
+                { x: 0, y: -10, z: 0 },   // Share diamond's bottom point
+                { x: -5, y: 0, z: 0 },   // Share diamond's left point
+                { x: -10, y: -5, z: 0 }   // Wing tip point (flipped down)
+            ], color: 0xFF603C, dataPoint: { value: 0.172, x: -6.25, y: -5, z: 0.25 }},
+            
+            // Right bottom triangular wing - flipped downward
+            { center: { x: 7.5, y: -2.5, z: 0 }, vertices: [
+                { x: 0, y: -10, z: 0 },   // Share diamond's bottom point
+                { x: 5, y: 0, z: 0 },    // Share diamond's right point
+                { x: 10, y: -5, z: 0 }    // Wing tip point (flipped down)
+            ], color: 0xFF603C, dataPoint: { value: 0.172, x: 6.25, y: -5, z: 0.25 }}
+        ];
+        
+        // Global variables - updated for Voronoi visualization
+        let scene, camera, renderer;
+        let voronoiShapes = [], dataPoints = [];
+        let puzzleState = 'assembled'; // 'assembled', 'disassembling', 'separated', 'assembling'
+        let animationProgress = 0;
+        let isAnimating = true, wireframeMode = false;
+        let colorSchemeIndex = 0;
+        
+        // Data hotspot variables
+        let dataUpdateInterval = null;
+        let hotspotsActive = false;
+        
+        // Data flow visualization variables
+        let dataFlowPulses = [];
+        let dataFlowInterval = null;
+        let pulseGeometry = null;
+        let pulseMaterial = null;
+        
+        // Audio variables
+        let audioElement = null;
+        let audioPlaying = false;
+        let audioProgressInterval = null;
+        
+        const colorSchemes = [
+            { name: 'UserGreyGradient', colors: ['#E9EAEB', '#BEC3C5', '#989C9E', '#747779', '#525455', '#323334', '#151616'] },
+            { name: 'GreyGradientAlt', colors: ['#E9EAEB', '#BEC3C5', '#989C9E', '#747779', '#525455', '#323334', '#151616'] },
+            { name: 'MonochromeGradient', colors: ['#E9EAEB', '#BEC3C5', '#989C9E', '#747779', '#525455', '#323334', '#151616'] },
+            { name: 'GreyScale', colors: ['#E9EAEB', '#BEC3C5', '#989C9E', '#747779', '#525455', '#323334', '#151616'] }
+        ];
+        
+        // AR Trigger System
+        class ARTriggerSystem {
+            constructor() {
+                this.isMarkerVisible = false;
+                this.experienceTriggered = false; // Track if experience has been triggered
+                this.dataRevealed = false;
+                this.simulationActive = false;
+                
+                // Data overlay system variables
+                this.currentDataset = 0;
+                this.overlayVisible = false;
+                this.dataUpdateInterval = null;
+                this.mouse = new THREE.Vector2();
+                this.raycaster = new THREE.Raycaster();
+                
+                this.initializeAR();
+                this.setupEventListeners();
+                this.initializeThreeJS();
+                this.initializeAudio();
+            }
+            
+            initializeAR() {
+                const marker = document.querySelector('#markerCustom');
+                if (marker) {
+                    marker.addEventListener('markerFound', () => {
+                        this.isMarkerVisible = true;
+                        if (!this.experienceTriggered) {
+                            this.experienceTriggered = true;
+                            this.showVisualization();
+                        }
+                    });
+                    
+                    marker.addEventListener('markerLost', () => {
+                        this.isMarkerVisible = false;
+                        // Don't hide visualization - it stays active once triggered
+                    });
+                }
+            }
+            
+            initializeThreeJS() {
+                const canvas = document.getElementById('visualizationCanvas');
+                if (!canvas) return;
+                
+                // Scene setup - exact same as artwork1.html
+                scene = new THREE.Scene();
+                scene.background = null; // Transparent background
+                
+                // Camera setup with responsive scaling - positioned to face Voronoi shape directly
+                const container = canvas.parentElement;
+                const width = container.clientWidth;
+                const height = container.clientHeight;
+                
+                camera = new THREE.PerspectiveCamera(75, width / height, 0.1, 1000);
+                
+                // Apply dynamic scaling based on device size
+                const minDimension = Math.min(width, height);
+                const scaleFactor = this.calculateScaleFactor(minDimension);
+                const baseDistance = 25;
+                const distance = baseDistance * scaleFactor;
+                camera.position.set(0, 0, distance);
+                camera.lookAt(0, 0, 0);
+                
+                // Renderer setup with container dimensions
+                renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true, alpha: true });
+                renderer.setSize(width, height);
+                renderer.setClearColor(0x000000, 0); // Transparent
+                renderer.shadowMap.enabled = true;
+                renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+                
+                // Lighting - exact same as artwork1.html
+                const ambientLight = new THREE.AmbientLight(0x404040, 0.6);
+                scene.add(ambientLight);
+                const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+                directionalLight.position.set(50, 50, 50);
+                scene.add(directionalLight);
+                
+                this.setupMouseControls();
+                this.createVoronoiVisualization();
+                this.animate();
+                
+                window.addEventListener('resize', () => this.onWindowResize());
+                // Also handle orientation changes for iPad
+                window.addEventListener('orientationchange', () => {
+                    setTimeout(() => this.onWindowResize(), 100);
+                });
+            }
+            
+            createVoronoiVisualization() {
+                // Clear any existing shapes and data points
+                voronoiShapes.forEach(shape => scene.remove(shape));
+                dataPoints.forEach(point => scene.remove(point));
+                voronoiShapes = [];
+                dataPoints = [];
+                
+                this.createVoronoiShapes();
+                this.createDataPoints();
+            }
+            
+            createVoronoiShapes() {
+                voronoiData.forEach((cellData, index) => {
+                    const geometry = new THREE.BufferGeometry();
+                    
+                    // Create triangle vertices
+                    const vertices = [];
+                    cellData.vertices.forEach(vertex => {
+                        vertices.push(vertex.x, vertex.y, vertex.z);
+                    });
+                    
+                    // Create triangle indices (for a single triangle: 0, 1, 2)
+                    const indices = [0, 1, 2];
+                    
+                    geometry.setIndex(indices);
+                    geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
+                    geometry.computeVertexNormals();
+                    
+                    // Create material with solid color
+                    const material = new THREE.MeshBasicMaterial({
+                        color: cellData.color,
+                        side: THREE.DoubleSide,
+                        wireframe: wireframeMode,
+                        transparent: true,
+                        opacity: 0.8
+                    });
+                    
+                    const mesh = new THREE.Mesh(geometry, material);
+                    
+                    // Position the shape at its center coordinates (like original voronoi_test.html)
+                    mesh.position.set(cellData.center.x, cellData.center.y, cellData.center.z);
+                    
+                    mesh.userData = { 
+                        originalPosition: { ...cellData.center },
+                        cellIndex: index,
+                        isVoronoiShape: true
+                    };
+                    
+                    scene.add(mesh);
+                    voronoiShapes.push(mesh);
+                });
+            }
+            
+            createDataPoints() {
+                // Create dots linked directly to their parent shapes
+                voronoiShapes.forEach((shape, index) => {
+                    const cellData = voronoiData[index];
+                    
+                    // Create dot geometry - extra large for AR readability
+                    const dotGeometry = new THREE.SphereGeometry(0.4, 16, 16);
+                    const dotMaterial = new THREE.MeshBasicMaterial({
+                        color: 0x591500,  // Brown color from voronoi_test.html
+                        transparent: true,
+                        opacity: 0.9
+                    });
+                    
+                    const dot = new THREE.Mesh(dotGeometry, dotMaterial);
+                    
+                    // Create canvas for data label - extra large for AR readability
+                    const canvas = document.createElement('canvas');
+                    const context = canvas.getContext('2d');
+                    canvas.width = 400;
+                    canvas.height = 200;
+                    context.fillStyle = '#591500';
+                    context.font = '72px Arial';
+                    context.textAlign = 'center';
+                    context.fillText(cellData.dataPoint.value.toString(), 200, 130);
+                    
+                    // Create sprite label - extra large scale
+                    const texture = new THREE.CanvasTexture(canvas);
+                    const labelMaterial = new THREE.SpriteMaterial({ map: texture, transparent: true });
+                    const label = new THREE.Sprite(labelMaterial);
+                    label.scale.set(4.0, 2.0, 1);
+                    
+                    // Group dot and label together
+                    const group = new THREE.Group();
+                    group.add(dot);
+                    group.add(label);
+                    
+                    // Position at absolute world coordinates (not relative to shape)
+                    group.position.set(
+                        cellData.dataPoint.x,
+                        cellData.dataPoint.y,
+                        cellData.dataPoint.z
+                    );
+                    
+                    // Position label well above dot to avoid overlap
+                    label.position.set(0, 1.2, 0);
+                    
+                    // Store references for updates and link to parent shape
+                    group.userData = {
+                        canvas: canvas,
+                        context: context,
+                        label: label,
+                        parentShape: shape,
+                        originalPosition: { ...cellData.dataPoint },
+                        baseValue: cellData.dataPoint.value
+                    };
+                    
+                    // Add to scene directly (not as child of shape) for exact positioning
+                    scene.add(group);
+                    dataPoints.push(group);
+                });
+            }
+            
+            setupMouseControls() {
+                const canvas = document.getElementById('visualizationCanvas');
+                let isInteracting = false;
+                let previousMousePosition = { x: 0, y: 0 };
+                let previousTouchDistance = 0;
+                
+                // Mouse controls
+                canvas.addEventListener('mousedown', (event) => {
+                    isInteracting = true;
+                    previousMousePosition = { x: event.clientX, y: event.clientY };
+                    canvas.style.cursor = 'grabbing';
+                    event.preventDefault();
+                });
+                
+                canvas.addEventListener('mouseup', () => {
+                    isInteracting = false;
+                    canvas.style.cursor = 'grab';
+                });
+                
+                canvas.addEventListener('mouseleave', () => {
+                    isInteracting = false;
+                    canvas.style.cursor = 'grab';
+                });
+                
+                canvas.addEventListener('mousemove', (event) => {
+                    if (!isInteracting) return;
+                    
+                    const deltaX = event.clientX - previousMousePosition.x;
+                    const deltaY = event.clientY - previousMousePosition.y;
+                    
+                    this.rotateCamera(deltaX, deltaY);
+                    
+                    previousMousePosition = { x: event.clientX, y: event.clientY };
+                    event.preventDefault();
+                });
+                
+                // Mouse wheel zoom
+                canvas.addEventListener('wheel', (event) => {
+                    const zoomSpeed = 0.1;
+                    const zoomDirection = event.deltaY > 0 ? 1 : -1;
+                    this.zoomCamera(zoomDirection * zoomSpeed);
+                    event.preventDefault();
+                });
+                
+                // Touch controls for mobile
+                canvas.addEventListener('touchstart', (event) => {
+                    event.preventDefault();
+                    
+                    if (event.touches.length === 1) {
+                        // Single touch - rotation
+                        isInteracting = true;
+                        const touch = event.touches[0];
+                        previousMousePosition = { x: touch.clientX, y: touch.clientY };
+                    } else if (event.touches.length === 2) {
+                        // Two finger pinch - zoom
+                        const touch1 = event.touches[0];
+                        const touch2 = event.touches[1];
+                        const distance = Math.sqrt(
+                            Math.pow(touch2.clientX - touch1.clientX, 2) +
+                            Math.pow(touch2.clientY - touch1.clientY, 2)
+                        );
+                        previousTouchDistance = distance;
+                    }
+                });
+                
+                canvas.addEventListener('touchmove', (event) => {
+                    event.preventDefault();
+                    
+                    if (event.touches.length === 1 && isInteracting) {
+                        // Single touch rotation
+                        const touch = event.touches[0];
+                        const deltaX = touch.clientX - previousMousePosition.x;
+                        const deltaY = touch.clientY - previousMousePosition.y;
+                        
+                        this.rotateCamera(deltaX, deltaY);
+                        
+                        previousMousePosition = { x: touch.clientX, y: touch.clientY };
+                    } else if (event.touches.length === 2) {
+                        // Two finger pinch zoom
+                        const touch1 = event.touches[0];
+                        const touch2 = event.touches[1];
+                        const distance = Math.sqrt(
+                            Math.pow(touch2.clientX - touch1.clientX, 2) +
+                            Math.pow(touch2.clientY - touch1.clientY, 2)
+                        );
+                        
+                        if (previousTouchDistance > 0) {
+                            const zoomDelta = (distance - previousTouchDistance) * 0.01;
+                            this.zoomCamera(-zoomDelta);
+                        }
+                        
+                        previousTouchDistance = distance;
+                    }
+                });
+                
+                canvas.addEventListener('touchend', (event) => {
+                    event.preventDefault();
+                    isInteracting = false;
+                    previousTouchDistance = 0;
+                });
+            }
+            
+            rotateCamera(deltaX, deltaY) {
+                const rotationSpeed = 0.005;
+                const spherical = new THREE.Spherical();
+                spherical.setFromVector3(camera.position);
+                
+                spherical.theta -= deltaX * rotationSpeed;
+                spherical.phi += deltaY * rotationSpeed;
+                
+                // Constrain phi to prevent flipping
+                spherical.phi = Math.max(0.1, Math.min(Math.PI - 0.1, spherical.phi));
+                
+                camera.position.setFromSpherical(spherical);
+                camera.lookAt(0, 0, 0);
+            }
+            
+            zoomCamera(delta) {
+                const direction = camera.position.clone().normalize();
+                const newPosition = camera.position.clone().add(direction.multiplyScalar(delta));
+                
+                // Constrain zoom distance
+                const minDistance = 5;
+                const maxDistance = 100;
+                const distance = newPosition.length();
+                
+                if (distance >= minDistance && distance <= maxDistance) {
+                    camera.position.copy(newPosition);
+                }
+            }
+            
+            resetCameraPosition() {
+                // Reset to original camera position and angle
+                camera.position.set(25, 15, 25);
+                camera.lookAt(0, 0, 0);
+            }
+            
+            setupEventListeners() {
+                document.getElementById('dataBtn').addEventListener('click', () => {
+                    this.toggleDataOverlay();
+                });
+                
+                document.getElementById('audioBtn').addEventListener('click', () => {
+                    this.toggleAudio();
+                });
+                
+                document.getElementById('exitBtn').addEventListener('click', () => {
+                    this.resetExperience();
+                });
+                
+                // Data overlay event handlers
+                document.getElementById('overlayClose').addEventListener('click', () => {
+                    this.hideDataOverlay();
+                });
+                
+                document.getElementById('dataOverlay').addEventListener('click', (event) => {
+                    if (event.target === document.getElementById('dataOverlay') || 
+                        event.target.closest('.data-content')) {
+                        this.cycleToNextDataset();
+                    }
+                });
+                
+                // Window-level click detection for nodes
+                window.addEventListener('mousedown', (event) => {
+                    this.mouseDownPos = { x: event.clientX, y: event.clientY };
+                    this.isDragging = false;
+                });
+                
+                window.addEventListener('mousemove', (event) => {
+                    if (this.mouseDownPos) {
+                        const deltaX = Math.abs(event.clientX - this.mouseDownPos.x);
+                        const deltaY = Math.abs(event.clientY - this.mouseDownPos.y);
+                        if (deltaX > 5 || deltaY > 5) {
+                            this.isDragging = true;
+                        }
+                    }
+                });
+                
+                window.addEventListener('mouseup', (event) => {
+                    if (event.target === document.getElementById('visualizationCanvas') && !this.isDragging) {
+                        this.handleNodeClick(event, document.getElementById('visualizationCanvas'));
+                    }
+                    this.mouseDownPos = null;
+                    this.isDragging = false;
+                });
+                
+                // Touch events for iPad/mobile support
+                let touchStartPos = { x: 0, y: 0 };
+                let isTouchDragging = false;
+                const touchDragThreshold = 10;
+                
+                window.addEventListener('touchstart', (event) => {
+                    if (event.touches.length === 1) {
+                        const touch = event.touches[0];
+                        touchStartPos = { x: touch.clientX, y: touch.clientY };
+                        isTouchDragging = false;
+                    }
+                }, { passive: false });
+                
+                window.addEventListener('touchmove', (event) => {
+                    if (event.touches.length === 1) {
+                        const touch = event.touches[0];
+                        const dx = touch.clientX - touchStartPos.x;
+                        const dy = touch.clientY - touchStartPos.y;
+                        const distance = Math.sqrt(dx * dx + dy * dy);
+                        
+                        if (distance > touchDragThreshold) {
+                            isTouchDragging = true;
+                        }
+                    }
+                }, { passive: false });
+                
+                window.addEventListener('touchend', (event) => {
+                    if (event.changedTouches.length === 1 && !isTouchDragging) {
+                        const touch = event.changedTouches[0];
+                        const target = document.elementFromPoint(touch.clientX, touch.clientY);
+                        
+                        if (target === document.getElementById('visualizationCanvas') || 
+                            document.getElementById('visualizationCanvas').contains(target)) {
+                            const syntheticEvent = {
+                                clientX: touch.clientX,
+                                clientY: touch.clientY,
+                                target: document.getElementById('visualizationCanvas')
+                            };
+                            this.handleNodeClick(syntheticEvent, document.getElementById('visualizationCanvas'));
+                        }
+                    }
+                    isTouchDragging = false;
+                }, { passive: false });
+            }
+            
+            showVisualization() {
+                const container = document.querySelector('.visualization-container');
+                container.classList.add('active');
+                
+                // Fade in AR UI elements when marker is detected
+                this.showARInterface();
+                
+                // Show data hotspots after a brief delay
+                setTimeout(() => {
+                    this.activateDataHotspots();
+                }, 1000);
+            }
+            
+            hideVisualization() {
+                const container = document.querySelector('.visualization-container');
+                container.classList.remove('active');
+            }
+            
+            resetExperience() {
+                this.experienceTriggered = false;
+                this.dataRevealed = false;
+                this.hideVisualization();
+                this.deactivateDataHotspots();
+                
+                // Stop audio if playing
+                if (audioPlaying) {
+                    this.stopAudio();
+                }
+                
+                // Reset UI states
+                document.getElementById('dataPanel').classList.remove('visible');
+                
+                isAnimating = false;
+            }
+            
+            activateDataHotspots() {
+                // Data hotspots removed - using new data overlay system instead
+                // Start data flow visualization
+                this.startDataFlowVisualization();
+            }
+            
+            deactivateDataHotspots() {
+                // Data hotspots removed - using new data overlay system instead
+                // Stop data flow visualization
+                this.stopDataFlowVisualization();
+            }
+            
+            // Old hotspot methods removed - no longer needed
+            
+            startDataFlowVisualization() {
+                // Create pulse geometry and material - brighter and more noticeable
+                pulseGeometry = new THREE.SphereGeometry(0.15, 12, 12);
+                pulseMaterial = new THREE.MeshBasicMaterial({
+                    color: 0x00FFFF, // Bright cyan
+                    transparent: true,
+                    opacity: 1.0
+                });
+                
+                // Start creating data flow pulses - more frequent
+                dataFlowInterval = setInterval(() => {
+                    this.createDataFlowPulse();
+                }, 400); // Create new pulse every 400ms (2x more frequent)
+            }
+            
+            stopDataFlowVisualization() {
+                if (dataFlowInterval) {
+                    clearInterval(dataFlowInterval);
+                    dataFlowInterval = null;
+                }
+                
+                // Remove all existing pulses
+                dataFlowPulses.forEach(pulse => {
+                    if (pulse.mesh && pulse.mesh.parent) {
+                        scene.remove(pulse.mesh);
+                    }
+                });
+                dataFlowPulses = [];
+            }
+            
+            createDataFlowPulse() {
+                if (!hotspotsActive || networkNodes.length === 0) return;
+                
+                // Randomly choose a target node
+                const targetNodeIndex = Math.floor(Math.random() * networkNodes.length);
+                const targetNode = networkGraph.nodes[targetNodeIndex];
+                
+                // Create pulse mesh
+                const pulseMesh = new THREE.Mesh(pulseGeometry, pulseMaterial.clone());
+                pulseMesh.position.set(0, 0, 0); // Start at core
+                scene.add(pulseMesh);
+                
+                // Create pulse data object
+                const pulse = {
+                    mesh: pulseMesh,
+                    startPos: new THREE.Vector3(0, 0, 0),
+                    endPos: new THREE.Vector3(targetNode.x, targetNode.y, targetNode.z),
+                    progress: 0,
+                    speed: 0.8 + Math.random() * 0.4, // Random speed between 0.8-1.2
+                    lifeTime: 0,
+                    maxLifeTime: 3000 // 3 seconds max life
+                };
+                
+                dataFlowPulses.push(pulse);
+            }
+            
+            updateDataFlowPulses() {
+                if (!hotspotsActive) return;
+                
+                const deltaTime = 16; // Approximate 60fps
+                
+                for (let i = dataFlowPulses.length - 1; i >= 0; i--) {
+                    const pulse = dataFlowPulses[i];
+                    pulse.lifeTime += deltaTime;
+                    
+                    // Update pulse position
+                    pulse.progress += pulse.speed * (deltaTime / 1000);
+                    
+                    if (pulse.progress >= 1.0) {
+                        // Pulse reached target - create brief highlight effect
+                        this.createNodeHighlight(pulse.endPos);
+                        
+                        // Remove pulse
+                        if (pulse.mesh && pulse.mesh.parent) {
+                            scene.remove(pulse.mesh);
+                        }
+                        dataFlowPulses.splice(i, 1);
+                        continue;
+                    }
+                    
+                    // Interpolate position
+                    const currentPos = new THREE.Vector3().lerpVectors(
+                        pulse.startPos, 
+                        pulse.endPos, 
+                        this.easeInOutCubic(pulse.progress)
+                    );
+                    pulse.mesh.position.copy(currentPos);
+                    
+                    // Fade out as it approaches target
+                    const fadeStart = 0.7;
+                    if (pulse.progress > fadeStart) {
+                        const fadeProgress = (pulse.progress - fadeStart) / (1.0 - fadeStart);
+                        pulse.mesh.material.opacity = 0.8 * (1.0 - fadeProgress);
+                    }
+                    
+                    // Scale pulse more dramatically for visual interest
+                    const scale = 1.0 + Math.sin(pulse.lifeTime * 0.02) * 0.4;
+                    pulse.mesh.scale.setScalar(scale);
+                    
+                    // Add pulsing glow effect
+                    const glowIntensity = 0.5 + Math.sin(pulse.lifeTime * 0.03) * 0.5;
+                    pulse.mesh.material.opacity = glowIntensity;
+                    
+                    // Remove old pulses
+                    if (pulse.lifeTime > pulse.maxLifeTime) {
+                        if (pulse.mesh && pulse.mesh.parent) {
+                            scene.remove(pulse.mesh);
+                        }
+                        dataFlowPulses.splice(i, 1);
+                    }
+                }
+            }
+            
+            createNodeHighlight(position) {
+                // Create a much brighter and more noticeable glow effect
+                const glowGeometry = new THREE.SphereGeometry(0.5, 20, 20);
+                const glowMaterial = new THREE.MeshBasicMaterial({
+                    color: 0x00FFFF, // Bright cyan
+                    transparent: true,
+                    opacity: 0.9
+                });
+                
+                const glowMesh = new THREE.Mesh(glowGeometry, glowMaterial);
+                glowMesh.position.copy(position);
+                scene.add(glowMesh);
+                
+                // Animate glow expansion and fade - longer duration, more dramatic
+                const startTime = Date.now();
+                const duration = 800; // 0.8 seconds (longer)
+                
+                const animateGlow = () => {
+                    const elapsed = Date.now() - startTime;
+                    const progress = elapsed / duration;
+                    
+                    if (progress >= 1.0) {
+                        scene.remove(glowMesh);
+                        return;
+                    }
+                    
+                    // More dramatic expand and fade
+                    const scale = 1.0 + progress * 3.5; // Larger expansion
+                    const opacity = 0.9 * (1.0 - progress * progress); // Quadratic fade for more impact
+                    
+                    glowMesh.scale.setScalar(scale);
+                    glowMesh.material.opacity = opacity;
+                    
+                    requestAnimationFrame(animateGlow);
+                };
+                
+                animateGlow();
+            }
+            
+            easeInOutCubic(t) {
+                return t < 0.5 ? 4 * t * t * t : (t - 1) * (2 * t - 2) * (2 * t - 2) + 1;
+            }
+            
+            highlightCoreSystem() {
+                // Briefly highlight the central core
+                if (centralCore) {
+                    const originalColor = centralCore.material.color.getHex();
+                    centralCore.material.color.setHex(0x85C8DB);
+                    
+                    setTimeout(() => {
+                        centralCore.material.color.setHex(originalColor);
+                    }, 1000);
+                }
+            }
+            
+            highlightActiveNodes() {
+                // Highlight random subset of nodes
+                const nodesToHighlight = Math.floor(networkNodes.length * 0.1); // 10% of nodes
+                const highlightedIndices = [];
+                
+                for (let i = 0; i < nodesToHighlight; i++) {
+                    const randomIndex = Math.floor(Math.random() * networkNodes.length);
+                    if (!highlightedIndices.includes(randomIndex)) {
+                        highlightedIndices.push(randomIndex);
+                        const node = networkNodes[randomIndex];
+                        const originalColor = node.material.color.getHex();
+                        
+                        node.material.color.setHex(0x85C8DB);
+                        
+                        setTimeout(() => {
+                            node.material.color.setHex(originalColor);
+                        }, 1500);
+                    }
+                }
+            }
+            
+            highlightNetworkConnections() {
+                // Highlight random subset of connections
+                const connectionsToHighlight = Math.floor(networkEdges.length * 0.15); // 15% of edges
+                
+                for (let i = 0; i < connectionsToHighlight; i++) {
+                    const randomIndex = Math.floor(Math.random() * networkEdges.length);
+                    const edge = networkEdges[randomIndex];
+                    const originalColor = edge.material.color.getHex();
+                    const originalOpacity = edge.material.opacity;
+                    
+                    edge.material.color.setHex(0x85C8DB);
+                    edge.material.opacity = 1.0;
+                    
+                    setTimeout(() => {
+                        edge.material.color.setHex(originalColor);
+                        edge.material.opacity = originalOpacity;
+                    }, 1200);
+                }
+            }
+            
+            highlightDataFlow() {
+                // Create a wave effect through the network
+                networkNodes.forEach((node, index) => {
+                    setTimeout(() => {
+                        const originalColor = node.material.color.getHex();
+                        node.material.color.setHex(0x6A9FAF);
+                        
+                        setTimeout(() => {
+                            node.material.color.setHex(originalColor);
+                        }, 300);
+                    }, index * 2); // Stagger the wave effect
+                });
+            }
+            
+            toggleDataReveal() {
+                this.dataRevealed = !this.dataRevealed;
+                const panel = document.getElementById('dataPanel');
+                panel.classList.toggle('visible', this.dataRevealed);
+            }
+            
+            initializeAudio() {
+                audioElement = document.getElementById('artworkAudio');
+                
+                audioElement.addEventListener('loadedmetadata', () => {
+                    this.updateAudioTime();
+                });
+                
+                audioElement.addEventListener('timeupdate', () => {
+                    this.updateAudioProgress();
+                });
+                
+                audioElement.addEventListener('ended', () => {
+                    this.stopAudio();
+                });
+            }
+            
+            toggleAudio() {
+                if (audioPlaying) {
+                    this.stopAudio();
+                } else {
+                    this.playAudio();
+                }
+            }
+            
+            playAudio() {
+                if (audioElement) {
+                    audioElement.play().then(() => {
+                        audioPlaying = true;
+                        this.showAudioProgress();
+                        this.updateAudioButton();
+                        this.startAudioProgressUpdate();
+                    }).catch(error => {
+                        console.error('Audio playback failed:', error);
+                    });
+                }
+            }
+            
+            stopAudio() {
+                if (audioElement) {
+                    audioElement.pause();
+                    audioElement.currentTime = 0;
+                    audioPlaying = false;
+                    this.hideAudioProgress();
+                    this.updateAudioButton();
+                    this.stopAudioProgressUpdate();
+                }
+            }
+            
+            showAudioProgress() {
+                const progressContainer = document.getElementById('audioProgress');
+                progressContainer.classList.add('visible');
+            }
+            
+            hideAudioProgress() {
+                const progressContainer = document.getElementById('audioProgress');
+                progressContainer.classList.remove('visible');
+            }
+            
+            updateAudioButton() {
+                const audioBtn = document.getElementById('audioBtn');
+                const icon = audioBtn.querySelector('i');
+                
+                if (audioPlaying) {
+                    icon.className = 'bi bi-pause-fill';
+                    audioBtn.classList.add('active');
+                } else {
+                    icon.className = 'bi bi-volume-up-fill';
+                    audioBtn.classList.remove('active');
+                }
+            }
+            
+            startAudioProgressUpdate() {
+                audioProgressInterval = setInterval(() => {
+                    this.updateAudioProgress();
+                    this.updateAudioTime();
+                }, 100);
+            }
+            
+            stopAudioProgressUpdate() {
+                if (audioProgressInterval) {
+                    clearInterval(audioProgressInterval);
+                    audioProgressInterval = null;
+                }
+            }
+            
+            updateAudioProgress() {
+                if (audioElement && audioElement.duration) {
+                    const progress = (audioElement.currentTime / audioElement.duration) * 100;
+                    const progressFill = document.getElementById('progressFill');
+                    progressFill.style.width = progress + '%';
+                }
+            }
+            
+            updateAudioTime() {
+                if (audioElement) {
+                    const current = this.formatTime(audioElement.currentTime || 0);
+                    const duration = this.formatTime(audioElement.duration || 0);
+                    const timeDisplay = document.getElementById('audioTime');
+                    timeDisplay.textContent = `${current} / ${duration}`;
+                }
+            }
+            
+            formatTime(seconds) {
+                const mins = Math.floor(seconds / 60);
+                const secs = Math.floor(seconds % 60);
+                return `${mins}:${secs.toString().padStart(2, '0')}`;
+            }
+            
+            // Data overlay system methods
+            handleNodeClick(event, canvas) {
+                const rect = canvas.getBoundingClientRect();
+                this.mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+                this.mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+                this.raycaster.setFromCamera(this.mouse, camera);
+                
+                const clickableObjects = [];
+                scene.traverse((child) => {
+                    // Include both mesh objects (nodes) and line objects (connections)
+                    if (child.isMesh || child.isLine || child.isLineSegments || child.type === 'Line') {
+                        clickableObjects.push(child);
+                    }
+                });
+                
+                const intersects = this.raycaster.intersectObjects(clickableObjects);
+                if (intersects.length > 0) {
+                    if (this.overlayVisible) {
+                        this.cycleToNextDataset();
+                    } else {
+                        this.showDataOverlay();
+                    }
+                }
+            }
+            
+            showDataOverlay() {
+                this.overlayVisible = true;
+                const overlay = document.getElementById('dataOverlay');
+                overlay.classList.add('active');
+                this.startDataCycling();
+            }
+            
+            hideDataOverlay() {
+                this.overlayVisible = false;
+                const overlay = document.getElementById('dataOverlay');
+                overlay.classList.remove('active');
+                this.stopDataCycling();
+            }
+            
+            cycleToNextDataset() {
+                this.currentDataset = (this.currentDataset + 1) % 4;
+                this.updateOverlayData();
+            }
+            
+            updateOverlayData() {
+                const datasets = [
+                    { title: 'Total Accumulation', unit: '', baseValue: 0.174 },
+                    { title: 'Residual Stress', unit: 'MPa', baseValue: 33.34 },
+                    { title: 'Stress Gradient', unit: 'MPa/mm', baseValue: 2.12 },
+                    { title: 'Max Stress Memory', unit: 'MPa', baseValue: 33.34 }
+                ];
+                
+                const dataset = datasets[this.currentDataset];
+                document.getElementById('metricLabel').textContent = dataset.title;
+                document.getElementById('metricUnit').textContent = dataset.unit;
+                
+                // Start with base value, will be updated by cycling
+                document.getElementById('metricValue').textContent = dataset.baseValue;
+            }
+            
+            startDataCycling() {
+                if (this.dataUpdateInterval) return;
+                
+                this.dataUpdateInterval = setInterval(() => {
+                    this.updateDynamicData();
+                }, 150); // Update every 150ms for rapid cycling
+            }
+            
+            stopDataCycling() {
+                if (this.dataUpdateInterval) {
+                    clearInterval(this.dataUpdateInterval);
+                    this.dataUpdateInterval = null;
+                }
+            }
+            
+            updateDynamicData() {
+                if (!this.overlayVisible) return;
+                
+                const time = Date.now() * 0.001;
+                let value;
+                
+                switch (this.currentDataset) {
+                    case 0: // Core Efficiency
+                        value = 85 + Math.sin(time * 2.1) * 3 + Math.cos(time * 1.7) * 2;
+                        value = Math.max(80, Math.min(95, value));
+                        document.getElementById('metricValue').textContent = value.toFixed(1);
+                        break;
+                        
+                    case 1: // Network Load
+                        value = 60 + Math.sin(time * 1.8) * 8 + Math.cos(time * 2.3) * 5;
+                        value = Math.max(45, Math.min(85, value));
+                        document.getElementById('metricValue').textContent = value.toFixed(1);
+                        break;
+                        
+                    case 2: // Active Corrections
+                        value = 140 + Math.sin(time * 1.5) * 25 + Math.cos(time * 2.1) * 15;
+                        value = Math.max(100, Math.min(200, Math.floor(value)));
+                        document.getElementById('metricValue').textContent = value;
+                        break;
+                        
+                    case 3: // Data Integrity
+                        value = 90 + Math.sin(time * 1.2) * 4 + Math.cos(time * 1.9) * 3;
+                        value = Math.max(85, Math.min(98, value));
+                        document.getElementById('metricValue').textContent = value.toFixed(1);
+                        break;
+                }
+            }
+            
+            showARInterface() {
+                // Fade in AR controls and title
+                const arControls = document.querySelector('.ar-controls-container');
+                if (arControls) {
+                    setTimeout(() => {
+                        arControls.classList.add('ar-active');
+                    }, 500); // Slight delay for smooth appearance
+                }
+            }
+            
+            hideARInterface() {
+                // Fade out AR controls and title
+                const arControls = document.querySelector('.ar-controls-container');
+                if (arControls) {
+                    arControls.classList.remove('ar-active');
+                }
+            }
+            
+            // Data overlay methods
+            toggleDataOverlay() {
+                if (this.overlayVisible) {
+                    this.hideDataOverlay();
+                } else {
+                    this.showDataOverlay();
+                }
+            }
+            
+            showDataOverlay() {
+                const overlay = document.getElementById('dataOverlay');
+                if (overlay) {
+                    this.overlayVisible = true;
+                    this.dataRevealed = true;
+                    overlay.classList.add('active');
+                    
+                    // Start data cycling
+                    this.startDataCycling();
+                    
+                    // Initialize with first dataset
+                    this.updateOverlayData();
+                }
+            }
+            
+            hideDataOverlay() {
+                const overlay = document.getElementById('dataOverlay');
+                if (overlay) {
+                    this.overlayVisible = false;
+                    this.dataRevealed = false;
+                    overlay.classList.remove('active');
+                    
+                    // Stop data cycling
+                    this.stopDataCycling();
+                }
+            }
+            
+            cycleToNextDataset() {
+                if (this.dataRevealed) {
+                    this.currentDataset = (this.currentDataset + 1) % 4;
+                    this.updateOverlayData();
+                }
+            }
+            
+            startDataCycling() {
+                if (this.dataUpdateInterval) return;
+                
+                this.dataUpdateInterval = setInterval(() => {
+                    if (this.dataRevealed) {
+                        this.updateDynamicData();
+                    }
+                }, 200); // Faster updates for dynamic effect
+            }
+            
+            stopDataCycling() {
+                if (this.dataUpdateInterval) {
+                    clearInterval(this.dataUpdateInterval);
+                    this.dataUpdateInterval = null;
+                }
+            }
+            
+            animate() {
+                requestAnimationFrame(() => this.animate());
+                
+                if (isAnimating) {
+                    const time = Date.now() * 0.001;
+                    
+                    // Update puzzle animation based on current state
+                    this.updatePuzzleAnimation(time);
+                    
+                    // Update data point values dynamically
+                    this.updateDataPointValues(time);
+                }
+                
+                if (renderer && scene && camera) {
+                    renderer.render(scene, camera);
+                }
+            }
+            
+            updatePuzzleAnimation(time) {
+                // Keep shape assembled - no automatic separation
+                // Shape stays in assembled state until user interaction
+                if (puzzleState !== 'assembled') {
+                    puzzleState = 'assembled';
+                    animationProgress = 0;
+                }
+                
+                // Apply assembled position to all Voronoi shapes
+                voronoiShapes.forEach((shape, index) => {
+                    if (shape.userData && shape.userData.originalPosition) {
+                        const originalPos = shape.userData.originalPosition;
+                        
+                        // Keep shapes in their original assembled positions
+                        shape.position.x = originalPos.x;
+                        shape.position.y = originalPos.y;
+                        shape.position.z = originalPos.z;
+                    }
+                });
+            }
+            
+            updateDataPointValues(time) {
+                // Update data point values with stress accumulation simulation - exact from voronoi_test.html
+                dataPoints.forEach((group, index) => {
+                    if (group.userData && group.userData.canvas && group.userData.context) {
+                        const baseValue = group.userData.baseValue;
+                        const variation = Math.sin(time * 0.5 + index * 0.3) * 0.001 + 
+                                        Math.cos(time * 0.3 + index * 0.7) * 0.0005;
+                        const newValue = Math.max(0, Math.min(0.174, baseValue + variation));
+                        
+                        // Update canvas label - exact style from voronoi_test.html
+                        const context = group.userData.context;
+                        const canvas = group.userData.canvas;
+                        
+                        // Clear and redraw with extra large font for AR readability
+                        context.clearRect(0, 0, canvas.width, canvas.height);
+                        context.fillStyle = '#591500';
+                        context.font = '72px Arial';
+                        context.textAlign = 'center';
+                        context.fillText(newValue.toFixed(3), 200, 130);
+                        
+                        // Update texture - access through label sprite material
+                        if (group.userData.label && group.userData.label.material && group.userData.label.material.map) {
+                            group.userData.label.material.map.needsUpdate = true;
+                        }
+                    }
+                });
+            }
+            
+            calculateScaleFactor(minDimension) {
+                // Define breakpoints for different device sizes
+                // iPad: ~768px minimum dimension
+                // Large phone: ~414px minimum dimension  
+                // Small phone: ~375px minimum dimension
+                
+                // INVERTED LOGIC: Larger scale factor = camera farther away = graphic appears smaller
+                if (minDimension >= 768) {
+                    // iPad size - use original distance
+                    return 1.0;
+                } else if (minDimension >= 414) {
+                    // Large phone - move camera farther to make graphic smaller
+                    return 1.4;
+                } else if (minDimension >= 375) {
+                    // Medium phone - move camera even farther
+                    return 1.6;
+                } else {
+                    // Small phone - move camera farthest away
+                    return 1.8;
+                }
+            }
+            
+            calculatePopupScaleFactor(minDimension) {
+                // Popup should scale DOWN on smaller devices (opposite of camera scaling)
+                // This makes the popup proportionally smaller to match the smaller graphic
+                if (minDimension >= 768) {
+                    // iPad size - use original popup size
+                    return 1.0;
+                } else if (minDimension >= 414) {
+                    // Large phone - make popup smaller
+                    return 0.75;
+                } else if (minDimension >= 375) {
+                    // Medium phone - make popup even smaller
+                    return 0.65;
+                } else {
+                    // Small phone - make popup smallest
+                    return 0.55;
+                }
+            }
+            
+            updatePopupScale(scaleFactor) {
+                const dataOverlay = document.getElementById('dataOverlay');
+                if (dataOverlay) {
+                    // Apply scale to the popup while maintaining its transform origin
+                    dataOverlay.style.setProperty('--popup-scale', scaleFactor);
+                }
+            }
+            
+            onWindowResize() {
+                if (!camera || !renderer) return;
+                
+                // Get the actual container dimensions (not window dimensions)
+                const canvas = document.getElementById('visualizationCanvas');
+                if (!canvas) return;
+                
+                const container = canvas.parentElement;
+                const width = container.clientWidth;
+                const height = container.clientHeight;
+                
+                // Recalculate camera position for new dimensions
+                const minDimension = Math.min(width, height);
+                const scaleFactor = this.calculateScaleFactor(minDimension);
+                
+                // Update camera aspect ratio
+                camera.aspect = width / height;
+                camera.updateProjectionMatrix();
+                
+                // Update camera position with new scale factor (artwork4 uses different base position)
+                const baseDistance = 25;
+                const distance = baseDistance * scaleFactor;
+                camera.position.set(0, 0, distance);
+                camera.lookAt(0, 0, 0);
+                
+                // Update popup scaling proportionally
+                const popupScaleFactor = this.calculatePopupScaleFactor(minDimension);
+                this.updatePopupScale(popupScaleFactor);
+                
+                // Update renderer size to match container
+                renderer.setSize(width, height);
+                
+                // Force a render to apply changes immediately
+                if (scene && camera) {
+                    renderer.render(scene, camera);
+                }
+            }
+        }
+        
+        // Initialize AR system
+        let arTrigger;
+        window.addEventListener('DOMContentLoaded', () => {
+            arTrigger = new ARTriggerSystem();
+            
+            // Setup exit button functionality for iPad/mobile
+            const exitBtn = document.getElementById('exitBtn');
+            if (exitBtn) {
+                exitBtn.addEventListener('click', () => {
+                    // Mobile-specific exit functionality for iPad
+                    console.log('Exit button pressed - returning to gallery');
+                    
+                    // Stop all AR activities and clean up
+                    if (arTrigger) {
+                        arTrigger.resetExperience();
+                    }
+                    
+                    // For mobile apps, navigate back to gallery or main screen
+                    // This works better on iPad than window.close()
+                    if (window.history.length > 1) {
+                        window.history.back();
+                    } else {
+                        // For mobile apps, try to navigate to gallery/main screen
+                        // This assumes the app has a gallery.html or index.html
+                        const possibleGalleryUrls = [
+                            '../gallery.html',
+                            '../index.html',
+                            '../../gallery.html',
+                            '../../index.html',
+                            '../../../gallery.html',
+                            '../../../index.html'
+                        ];
+                        
+                        // Try the first available gallery URL
+                        window.location.href = possibleGalleryUrls[0];
+                    }
+                });
+            }
+        });
+        
+        // Handle camera permissions
+        navigator.mediaDevices.getUserMedia({ video: true })
+            .then(stream => {
+                console.log('Camera access granted');
+            })
+            .catch(err => {
+                console.error('Camera access denied:', err);
+                alert('Camera access required for AR. Please allow camera permissions and refresh.');
+            });
+    </script>
+</body>
+</html>

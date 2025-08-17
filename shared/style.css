@@ -1,0 +1,532 @@
+/**
+ * Global CSS Styles
+ * 
+ * This file contains all the CSS styles extracted from ar_detection.html
+ * and serves as a central styling file for the AR application.
+ */
+
+ * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+    background: #000;
+    color: white;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+}
+
+:root {
+    --glass-bg: rgba(255, 255, 255, 0.1);
+    --glass-border: rgba(255, 255, 255, 0.2);
+    --glass-hover: rgba(255, 255, 255, 0.15);
+    --glass-white: rgba(255, 255, 255, 0.9);
+    --glass-light: rgba(255, 255, 255, 0.7);
+
+    /* Glassmorphism navigation variables */
+    --nav-glass-bg: rgba(255, 255, 255, 0.15);
+    --nav-glass-border: rgba(255, 255, 255, 0.25);
+    --nav-glass-hover: rgba(255, 255, 255, 0.25);
+    --nav-glass-shadow: 0 8px 32px rgba(31, 38, 135, 0.2);
+    --glass-darkest: rgba(0, 0, 0, 0.3);
+}
+
+.container {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(45deg, #1e3c72, #2a5298);
+}
+
+.button {
+    padding: 15px 30px;
+    background: rgba(255,255,255,0.2);
+    border: 1px solid rgba(255,255,255,0.3);
+    color: white;
+    border-radius: 10px;
+    cursor: pointer;
+    font-size: 18px;
+    margin: 10px;
+    backdrop-filter: blur(10px);
+}
+
+.button:hover {
+    background: rgba(255,255,255,0.3);
+}
+
+#video {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    object-fit: cover;
+    z-index: 10;
+    display: none;
+    transition: none;
+}
+
+.controls {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 20;
+    display: none;
+}
+
+.info {
+    position: fixed;
+    bottom: 20px;
+    left: 20px;
+    background: rgba(0,0,0,0.7);
+    padding: 10px;
+    border-radius: 5px;
+    font-size: 12px;
+    z-index: 20;
+    display: none;
+}
+
+/* AR Scene - minimal setup */
+a-scene {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    z-index: 1;
+}
+
+/* Glassmorphism AR Detection UI */
+.ar-detection-container {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 30;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    transition: all 0.8s cubic-bezier(0.19, 1, 0.22, 1);
+}
+
+.ar-detection-box {
+    width: 280px;
+    height: 280px;
+    border: 2px solid var(--glass-border);
+    border-radius: 10px;
+    background-color: transparent;
+    /* Removed backdrop-filter blur */
+    /* Removed box-shadow for complete transparency */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    margin-bottom: 30px;
+    animation: pulse 2s infinite ease-in-out;
+}
+
+.ar-detection-box::before, .ar-detection-box::after {
+    content: '';
+    position: absolute;
+    top: -2px;
+    left: -2px;
+    right: -2px;
+    bottom: -2px;
+    border: 2px solid transparent;
+    border-radius: 10px;
+    pointer-events: none; /* Ensure it doesn't interfere with touch/click */
+}
+
+.ar-detection-box::before {
+    animation: borderPulse 4s infinite linear;
+}
+
+.ar-detection-text {
+    font-family: 'Noto Serif KR', serif;
+    font-size: 18px;
+    font-weight: 400;
+    color: white;
+    text-align: center;
+    max-width: 280px;
+    line-height: 1.5;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+}
+
+/* Animation for AR detection */
+@keyframes pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.02); }
+    100% { transform: scale(1); }
+}
+
+@keyframes borderPulse {
+    0% { border-color: rgba(255, 255, 255, 0.2); }
+    50% { border-color: rgba(255, 255, 255, 0.5); }
+    100% { border-color: rgba(255, 255, 255, 0.2); }
+}
+
+/* Detection success animation */
+.ar-detection-success {
+    animation: successGlow 0.8s forwards;
+}
+
+@keyframes successGlow {
+    0% { box-shadow: 0 0 0 rgba(0, 255, 128, 0); border-color: var(--glass-border); }
+    50% { box-shadow: 0 0 30px rgba(0, 255, 128, 0.8); border-color: rgba(0, 255, 128, 0.8); }
+    100% { box-shadow: 0 0 0 rgba(0, 255, 128, 0); opacity: 0; }
+}
+
+/* Hide the detection UI when AR is active */
+.ar-detection-container.hidden {
+    opacity: 0;
+    visibility: hidden;
+    transform: translate(-50%, -50%) scale(0.9);
+}
+
+/* Three.js Visualization Container - Only visible when marker detected */
+.visualization-container {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    z-index: 100;
+    pointer-events: auto;
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.3s ease;
+    overflow: hidden;
+    /* No additional constraints - let artwork be its true size */
+}
+
+/* Glassmorphism Navigation Button Styling for artwork1_clean.html */
+.nav-button, .back-button, .home-button {
+    background-color: var(--nav-glass-bg);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid var(--nav-glass-border);
+    box-shadow: var(--nav-glass-shadow);
+}
+
+.nav-button:hover, .back-button:hover, .home-button:hover {
+    background-color: var(--nav-glass-hover);
+    transform: scale(1.05);
+    box-shadow: 0 12px 40px rgba(31, 38, 135, 0.3);
+}
+
+.visualization-container.active {
+    opacity: 1;
+    visibility: visible;
+}
+
+#visualizationCanvas {
+    width: 100%;
+    height: 100%;
+    background: transparent;
+    cursor: grab;
+}
+
+#visualizationCanvas:active {
+    cursor: grabbing;
+}
+
+/* Circular Data Overlay - EXACT copy from artwork1.html */
+.data-overlay {
+    --popup-scale: 1.0; /* CSS custom property for dynamic scaling */
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) scale(calc(0.8 * var(--popup-scale)));
+    width: 280px;
+    height: 280px;
+    background: radial-gradient(circle, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.02) 100%);
+    border: 2px solid rgba(255,255,255,0.2);
+    border-radius: 50%;
+    backdrop-filter: blur(20px);
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+    z-index: 2000;
+    pointer-events: none;
+}
+
+.data-overlay.active {
+    transform: translate(-50%, -50%) scale(calc(1.0 * var(--popup-scale)));
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+}
+
+.data-overlay.fade-out {
+    transform: translate(-50%, -50%) scale(calc(0.9 * var(--popup-scale)));
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+.data-overlay-inner {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.data-content {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+}
+
+.metric-value {
+    font-size: 32px;
+    font-weight: 700;
+    color: #ffffff;
+    font-family: 'Inter', sans-serif;
+    margin-bottom: 5px;
+    text-shadow: 0 0 10px rgba(255,255,255,0.3);
+}
+
+.metric-label {
+    font-size: 11px;
+    color: rgba(255,255,255,0.7);
+    font-weight: 500;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+
+.data-overlay-close {
+    position: absolute;
+    top: 15px;
+    right: 15px;
+    width: 36px;
+    height: 36px;
+    background: rgba(255,255,255,0.25);
+    border: 2px solid rgba(255,255,255,0.6);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    color: rgba(255,255,255,0.9);
+    font-size: 18px;
+    font-weight: bold;
+    transition: all 0.3s ease;
+    backdrop-filter: blur(10px);
+}
+
+.data-overlay-close:hover {
+    background: rgba(255,255,255,0.4);
+    border-color: rgba(255,255,255,0.8);
+    transform: scale(1.1);
+}
+
+/* Ring CSS removed to match artwork1 exactly - rings exist in HTML but are invisible */
+
+/* Single Metric Display */
+.single-metric {
+    text-align: center;
+    padding: 30px;
+}
+
+.metric-value-large {
+    font-size: 64px;
+    font-weight: 700;
+    color: #ffffff;
+    font-family: 'Inter', sans-serif;
+    margin-bottom: 5px;
+    text-shadow: 0 0 20px rgba(255,255,255,0.5);
+    line-height: 1;
+    white-space: nowrap;
+    min-width: 150px;
+    text-align: center;
+}
+
+.metric-unit {
+    font-size: 24px;
+    color: rgba(255,255,255,0.8);
+    font-weight: 300;
+    margin-bottom: 15px;
+}
+
+.metric-label-large {
+    font-size: 14px;
+    color: rgba(255,255,255,0.7);
+    font-weight: 500;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+}
+
+/* AR Title Container - Independent positioning at top center in all orientations */
+.ar-title-container {
+    position: fixed;
+    top: 20px; /* Position at top in all orientations */
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 1000;
+    width: 80%;
+    max-width: 300px;
+    text-align: center;
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.8s ease;
+}
+
+.ar-controls-container.ar-active ~ .ar-title-container,
+.ar-title-container.ar-active {
+    opacity: 1;
+    visibility: visible;
+}
+
+/* AR Controls - Unified styling with position changes only */
+.ar-controls-container {
+    position: fixed;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    z-index: 1000;
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.8s ease;
+    
+    /* Portrait mode positioning (default) */
+    top: 50%;
+    right: 5px;
+    transform: translateY(-50%);
+    flex-direction: column; /* Vertical layout by default (portrait) */
+}
+
+.ar-controls-container.ar-active {
+    opacity: 1;
+    visibility: visible;
+}
+
+.ar-title {
+    font-family: 'Noto Sans KR', sans-serif;
+    font-size: 14px;
+    font-weight: 500;
+    color: #000000;
+    background: var(--glass-bg);
+    backdrop-filter: blur(20px);
+    padding: 8px 16px;
+    border-radius: 12px;
+    border: 1px solid var(--glass-border);
+    text-align: center;
+    white-space: nowrap;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+    display: inline-block;
+}
+
+.ar-controls {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column; /* Vertical layout by default (portrait) */
+    gap: 15px;
+    background: var(--glass-bg);
+    backdrop-filter: blur(20px);
+    border: 1px solid var(--glass-border);
+    border-radius: 20px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+    padding: 10px;
+}
+
+/* Unified control button styling - identical in all orientations */
+.control-btn {
+    width: 45px;
+    height: 45px;
+    border: none;
+    border-radius: 10px;
+    background: var(--glass-bg);
+    backdrop-filter: blur(10px);
+    color: #000000;
+    font-size: 22px; /* Larger icon size */
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 8px;
+    border: 1px solid var(--glass-border);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+    opacity: 0.8;
+    padding: 0;
+}
+
+.control-btn:hover {
+    background: var(--glass-hover);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+}
+
+.control-btn.active {
+    background: var(--glass-hover);
+    opacity: 1;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2);
+}
+
+/* Mobile responsive - only adjust font sizes, not button dimensions */
+@media screen and (max-width: 768px) {
+    /* Adjust title font size for smaller screens */
+    .ar-title {
+        font-size: 13px;
+        padding: 6px 14px;
+    }
+}
+
+/* Portrait mode - Position adjustments and smaller buttons */
+@media screen and (orientation: portrait) {
+    .ar-controls-container {
+        top: 50%;
+        right: 5px;
+        transform: translateY(-50%);
+        flex-direction: column;
+        gap: 8px; /* Smaller gap in portrait */
+    }
+    
+    /* Smaller buttons only in portrait mode */
+    .control-btn {
+        width: 38px;
+        height: 38px;
+        font-size: 18px;
+        margin: 5px;
+    }
+}
+
+/* Landscape mode - ONLY position adjustments, no styling changes */
+@media screen and (orientation: landscape) {
+    .ar-controls-container {
+        top: auto;
+        right: auto;
+        bottom: 30px;
+        left: 50%;
+        transform: translateX(-50%);
+        flex-direction: row; /* Horizontal layout in landscape */
+    }
+    
+    .ar-controls {
+        flex-direction: row; /* Horizontal layout in landscape */
+    }
+}
