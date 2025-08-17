@@ -1347,67 +1347,19 @@
             if (!audioContext) {
                 console.log('Initializing synth after user interaction');
                 initializeSynth();
-            } else if (audioContext.state === 'suspended') {
-                console.log('Resuming suspended audio context');
-                audioContext.resume().then(() => {
-                    console.log('Audio context resumed successfully');
-                    // Start oscillators if they haven't been started yet
-                    if (synthOscillator && !synthIsPlaying) {
-                        try {
-                            synthOscillator.start();
-                            window.synthOsc2.start();
-                            window.synthOsc3.start();
-                            synthLFO.start();
-                            synthIsPlaying = true;
-                            console.log('Synth oscillators started after resume');
-                        } catch (e) {
-                            console.log('Oscillators already started or error:', e);
-                        }
-                    }
-                });
-            } else if (audioContext.state === 'running' && !synthIsPlaying) {
-                // Context is running but oscillators not started (iOS case)
-                if (synthOscillator) {
-                    try {
-                        synthOscillator.start();
-                        window.synthOsc2.start();
-                        window.synthOsc3.start();
-                        synthLFO.start();
-                        synthIsPlaying = true;
-                        console.log('Synth oscillators started on running context');
-                    } catch (e) {
-                        console.log('Oscillators already started or error:', e);
-                    }
-                }
             }
         }
 
-        // iOS Web Audio API unlock function
+        // Simple Web Audio unlock function
         function unlockAudioContext(audioCtx) {
             if (audioCtx.state !== 'suspended') return;
-            
-            const events = ['touchstart', 'touchend', 'mousedown', 'keydown', 'click'];
-            const unlock = function() {
+            const events = ['touchstart','touchend', 'mousedown','keydown'];
+            const unlock = () => {
                 audioCtx.resume().then(() => {
-                    console.log('Audio context unlocked for iOS');
-                    // Start oscillators after unlock
-                    if (synthOscillator && synthOscillator.start) {
-                        try {
-                            synthOscillator.start();
-                            synthOsc2.start();
-                            synthOsc3.start();
-                            synthLFO.start();
-                            console.log('Synth oscillators started after iOS unlock');
-                        } catch (e) {
-                            console.log('Oscillators already started');
-                        }
-                    }
+                    events.forEach(e => document.body.removeEventListener(e, unlock));
                 });
-                // Remove event listeners after first unlock
-                events.forEach(event => document.body.removeEventListener(event, unlock));
             };
-            
-            events.forEach(event => document.body.addEventListener(event, unlock, false));
+            events.forEach(e => document.body.addEventListener(e, unlock, false));
         }
 
         // Initialize Web Audio API Synth with continuous tone
@@ -1418,14 +1370,6 @@
                 // iOS compatibility: unlock audio context on user gesture
                 unlockAudioContext(audioContext);
                 
-                // Ensure audio context is running (required for GitHub Pages/HTTPS)
-                if (audioContext.state === 'suspended') {
-                    audioContext.resume().then(() => {
-                        console.log('Audio context resumed');
-                    });
-                }
-                
-                // Create synth components for a chord (3 oscillators)
                 synthOscillator = audioContext.createOscillator();
                 const synthOsc2 = audioContext.createOscillator();
                 const synthOsc3 = audioContext.createOscillator();
@@ -1528,24 +1472,19 @@
                 synthLFO.connect(synthLFOGain);
                 synthLFOGain.connect(synthFilter.frequency);
                 
-                // For iOS: Don't start oscillators immediately, wait for user gesture
-                // The unlockAudioContext function will start them after user interaction
-                if (audioContext.state === 'running') {
-                    // Desktop browsers - start immediately
-                    setTimeout(() => {
-                        if (!synthIsPlaying) {
-                            synthOscillator.start();
-                            synthOsc2.start();
-                            synthOsc3.start();
-                            synthLFO.start();
-                            synthIsPlaying = true;
-                            console.log('Synth oscillators started (desktop)');
-                        }
-                    }, 100);
-                } else {
-                    // iOS/Mobile - oscillators will start in unlockAudioContext
-                    console.log('Waiting for user gesture to start oscillators (iOS)');
-                }
+                // Start oscillators with timing offset for iOS compatibility
+                setTimeout(() => {
+                    try {
+                        synthOscillator.start(audioContext.currentTime + 0.01);
+                        synthOsc2.start(audioContext.currentTime + 0.01);
+                        synthOsc3.start(audioContext.currentTime + 0.01);
+                        synthLFO.start(audioContext.currentTime + 0.01);
+                        synthIsPlaying = true;
+                        console.log('Synth oscillators started with timing offset');
+                    } catch (e) {
+                        console.log('Error starting oscillators:', e);
+                    }
+                }, 100);
                 
                 // Store additional oscillators and FX nodes for parameter updates
                 window.synthOsc2 = synthOsc2;
