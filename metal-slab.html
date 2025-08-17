@@ -1174,12 +1174,26 @@
         function initAudio() {
             // Create background music element
             backgroundMusic = new Audio();
-            backgroundMusic.src = 'https://heund.github.io/comp_ea/shared/sounds/INTRO_APPBG.wav'; // Using existing sound file
+            backgroundMusic.src = './shared/sounds/INTRO_APPBG.wav'; // Using existing sound file
             backgroundMusic.loop = true;
             backgroundMusic.volume = 0.3;
             
             // Preload audio
             backgroundMusic.load();
+            
+            // Setup event listeners to start background music on first interaction
+            const startAudioOnInteraction = () => {
+                playBackgroundMusic();
+                // Remove event listeners after first interaction
+                document.removeEventListener('click', startAudioOnInteraction);
+                document.removeEventListener('touchstart', startAudioOnInteraction);
+                document.removeEventListener('keydown', startAudioOnInteraction);
+            };
+            
+            // Add event listeners for first interaction
+            document.addEventListener('click', startAudioOnInteraction);
+            document.addEventListener('touchstart', startAudioOnInteraction);
+            document.addEventListener('keydown', startAudioOnInteraction);
         }
         
         function playBackgroundMusic() {
@@ -2075,7 +2089,7 @@
             function togglePanel() {
                 // Prevent rapid toggling conflicts
                 if (panelTransitionInProgress) {
-                    console.log('Panel transition in progress, ignoring toggle');
+                    // Panel transition in progress
                     return;
                 }
                 
@@ -2203,7 +2217,7 @@
             function togglePanel() {
                 // Prevent rapid toggling conflicts
                 if (panelTransitionInProgress) {
-                    console.log('Panel transition in progress, ignoring toggle');
+                    // Panel transition in progress
                     return;
                 }
                 
@@ -2237,7 +2251,6 @@
                     }
                     
                     currentExpandedPanel = null;
-                    console.log('ROLLING panel closed');
                 } else {
                     // Close any other expanded panel first, but keep data panel if switching between CONT/ROLLING
                     const switchingPanels = (currentExpandedPanel === 'cont');
@@ -2281,8 +2294,6 @@
                     
                     currentExpandedPanel = 'rolling';
                     switchAnimationMode('rolling'); // Switch to rolling animation when ROLLING is expanded
-                    
-                    console.log('ROLLING panel opened');
                 }
             }
             
@@ -2308,7 +2319,7 @@
                 }
             });
             
-            console.log('Rolling panel setup complete');
+            // Rolling panel setup complete
         }
         
         // Initialize        // SVG Arc helper functions
