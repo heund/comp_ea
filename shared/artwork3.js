@@ -18,7 +18,11 @@ if (typeof window.Artwork3 === 'undefined') {
             super(container, options);
             
             // Default title
-            this.title = options.title || '열간 압연 데이터 03: 시계열 구간별 변형 제어값';
+            this.title = options.title || '열간 압연 데이터 03: 온도 분포 지도';
+            
+            // Get global audio manager instance
+            this.globalAudioManager = window.globalAudioManager || window.GlobalAudioManager?.getInstance();
+            this.audioId = 'artwork3';
             
             // Three.js objects
             this.scene = null;
@@ -1520,6 +1524,12 @@ if (typeof window.Artwork3 === 'undefined') {
             this.artworkAudio.preload = 'auto';
             this.artworkAudio.loop = false;
 
+            // Register with global audio manager
+            if (this.globalAudioManager) {
+                this.globalAudioManager.registerAudio(this.audioId, this.artworkAudio, 'element');
+                console.log('[ARTWORK3] Audio registered with Global Audio Manager');
+            }
+
             this.artworkAudio.addEventListener('loadedmetadata', () => {
                 console.log('[ARTWORK3] Audio metadata loaded, duration:', this.artworkAudio.duration);
             });
@@ -1562,17 +1572,30 @@ if (typeof window.Artwork3 === 'undefined') {
                 return;
             }
 
-            console.log('[ARTWORK3] Attempting to play audio...');
-            this.artworkAudio.play().then(() => {
+            console.log('[ARTWORK3] Attempting to play audio via Global Audio Manager...');
+            
+            if (this.globalAudioManager) {
+                // Use global audio manager to play (this will stop all other audio first)
+                this.globalAudioManager.playAudio(this.audioId);
                 this.isAudioPlaying = true;
-                console.log('[ARTWORK3] Artwork audio started successfully');
+                console.log('[ARTWORK3] Artwork audio started via Global Audio Manager');
                 
                 // Show progress bar and update button
                 this.showAudioProgress();
                 this.updateAudioButton();
-            }).catch(error => {
-                console.error('[ARTWORK3] Error playing artwork audio:', error);
-            });
+            } else {
+                // Fallback to direct play
+                this.artworkAudio.play().then(() => {
+                    this.isAudioPlaying = true;
+                    console.log('[ARTWORK3] Artwork audio started successfully (fallback)');
+                    
+                    // Show progress bar and update button
+                    this.showAudioProgress();
+                    this.updateAudioButton();
+                }).catch(error => {
+                    console.error('[ARTWORK3] Error playing artwork audio:', error);
+                });
+            }
         }
 
         /**
@@ -1581,15 +1604,20 @@ if (typeof window.Artwork3 === 'undefined') {
         stopArtworkAudio() {
             if (!this.artworkAudio) return;
 
-            this.artworkAudio.pause();
-            this.artworkAudio.currentTime = 0;
+            if (this.globalAudioManager) {
+                this.globalAudioManager.stopAudio(this.audioId);
+                console.log('[ARTWORK3] Artwork audio stopped via Global Audio Manager');
+            } else {
+                this.artworkAudio.pause();
+                this.artworkAudio.currentTime = 0;
+                console.log('[ARTWORK3] Artwork audio stopped (fallback)');
+            }
+            
             this.isAudioPlaying = false;
             
             // Hide progress bar and update button
             this.hideAudioProgress();
             this.updateAudioButton();
-            
-            console.log('[ARTWORK3] Artwork audio stopped');
         }
 
         /**

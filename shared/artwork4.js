@@ -10,7 +10,13 @@ if (typeof window.Artwork4 === 'undefined') {
     class Artwork4 extends ArtworkModule {
         constructor(container, options = {}) {
             super(container, options);
-            this.title = '열간 압연 데이터 04: 응력 누적 분포';
+            
+            // Default title
+            this.title = options.title || '열간 압연 데이터 04: 쥜료 유동 패턴';
+            
+            // Get global audio manager instance
+            this.globalAudioManager = window.globalAudioManager || window.GlobalAudioManager?.getInstance();
+            this.audioId = 'artwork4';
             
             // Voronoi diamond visualization properties
             this.voronoiShapes = [];
@@ -708,6 +714,12 @@ if (typeof window.Artwork4 === 'undefined') {
             this.artworkAudio.preload = 'auto';
             this.artworkAudio.loop = false;
 
+            // Register with global audio manager
+            if (this.globalAudioManager) {
+                this.globalAudioManager.registerAudio(this.audioId, this.artworkAudio, 'element');
+                console.log('[ARTWORK4] Audio registered with Global Audio Manager');
+            }
+
             this.artworkAudio.addEventListener('loadedmetadata', () => {
                 console.log('[ARTWORK4] Audio metadata loaded, duration:', this.artworkAudio.duration);
             });
@@ -750,17 +762,30 @@ if (typeof window.Artwork4 === 'undefined') {
                 return;
             }
 
-            console.log('[ARTWORK4] Attempting to play audio...');
-            this.artworkAudio.play().then(() => {
+            console.log('[ARTWORK4] Attempting to play audio via Global Audio Manager...');
+            
+            if (this.globalAudioManager) {
+                // Use global audio manager to play (this will stop all other audio first)
+                this.globalAudioManager.playAudio(this.audioId);
                 this.isAudioPlaying = true;
-                console.log('[ARTWORK4] Artwork audio started successfully');
+                console.log('[ARTWORK4] Artwork audio started via Global Audio Manager');
                 
                 // Show progress bar and update button
                 this.showAudioProgress();
                 this.updateAudioButton();
-            }).catch(error => {
-                console.error('[ARTWORK4] Error playing artwork audio:', error);
-            });
+            } else {
+                // Fallback to direct play
+                this.artworkAudio.play().then(() => {
+                    this.isAudioPlaying = true;
+                    console.log('[ARTWORK4] Artwork audio started successfully (fallback)');
+                    
+                    // Show progress bar and update button
+                    this.showAudioProgress();
+                    this.updateAudioButton();
+                }).catch(error => {
+                    console.error('[ARTWORK4] Error playing artwork audio:', error);
+                });
+            }
         }
 
         /**
@@ -769,15 +794,20 @@ if (typeof window.Artwork4 === 'undefined') {
         stopArtworkAudio() {
             if (!this.artworkAudio) return;
 
-            this.artworkAudio.pause();
-            this.artworkAudio.currentTime = 0;
+            if (this.globalAudioManager) {
+                this.globalAudioManager.stopAudio(this.audioId);
+                console.log('[ARTWORK4] Artwork audio stopped via Global Audio Manager');
+            } else {
+                this.artworkAudio.pause();
+                this.artworkAudio.currentTime = 0;
+                console.log('[ARTWORK4] Artwork audio stopped (fallback)');
+            }
+            
             this.isAudioPlaying = false;
             
             // Hide progress bar and update button
             this.hideAudioProgress();
             this.updateAudioButton();
-            
-            console.log('[ARTWORK4] Artwork audio stopped');
         }
 
         /**

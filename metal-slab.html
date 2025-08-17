@@ -1397,6 +1397,11 @@
                 synthFilter.frequency.setValueAtTime(1000, audioContext.currentTime);
                 synthFilter.Q.setValueAtTime(3, audioContext.currentTime);
                 
+                // Set initial gain values (much lower than default 1.0)
+                synthGain.gain.setValueAtTime(0.032, audioContext.currentTime);
+                synthGain2.gain.setValueAtTime(0.024, audioContext.currentTime);
+                synthGain3.gain.setValueAtTime(0.02, audioContext.currentTime);
+                
                 // Configure LFO for subtle modulation
                 synthOsc2.connect(synthGain2);
                 synthOsc3.connect(synthGain3);

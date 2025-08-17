@@ -16,7 +16,13 @@ if (typeof window.Artwork1 === 'undefined') {
          */
         constructor(container, options = {}) {
             super(container, options);
-            this.title = '열간 압연 데이터 01: 네트워크 구조';
+            
+            // Default title
+            this.title = options.title || '열간 압연 데이터 01: 보정 알고리즘 구조';
+            
+            // Get global audio manager instance
+            this.globalAudioManager = window.globalAudioManager || window.GlobalAudioManager?.getInstance();
+            this.audioId = 'artwork1';
             
             // Three.js components
             this.scene = null;
@@ -908,6 +914,12 @@ if (typeof window.Artwork1 === 'undefined') {
             this.artworkAudio.loop = false;
             this.artworkAudio.volume = 0.7;
             
+            // Register with global audio manager
+            if (this.globalAudioManager) {
+                this.globalAudioManager.registerAudio(this.audioId, this.artworkAudio, 'element');
+                console.log('[ARTWORK1] Audio registered with Global Audio Manager');
+            }
+            
             // Add audio event listeners for progress tracking
             this.artworkAudio.addEventListener('loadedmetadata', () => {
                 this.updateAudioTime();
@@ -988,17 +1000,30 @@ if (typeof window.Artwork1 === 'undefined') {
                 return;
             }
 
-            console.log('[ARTWORK1] Attempting to play audio...');
-            this.artworkAudio.play().then(() => {
+            console.log('[ARTWORK1] Attempting to play audio via Global Audio Manager...');
+            
+            if (this.globalAudioManager) {
+                // Use global audio manager to play (this will stop all other audio first)
+                this.globalAudioManager.playAudio(this.audioId);
                 this.isAudioPlaying = true;
-                console.log('[ARTWORK1] Artwork audio started successfully');
+                console.log('[ARTWORK1] Artwork audio started via Global Audio Manager');
                 
                 // Show progress bar and update button
                 this.showAudioProgress();
                 this.updateAudioButton();
-            }).catch(error => {
-                console.error('[ARTWORK1] Error playing artwork audio:', error);
-            });
+            } else {
+                // Fallback to direct play
+                this.artworkAudio.play().then(() => {
+                    this.isAudioPlaying = true;
+                    console.log('[ARTWORK1] Artwork audio started successfully (fallback)');
+                    
+                    // Show progress bar and update button
+                    this.showAudioProgress();
+                    this.updateAudioButton();
+                }).catch(error => {
+                    console.error('[ARTWORK1] Error playing artwork audio:', error);
+                });
+            }
         }
 
         /**
@@ -1007,15 +1032,20 @@ if (typeof window.Artwork1 === 'undefined') {
         stopArtworkAudio() {
             if (!this.artworkAudio) return;
 
-            this.artworkAudio.pause();
-            this.artworkAudio.currentTime = 0;
+            if (this.globalAudioManager) {
+                this.globalAudioManager.stopAudio(this.audioId);
+                console.log('[ARTWORK1] Artwork audio stopped via Global Audio Manager');
+            } else {
+                this.artworkAudio.pause();
+                this.artworkAudio.currentTime = 0;
+                console.log('[ARTWORK1] Artwork audio stopped (fallback)');
+            }
+            
             this.isAudioPlaying = false;
             
             // Hide progress bar and update button
             this.hideAudioProgress();
             this.updateAudioButton();
-            
-            console.log('[ARTWORK1] Artwork audio stopped');
         }
 
         /**

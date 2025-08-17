@@ -26,6 +26,10 @@ class ArtworkModule {
         this.audioAnalyser = null;
         this.audioElement = null;
         this.audioData = null;
+        
+        // Get global audio manager instance
+        this.globalAudioManager = window.globalAudioManager || window.GlobalAudioManager?.getInstance();
+        this.audioId = options.audioId || this.title.toLowerCase().replace(/\s+/g, '');
     }
 
     /**
@@ -83,9 +87,12 @@ class ArtworkModule {
             console.log(`[ACTIVATE] ⚠️ AR controls container not found`);
         }
         
-        // Play audio if enabled
-        if (this.audioEnabled && this.audioElement) {
-            console.log(`[ACTIVATE] Starting audio playback`);
+        // Play audio if enabled using global audio manager
+        if (this.audioEnabled && this.audioElement && this.globalAudioManager) {
+            console.log(`[ACTIVATE] Starting audio playback via Global Audio Manager`);
+            this.globalAudioManager.playAudio(this.audioId);
+        } else if (this.audioEnabled && this.audioElement) {
+            console.log(`[ACTIVATE] Fallback: Starting audio playback directly`);
             this.audioElement.play().catch(e => console.log('[ACTIVATE] Audio play error:', e));
         }
         
@@ -122,9 +129,12 @@ class ArtworkModule {
             console.log(`[DEACTIVATE] ⚠️ AR controls container not found`);
         }
         
-        // Pause audio
-        if (this.audioElement) {
-            console.log(`[DEACTIVATE] Pausing audio playback`);
+        // Stop audio using global audio manager
+        if (this.globalAudioManager) {
+            console.log(`[DEACTIVATE] Stopping audio via Global Audio Manager`);
+            this.globalAudioManager.stopAudio(this.audioId);
+        } else if (this.audioElement) {
+            console.log(`[DEACTIVATE] Fallback: Pausing audio playback directly`);
             this.audioElement.pause();
         }
         
@@ -192,10 +202,18 @@ class ArtworkModule {
         if (audioButton) {
             if (this.audioEnabled) {
                 audioButton.innerHTML = '<i class="bi bi-volume-up-fill"></i>';
-                this.audioElement.play().catch(e => console.log('Error playing audio:', e));
+                if (this.globalAudioManager) {
+                    this.globalAudioManager.playAudio(this.audioId);
+                } else {
+                    this.audioElement.play().catch(e => console.log('Error playing audio:', e));
+                }
             } else {
                 audioButton.innerHTML = '<i class="bi bi-volume-mute-fill"></i>';
-                this.audioElement.pause();
+                if (this.globalAudioManager) {
+                    this.globalAudioManager.stopAudio(this.audioId);
+                } else {
+                    this.audioElement.pause();
+                }
             }
         }
     }
@@ -210,6 +228,11 @@ class ArtworkModule {
         this.audioElement.src = audioFile;
         this.audioElement.loop = true;
         
+        // Register with global audio manager
+        if (this.globalAudioManager) {
+            this.globalAudioManager.registerAudio(this.audioId, this.audioElement, 'element');
+        }
+        
         // Set up Web Audio API for analysis
         try {
             this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
@@ -221,6 +244,11 @@ class ArtworkModule {
             
             this.audioSource.connect(this.audioAnalyser);
             this.audioAnalyser.connect(this.audioContext.destination);
+            
+            // Register audio context with global manager
+            if (this.globalAudioManager) {
+                this.globalAudioManager.registerAudio(this.audioId + '_context', this.audioContext, 'context');
+            }
         } catch (e) {
             console.error('Web Audio API is not supported in this browser', e);
         }
