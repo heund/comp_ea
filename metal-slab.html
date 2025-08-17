@@ -1341,10 +1341,41 @@
             }
         }
         
+        // iOS Web Audio API unlock function
+        function unlockAudioContext(audioCtx) {
+            if (audioCtx.state !== 'suspended') return;
+            
+            const events = ['touchstart', 'touchend', 'mousedown', 'keydown', 'click'];
+            const unlock = function() {
+                audioCtx.resume().then(() => {
+                    console.log('Audio context unlocked for iOS');
+                    // Start oscillators after unlock
+                    if (synthOscillator && synthOscillator.start) {
+                        try {
+                            synthOscillator.start();
+                            synthOsc2.start();
+                            synthOsc3.start();
+                            synthLFO.start();
+                            console.log('Synth oscillators started after iOS unlock');
+                        } catch (e) {
+                            console.log('Oscillators already started');
+                        }
+                    }
+                });
+                // Remove event listeners after first unlock
+                events.forEach(event => document.body.removeEventListener(event, unlock));
+            };
+            
+            events.forEach(event => document.body.addEventListener(event, unlock, false));
+        }
+
         // Initialize Web Audio API Synth with continuous tone
         function initializeSynth() {
             try {
                 audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                
+                // iOS compatibility: unlock audio context on user gesture
+                unlockAudioContext(audioContext);
                 
                 // Ensure audio context is running (required for GitHub Pages/HTTPS)
                 if (audioContext.state === 'suspended') {
@@ -1456,31 +1487,21 @@
                 synthLFO.connect(synthLFOGain);
                 synthLFOGain.connect(synthFilter.frequency);
                 
-                // Start oscillators with a small delay to ensure audio context is ready
-                setTimeout(() => {
-                    if (audioContext.state === 'running') {
+                // For iOS: Don't start oscillators immediately, wait for user gesture
+                // The unlockAudioContext function will start them after user interaction
+                if (audioContext.state === 'running') {
+                    // Desktop browsers - start immediately
+                    setTimeout(() => {
                         synthOscillator.start();
                         synthOsc2.start();
                         synthOsc3.start();
                         synthLFO.start();
-                        
-                        synthIsPlaying = true;
-                        console.log('Continuous synth initialized and playing');
-                        console.log('Audio context state:', audioContext.state);
-                    } else {
-                        console.log('Audio context not running, state:', audioContext.state);
-                        // Try to resume the context
-                        audioContext.resume().then(() => {
-                            synthOscillator.start();
-                            synthOsc2.start();
-                            synthOsc3.start();
-                            synthLFO.start();
-                            
-                            synthIsPlaying = true;
-                            console.log('Audio context resumed, synth started');
-                        });
-                    }
-                }, 100);
+                        console.log('Synth oscillators started (desktop)');
+                    }, 100);
+                } else {
+                    // iOS/Mobile - oscillators will start in unlockAudioContext
+                    console.log('Waiting for user gesture to start oscillators (iOS)');
+                }
                 
                 // Store additional oscillators and FX nodes for parameter updates
                 window.synthOsc2 = synthOsc2;
@@ -3145,8 +3166,8 @@
             top: -9999px !important;
         }
         
-        /* Hide any Bootstrap icons that might appear */
-        .bi-arrow-left, .bi-arrow-right {
+        /* Hide only navigation arrows, not the next button arrow */
+        .nav-button .bi-arrow-left {
             display: none !important;
             visibility: hidden !important;
         }
