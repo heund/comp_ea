@@ -1221,7 +1221,7 @@
         function initializeAudio() {
             // Initialize background music
             backgroundMusic = new Audio('https://heund.github.io/comp_ea/shared/sounds/INTRO_APPBG.wav');
-            backgroundMusic.volume = 0.15; // Set volume to 15% for ambient background
+            backgroundMusic.volume = 0.18; // Set volume to 18% for ambient background
             backgroundMusic.loop = true; // Enable looping
             backgroundMusic.preload = 'auto';
             
@@ -1398,17 +1398,6 @@
                 synthFilter.Q.setValueAtTime(3, audioContext.currentTime);
                 
                 // Configure LFO for subtle modulation
-                synthLFO.type = 'sine';
-                synthLFO.frequency.setValueAtTime(0.5, audioContext.currentTime);
-                synthLFOGain.gain.setValueAtTime(20, audioContext.currentTime);
-                
-                // Configure gains for continuous play
-                synthGain.gain.setValueAtTime(0.04, audioContext.currentTime); // Low volume for continuous play
-                synthGain2.gain.setValueAtTime(0.03, audioContext.currentTime);
-                synthGain3.gain.setValueAtTime(0.025, audioContext.currentTime);
-                
-                // Connect audio graph
-                synthOscillator.connect(synthGain);
                 synthOsc2.connect(synthGain2);
                 synthOsc3.connect(synthGain3);
                 
@@ -3164,18 +3153,18 @@
         function updateMasterVolume() {
             // Update background music volume
             if (backgroundMusic) {
-                backgroundMusic.volume = masterVolume * 0.15; // 15% of master volume
+                backgroundMusic.volume = masterVolume * 0.18; // 18% of master volume
             }
             
             // Update synth volume
             if (synthGain) {
-                synthGain.gain.setValueAtTime(0.04 * masterVolume, audioContext.currentTime);
+                synthGain.gain.setValueAtTime(0.032 * masterVolume, audioContext.currentTime);
             }
             if (window.synthGain2) {
-                window.synthGain2.gain.setValueAtTime(0.03 * masterVolume, audioContext.currentTime);
+                window.synthGain2.gain.setValueAtTime(0.024 * masterVolume, audioContext.currentTime);
             }
             if (window.synthGain3) {
-                window.synthGain3.gain.setValueAtTime(0.025 * masterVolume, audioContext.currentTime);
+                window.synthGain3.gain.setValueAtTime(0.02 * masterVolume, audioContext.currentTime);
             }
         }
 
