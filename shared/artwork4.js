@@ -570,6 +570,14 @@ if (typeof window.Artwork4 === 'undefined') {
             
             console.log('[ARTWORK4] 🛑 Starting deactivation');
             
+            // Hide data overlay and stop data cycling BEFORE calling super.deactivate()
+            if (this.overlayVisible) {
+                this.hideDataOverlay();
+            }
+            
+            // Ensure data cycling is stopped
+            this.stopDataCycling();
+            
             super.deactivate();
             
             // Stop Three.js animation

@@ -974,6 +974,9 @@ if (typeof window.Artwork5 === 'undefined') {
                 this.hideDataOverlay();
             }
             
+            // Ensure data cycling is stopped
+            this.stopDataCycling();
+            
             super.deactivate();
             
             // Stop Three.js animation

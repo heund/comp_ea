@@ -457,6 +457,9 @@ if (typeof window.Artwork2 === 'undefined') {
                 this.hideDataOverlay();
             }
             
+            // Ensure data cycling is stopped
+            this.stopDataCycling();
+            
             // Stop animation loop
             if (this.animationFrameId) {
                 cancelAnimationFrame(this.animationFrameId);

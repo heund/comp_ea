@@ -38,7 +38,7 @@
             border: none;
             width: 100%;
             font-family: 'Inter', 'Helvetica Neue', Arial, sans-serif;
-            background: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 50%, #16213e 100%);
+            background: #0a0a0a;
             background-attachment: fixed;
             color: white;
             /* iOS touch and interaction fixes */
@@ -56,6 +56,7 @@
             border: none;
             width: 100%;
             height: 100%;
+            background: #0a0a0a;
             overflow: visible; /* Allow navigation buttons to be visible */
         }
         
@@ -80,7 +81,7 @@
             width: 100vw;
             height: 100vh;
             z-index: 10; /* Ensure canvas stays above data panel during transitions */
-            background: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 50%, #16213e 100%); /* Ensure dark background */
+            background: #0a0a0a; /* Ensure dark background */
             transition: transform 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94);
             overflow: hidden;
         }
@@ -97,7 +98,7 @@
             width: 160px;
             height: 100vh;
             min-height: 100vh; /* Ensure full viewport height */
-            background: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 50%, #16213e 100%) !important;
+            background: #0a0a0a !important;
             z-index: 1; /* Ensure it's above the background but below canvas */
             padding: 30px 20px;
             box-sizing: border-box;
@@ -124,7 +125,7 @@
         /* Landscape mode layout for iPads and tablets */
         @media screen and (orientation: landscape) and (min-width: 768px) and (max-width: 1366px) {
             html, body {
-                background: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 50%, #16213e 100%) !important;
+                background: #0a0a0a !important;
                 overflow-x: hidden !important; /* Prevent horizontal scroll that might show white */
             }
             
@@ -151,13 +152,13 @@
                 right: -2px;
                 bottom: -2px;
                 left: -2px;
-                background: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 50%, #16213e 100%);
+                background: #0a0a0a;
                 z-index: -1;
             }
             
             /* Force canvas container to have dark background in landscape */
             .canvas-container {
-                background: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 50%, #16213e 100%) !important;
+                background: #0a0a0a !important;
                 overflow: hidden !important;
             }
             
@@ -849,11 +850,135 @@
             text-transform: uppercase;
             z-index: 1000;
         }
+        
+        /* Responsive Navigation - Portrait Mode */
+        @media screen and (orientation: portrait) {
+            /* Move control tabs from right side to bottom in portrait mode */
+            .control-tab {
+                top: auto !important;
+                bottom: calc(env(safe-area-inset-bottom) + 0.5px) !important;
+                right: 50% !important;
+                left: auto !important;
+                transform: translateX(50%) translateX(-60px) !important; /* Position CONT on the left (60px left of center) */
+                width: 120px !important;
+                height: 50px !important;
+                border-radius: 20px 20px 0 0 !important;
+                border-bottom: none !important;
+                border-top: 1px solid var(--glass-border) !important;
+                flex-direction: row !important;
+            }
+            
+            .rolling-tab {
+                top: auto !important;
+                bottom: calc(env(safe-area-inset-bottom) + 0.5px) !important;
+                right: 50% !important;
+                left: auto !important;
+                transform: translateX(50%) translateX(60px) !important; /* Position ROLLING on the right (60px right of center) */
+                width: 120px !important;
+                height: 50px !important;
+                border-radius: 20px 20px 0 0 !important;
+                border-bottom: none !important;
+                border-top: 1px solid var(--glass-border) !important;
+                border-right: 1px solid var(--glass-border) !important;
+                flex-direction: row !important;
+            }
+            
+            /* Adjust tab icons for horizontal layout */
+            .control-tab .tab-icon,
+            .rolling-tab .tab-icon {
+                writing-mode: horizontal-tb !important;
+                text-orientation: mixed !important;
+                margin-right: 8px !important;
+                margin-bottom: 0 !important;
+            }
+            
+            /* Adjust arrows for bottom positioning */
+            .control-tab .tab-arrow,
+            .rolling-tab .tab-arrow {
+                border-top: 8px solid var(--glass-white) !important;
+                border-left: 5px solid transparent !important;
+                border-right: 5px solid transparent !important;
+                border-bottom: 0 !important;
+                margin-top: 0 !important;
+                margin-left: 0 !important;
+            }
+            
+            /* Expanded states for portrait mode */
+            .control-tab.expanded {
+                transform: translateX(50%) translateX(-60px) translateY(-320px) !important;
+            }
+            
+            .rolling-tab.expanded {
+                transform: translateX(50%) translateX(60px) translateY(-320px) !important;
+            }
+            
+            /* Rotate arrows when expanded in portrait mode */
+            .control-tab.expanded .tab-arrow,
+            .rolling-tab.expanded .tab-arrow {
+                transform: rotate(180deg) !important;
+                border-top-color: rgba(255, 255, 255, 0.8) !important;
+            }
+            
+            /* Adjust panels for portrait mode */
+            .control-panel,
+            .rolling-panel {
+                top: auto !important;
+                bottom: 0 !important;
+                right: 50% !important;
+                left: auto !important;
+                transform: translateX(50%) translateY(100%) !important;
+                width: 90vw !important;
+                max-width: 400px !important;
+                height: 320px !important;
+                max-height: none !important;
+                border-radius: 20px 20px 0 0 !important;
+                border-bottom: none !important;
+            }
+            
+            .control-panel.expanded,
+            .rolling-panel.expanded {
+                transform: translateX(50%) translateY(0) !important;
+            }
+        }
+        
+        /* Next Button (top right) - matching home button positioning */
+        .next-button {
+            position: fixed;
+            top: calc(env(safe-area-inset-top) + 16px);
+            right: 16px;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            z-index: 9999 !important;
+            text-decoration: none;
+            opacity: 1 !important;
+            visibility: visible !important;
+            background: none;
+            border: none;
+        }
+
+        .next-button:hover {
+            transform: scale(1.05);
+        }
+
+        .next-button i {
+            font-size: 24px;
+            color: #ffffff;
+        }
     </style>
 </head>
 <body>
     <div class="page-title">S49-YLD-HK250801</div>
     <div class="page-subtitle">SOL.YLD.YK.01</div>
+    
+    <!-- Next/Nav Button (top right) -->
+    <button class="next-button" id="nextButton">
+        <i class="bi bi-arrow-right"></i>
+    </button>
     
     <!-- 3D Canvas -->
     <div class="canvas-container">
@@ -2897,7 +3022,7 @@
             left: 0;
             width: 100%;
             height: 100%;
-            background: #000000;
+            background: #0a0a0a;
             z-index: -2;
             opacity: 1;
         }
