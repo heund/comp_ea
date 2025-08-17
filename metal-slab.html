@@ -1348,12 +1348,37 @@
                 console.log('Initializing synth after user interaction');
                 initializeSynth();
             } else if (audioContext.state === 'suspended') {
-                console.log('Resuming suspended audio context on iOS');
+                console.log('Resuming suspended audio context');
                 audioContext.resume().then(() => {
                     console.log('Audio context resumed successfully');
-                }).catch(err => {
-                    console.error('Failed to resume audio context:', err);
+                    // Start oscillators if they haven't been started yet
+                    if (synthOscillator && !synthIsPlaying) {
+                        try {
+                            synthOscillator.start();
+                            window.synthOsc2.start();
+                            window.synthOsc3.start();
+                            synthLFO.start();
+                            synthIsPlaying = true;
+                            console.log('Synth oscillators started after resume');
+                        } catch (e) {
+                            console.log('Oscillators already started or error:', e);
+                        }
+                    }
                 });
+            } else if (audioContext.state === 'running' && !synthIsPlaying) {
+                // Context is running but oscillators not started (iOS case)
+                if (synthOscillator) {
+                    try {
+                        synthOscillator.start();
+                        window.synthOsc2.start();
+                        window.synthOsc3.start();
+                        synthLFO.start();
+                        synthIsPlaying = true;
+                        console.log('Synth oscillators started on running context');
+                    } catch (e) {
+                        console.log('Oscillators already started or error:', e);
+                    }
+                }
             }
         }
 
