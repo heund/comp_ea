@@ -896,7 +896,7 @@ if (typeof window.Artwork1 === 'undefined') {
             
             // Create audio element for artwork1.wav
             this.artworkAudio = new Audio();
-            this.artworkAudio.src = 'shared/sounds/artwork1.wav';
+            this.artworkAudio.src = 'https://heund.github.io/comp_ea/shared/sounds/artwork1.wav';
             this.artworkAudio.loop = false;
             this.artworkAudio.volume = 0.7;
             
@@ -913,42 +913,41 @@ if (typeof window.Artwork1 === 'undefined') {
                 this.stopArtworkAudio();
             });
             
-            // Set up audio button event listener
-            this.setupAudioButton();
+            // Audio button will be set up in setupControlButtons()
             
             console.log('[ARTWORK1] Artwork audio initialized');
         }
 
         /**
-         * Override base class setupControlButtons to prevent conflicts
+         * Override base class setupControlButtons to use artwork1 audio
          */
         setupControlButtons() {
-            console.log('[ARTWORK1] Overriding setupControlButtons to use custom audio handling');
-            // Don't call super.setupControlButtons() to avoid base module audio conflicts
-            this.setupAudioButton();
-        }
-
-        /**
-         * Set up the main audio button to play artwork1.wav
-         */
-        setupAudioButton() {
-            const audioButton = document.getElementById('audioToggleButton');
+            console.log('[ARTWORK1] Setting up control buttons with custom audio handling');
+            
+            // Set up audio button (AR controls button, not main synth button)
+            const audioButton = document.getElementById('audioBtn');
             if (audioButton) {
-                console.log('[ARTWORK1] Setting up audio button for artwork1.wav');
-                
-                // Remove existing event listeners to avoid conflicts
-                const newButton = audioButton.cloneNode(true);
-                audioButton.parentNode.replaceChild(newButton, audioButton);
-                
-                // Add new event listener for artwork1 audio
-                newButton.addEventListener('click', (e) => {
-                    e.stopPropagation();
+                console.log('[ARTWORK1] Found AR audio button, setting up artwork1 audio');
+                audioButton.addEventListener('click', () => {
                     this.toggleArtworkAudio();
                 });
-                
-                console.log('[ARTWORK1] Audio button setup complete');
             } else {
-                console.warn('[ARTWORK1] Audio toggle button not found');
+                console.warn('[ARTWORK1] AR audio button (audioBtn) not found');
+            }
+            
+            // Set up other control buttons normally
+            const dataButton = document.getElementById('dataBtn');
+            if (dataButton) {
+                dataButton.addEventListener('click', () => {
+                    this.showData();
+                });
+            }
+            
+            const closeOverlayButton = document.getElementById('overlayClose');
+            if (closeOverlayButton) {
+                closeOverlayButton.addEventListener('click', () => {
+                    this.hideDataOverlay();
+                });
             }
         }
 
@@ -956,14 +955,18 @@ if (typeof window.Artwork1 === 'undefined') {
          * Toggle artwork audio playback
          */
         toggleArtworkAudio() {
+            console.log('[ARTWORK1] toggleArtworkAudio called, isAudioPlaying:', this.isAudioPlaying);
+            
             if (!this.artworkAudio) {
                 console.warn('[ARTWORK1] Artwork audio not initialized');
                 return;
             }
 
             if (this.isAudioPlaying) {
+                console.log('[ARTWORK1] Stopping audio...');
                 this.stopArtworkAudio();
             } else {
+                console.log('[ARTWORK1] Starting audio...');
                 this.playArtworkAudio();
             }
         }
@@ -972,17 +975,19 @@ if (typeof window.Artwork1 === 'undefined') {
          * Play artwork audio and show progress bar
          */
         playArtworkAudio() {
-            if (!this.artworkAudio) return;
+            if (!this.artworkAudio) {
+                console.error('[ARTWORK1] No artwork audio element found');
+                return;
+            }
 
+            console.log('[ARTWORK1] Attempting to play audio...');
             this.artworkAudio.play().then(() => {
                 this.isAudioPlaying = true;
                 console.log('[ARTWORK1] Artwork audio started successfully');
                 
-                // Show progress bar
-                const progressBar = document.getElementById('artwork1AudioProgress');
-                if (progressBar) {
-                    progressBar.classList.add('visible');
-                }
+                // Show progress bar and update button
+                this.showAudioProgress();
+                this.updateAudioButton();
             }).catch(error => {
                 console.error('[ARTWORK1] Error playing artwork audio:', error);
             });
@@ -998,11 +1003,9 @@ if (typeof window.Artwork1 === 'undefined') {
             this.artworkAudio.currentTime = 0;
             this.isAudioPlaying = false;
             
-            // Hide progress bar
-            const progressBar = document.getElementById('artwork1AudioProgress');
-            if (progressBar) {
-                progressBar.classList.remove('visible');
-            }
+            // Hide progress bar and update button
+            this.hideAudioProgress();
+            this.updateAudioButton();
             
             console.log('[ARTWORK1] Artwork audio stopped');
         }
@@ -1043,6 +1046,46 @@ if (typeof window.Artwork1 === 'undefined') {
             const minutes = Math.floor(seconds / 60);
             const secs = Math.floor(seconds % 60);
             return `${minutes}:${secs.toString().padStart(2, '0')}`;
+        }
+
+        /**
+         * Show audio progress bar
+         */
+        showAudioProgress() {
+            const progressBar = document.getElementById('artwork1AudioProgress');
+            if (progressBar) {
+                progressBar.classList.add('visible');
+                console.log('[ARTWORK1] Audio progress bar shown');
+            }
+        }
+
+        /**
+         * Hide audio progress bar
+         */
+        hideAudioProgress() {
+            const progressBar = document.getElementById('artwork1AudioProgress');
+            if (progressBar) {
+                progressBar.classList.remove('visible');
+                console.log('[ARTWORK1] Audio progress bar hidden');
+            }
+        }
+
+        /**
+         * Update audio button appearance
+         */
+        updateAudioButton() {
+            const audioBtn = document.getElementById('audioBtn');
+            if (audioBtn) {
+                const icon = audioBtn.querySelector('i');
+                if (this.isAudioPlaying) {
+                    icon.className = 'bi bi-pause-fill';
+                    audioBtn.classList.add('active');
+                } else {
+                    icon.className = 'bi bi-volume-up-fill';
+                    audioBtn.classList.remove('active');
+                }
+                console.log('[ARTWORK1] Audio button updated, playing:', this.isAudioPlaying);
+            }
         }
 
         /**

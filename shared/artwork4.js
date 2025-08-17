@@ -97,6 +97,11 @@ if (typeof window.Artwork4 === 'undefined') {
             // Animation properties
             this.animationFrame = null;
             this.time = 0;
+            
+            // Audio for this artwork
+            this.artworkAudio = null;
+            this.isAudioPlaying = false;
+            this.audioProgressInterval = null;
         }
         
         /**
@@ -120,6 +125,12 @@ if (typeof window.Artwork4 === 'undefined') {
             
             // Setup event listeners
             this.setupEventListeners();
+            
+            // Initialize artwork audio
+            this.initializeArtworkAudio();
+            
+            // Create audio progress bar
+            this.createAudioProgressBar();
             
             // Apply dynamic camera positioning - positioned to face Voronoi shape directly
             const canvas = document.getElementById('visualizationCanvas');
@@ -623,10 +634,301 @@ if (typeof window.Artwork4 === 'undefined') {
                 });
             }
             
+            // Clean up audio
+            if (this.artworkAudio) {
+                this.artworkAudio.pause();
+                this.artworkAudio = null;
+            }
+            
+            if (this.audioProgressInterval) {
+                clearInterval(this.audioProgressInterval);
+                this.audioProgressInterval = null;
+            }
+            
+            // Remove audio progress bar
+            const progressBar = document.getElementById('artwork4AudioProgress');
+            if (progressBar) {
+                progressBar.remove();
+            }
+            
             this.voronoiShapes = [];
             this.dataPoints = [];
             
             console.log(`[CLEANUP] ✅ ${this.title} module cleanup complete`);
+        }
+
+        /**
+         * Override base class setupControlButtons to use artwork4 audio
+         */
+        setupControlButtons() {
+            console.log('[ARTWORK4] Setting up control buttons with custom audio handling');
+            
+            // Set up audio button (AR controls button, not main synth button)
+            const audioButton = document.getElementById('audioBtn');
+            if (audioButton) {
+                console.log('[ARTWORK4] Found AR audio button, setting up artwork4 audio');
+                audioButton.addEventListener('click', () => {
+                    this.toggleArtworkAudio();
+                });
+            } else {
+                console.warn('[ARTWORK4] AR audio button (audioBtn) not found');
+            }
+            
+            // Set up other control buttons normally
+            const dataButton = document.getElementById('dataBtn');
+            if (dataButton) {
+                dataButton.addEventListener('click', () => {
+                    this.showData();
+                });
+            }
+            
+            const closeOverlayButton = document.getElementById('overlayClose');
+            if (closeOverlayButton) {
+                closeOverlayButton.addEventListener('click', () => {
+                    this.hideDataOverlay();
+                });
+            }
+        }
+
+        /**
+         * Initialize artwork audio
+         */
+        initializeArtworkAudio() {
+            console.log('[ARTWORK4] Initializing artwork audio');
+            
+            this.artworkAudio = new Audio('https://heund.github.io/comp_ea/shared/sounds/artwork4.wav');
+            this.artworkAudio.preload = 'auto';
+            this.artworkAudio.loop = false;
+
+            this.artworkAudio.addEventListener('loadedmetadata', () => {
+                console.log('[ARTWORK4] Audio metadata loaded, duration:', this.artworkAudio.duration);
+            });
+
+            this.artworkAudio.addEventListener('timeupdate', () => {
+                this.updateAudioProgress();
+            });
+
+            this.artworkAudio.addEventListener('ended', () => {
+                this.stopArtworkAudio();
+            });
+            
+            console.log('[ARTWORK4] Artwork audio initialized');
+        }
+
+        /**
+         * Toggle artwork audio playback
+         */
+        toggleArtworkAudio() {
+            console.log('[ARTWORK4] toggleArtworkAudio called, isAudioPlaying:', this.isAudioPlaying);
+            
+            if (!this.artworkAudio) {
+                console.error('[ARTWORK4] No artwork audio element found');
+                return;
+            }
+
+            if (this.isAudioPlaying) {
+                this.stopArtworkAudio();
+            } else {
+                this.playArtworkAudio();
+            }
+        }
+
+        /**
+         * Play artwork audio and show progress bar
+         */
+        playArtworkAudio() {
+            if (!this.artworkAudio) {
+                console.error('[ARTWORK4] No artwork audio element found');
+                return;
+            }
+
+            console.log('[ARTWORK4] Attempting to play audio...');
+            this.artworkAudio.play().then(() => {
+                this.isAudioPlaying = true;
+                console.log('[ARTWORK4] Artwork audio started successfully');
+                
+                // Show progress bar and update button
+                this.showAudioProgress();
+                this.updateAudioButton();
+            }).catch(error => {
+                console.error('[ARTWORK4] Error playing artwork audio:', error);
+            });
+        }
+
+        /**
+         * Stop artwork audio and hide progress bar
+         */
+        stopArtworkAudio() {
+            if (!this.artworkAudio) return;
+
+            this.artworkAudio.pause();
+            this.artworkAudio.currentTime = 0;
+            this.isAudioPlaying = false;
+            
+            // Hide progress bar and update button
+            this.hideAudioProgress();
+            this.updateAudioButton();
+            
+            console.log('[ARTWORK4] Artwork audio stopped');
+        }
+
+        /**
+         * Update audio progress bar
+         */
+        updateAudioProgress() {
+            if (!this.artworkAudio) return;
+
+            const progressFill = document.getElementById('artwork4ProgressFill');
+            const timeDisplay = document.getElementById('artwork4AudioTime');
+            
+            if (progressFill && this.artworkAudio.duration) {
+                const progress = (this.artworkAudio.currentTime / this.artworkAudio.duration) * 100;
+                progressFill.style.width = `${progress}%`;
+            }
+            
+            if (timeDisplay) {
+                const currentTime = this.formatTime(this.artworkAudio.currentTime || 0);
+                const duration = this.formatTime(this.artworkAudio.duration || 0);
+                timeDisplay.textContent = `${currentTime} / ${duration}`;
+            }
+        }
+
+        /**
+         * Format time in MM:SS format
+         */
+        formatTime(seconds) {
+            if (isNaN(seconds)) return '0:00';
+            const minutes = Math.floor(seconds / 60);
+            const secs = Math.floor(seconds % 60);
+            return `${minutes}:${secs.toString().padStart(2, '0')}`;
+        }
+
+        /**
+         * Show audio progress bar
+         */
+        showAudioProgress() {
+            const progressBar = document.getElementById('artwork4AudioProgress');
+            if (progressBar) {
+                progressBar.classList.add('visible');
+                console.log('[ARTWORK4] Audio progress bar shown');
+            }
+        }
+
+        /**
+         * Hide audio progress bar
+         */
+        hideAudioProgress() {
+            const progressBar = document.getElementById('artwork4AudioProgress');
+            if (progressBar) {
+                progressBar.classList.remove('visible');
+                console.log('[ARTWORK4] Audio progress bar hidden');
+            }
+        }
+
+        /**
+         * Update audio button appearance
+         */
+        updateAudioButton() {
+            const audioBtn = document.getElementById('audioBtn');
+            if (audioBtn) {
+                const icon = audioBtn.querySelector('i');
+                if (this.isAudioPlaying) {
+                    icon.className = 'bi bi-pause-fill';
+                    audioBtn.classList.add('active');
+                } else {
+                    icon.className = 'bi bi-volume-up-fill';
+                    audioBtn.classList.remove('active');
+                }
+                console.log('[ARTWORK4] Audio button updated, playing:', this.isAudioPlaying);
+            }
+        }
+
+        /**
+         * Create audio progress bar HTML and CSS
+         */
+        createAudioProgressBar() {
+            console.log('[ARTWORK4] Creating audio progress bar');
+            
+            // Create CSS styles
+            const style = document.createElement('style');
+            style.textContent = `
+                /* Audio Progress Bar for Artwork4 */
+                .artwork4-audio-progress-container {
+                    position: fixed;
+                    bottom: 20px;
+                    left: 50%;
+                    transform: translateX(-50%);
+                    width: 300px;
+                    background: rgba(255, 255, 255, 0.1);
+                    backdrop-filter: blur(20px);
+                    border: 1px solid rgba(255, 255, 255, 0.2);
+                    border-radius: 12px;
+                    padding: 12px 16px;
+                    z-index: 1003;
+                    opacity: 0;
+                    visibility: hidden;
+                    transition: all 0.3s ease;
+                    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+                }
+                
+                .artwork4-audio-progress-container.visible {
+                    opacity: 1;
+                    visibility: visible;
+                }
+                
+                .artwork4-audio-info {
+                    display: flex;
+                    align-items: center;
+                    justify-content: space-between;
+                    margin-bottom: 8px;
+                }
+                
+                .artwork4-audio-title {
+                    font-size: 12px;
+                    color: #ffffff;
+                    font-weight: 500;
+                }
+                
+                .artwork4-audio-time {
+                    font-size: 11px;
+                    color: #ffffff;
+                    font-family: 'Inter', sans-serif;
+                }
+                
+                .artwork4-progress-bar {
+                    width: 100%;
+                    height: 4px;
+                    background: rgba(0, 0, 0, 0.3);
+                    border-radius: 2px;
+                    overflow: hidden;
+                }
+                
+                .artwork4-progress-fill {
+                    height: 100%;
+                    background: #ffffff;
+                    border-radius: 2px;
+                    width: 0%;
+                    transition: width 0.1s ease;
+                }
+            `;
+            document.head.appendChild(style);
+            
+            // Create HTML structure
+            const progressContainer = document.createElement('div');
+            progressContainer.className = 'artwork4-audio-progress-container';
+            progressContainer.id = 'artwork4AudioProgress';
+            progressContainer.innerHTML = `
+                <div class="artwork4-audio-info">
+                    <div class="artwork4-audio-title">열간 압연 데이터 04: 응력 누적 분포</div>
+                    <div class="artwork4-audio-time" id="artwork4AudioTime">0:00 / 0:00</div>
+                </div>
+                <div class="artwork4-progress-bar">
+                    <div class="artwork4-progress-fill" id="artwork4ProgressFill"></div>
+                </div>
+            `;
+            
+            document.body.appendChild(progressContainer);
+            console.log('[ARTWORK4] Audio progress bar created');
         }
     }
     
