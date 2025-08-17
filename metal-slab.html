@@ -1027,6 +1027,16 @@
         <span class="next-button-text">데이터 시각화 AR 체험</span>
         <i class="bi bi-arrow-right"></i>
     </button>
+
+    <!-- Audio Toggle Button -->
+    <button class="audio-toggle-button" id="audioToggleButton">
+        <i class="bi bi-volume-up" id="audioIcon"></i>
+    </button>
+
+    <!-- Volume Slider Container -->
+    <div class="volume-slider-container" id="volumeSliderContainer">
+        <input type="range" class="volume-slider" id="volumeSlider" min="0" max="100" value="50" orient="vertical">
+    </div>
     
     <!-- 3D Canvas -->
     <div class="canvas-container">
@@ -1523,11 +1533,14 @@
                 if (audioContext.state === 'running') {
                     // Desktop browsers - start immediately
                     setTimeout(() => {
-                        synthOscillator.start();
-                        synthOsc2.start();
-                        synthOsc3.start();
-                        synthLFO.start();
-                        console.log('Synth oscillators started (desktop)');
+                        if (!synthIsPlaying) {
+                            synthOscillator.start();
+                            synthOsc2.start();
+                            synthOsc3.start();
+                            synthLFO.start();
+                            synthIsPlaying = true;
+                            console.log('Synth oscillators started (desktop)');
+                        }
                     }, 100);
                 } else {
                     // iOS/Mobile - oscillators will start in unlockAudioContext
@@ -2196,6 +2209,16 @@
             const canvas = document.getElementById('metalSlabCanvas');
             
             canvas.addEventListener('mousedown', (event) => {
+                // Check if click is on audio button area - exclude from canvas interaction
+                const audioButton = document.getElementById('audioToggleButton');
+                if (audioButton) {
+                    const rect = audioButton.getBoundingClientRect();
+                    if (event.clientX >= rect.left && event.clientX <= rect.right &&
+                        event.clientY >= rect.top && event.clientY <= rect.bottom) {
+                        return; // Don't handle canvas interaction if clicking on audio button
+                    }
+                }
+                
                 isMouseDown = true;
                 mouseX = event.clientX;
                 mouseY = event.clientY;
@@ -2233,16 +2256,28 @@
             let lastTouchDistance = 0;
             
             canvas.addEventListener('touchstart', (event) => {
+                // Check if touch is on audio button area - exclude from canvas interaction
+                if (event.touches.length === 1) {
+                    const touch = event.touches[0];
+                    const audioButton = document.getElementById('audioToggleButton');
+                    if (audioButton) {
+                        const rect = audioButton.getBoundingClientRect();
+                        if (touch.clientX >= rect.left && touch.clientX <= rect.right &&
+                            touch.clientY >= rect.top && touch.clientY <= rect.bottom) {
+                            return; // Don't handle canvas interaction if touching audio button
+                        }
+                    }
+                }
+                
                 if (event.touches.length === 2) {
                     // Two finger touch for zoom
                     const touch1 = event.touches[0];
                     const touch2 = event.touches[1];
                     initialTouchDistance = Math.sqrt(
-                        Math.pow(touch2.clientX - touch1.clientX, 2) + 
+                        Math.pow(touch2.clientX - touch1.clientX, 2) +
                         Math.pow(touch2.clientY - touch1.clientY, 2)
                     );
                     lastTouchDistance = initialTouchDistance;
-                    event.preventDefault();
                 }
             });
             
@@ -3083,6 +3118,128 @@
             fraValue.textContent = parameters.fra.toFixed(2);
         }
 
+        // Audio Toggle and Volume Control
+        let isAudioMuted = false;
+        let masterVolume = 0.5;
+        let volumeSliderExpanded = false;
+
+        function initializeAudioControls() {
+            console.log('=== AUDIO CONTROLS INITIALIZATION START ===');
+            
+            const audioToggleButton = document.getElementById('audioToggleButton');
+            const volumeSliderContainer = document.getElementById('volumeSliderContainer');
+            const volumeSlider = document.getElementById('volumeSlider');
+            const audioIcon = document.getElementById('audioIcon');
+
+            console.log('Elements found:', {
+                audioToggleButton: !!audioToggleButton,
+                volumeSliderContainer: !!volumeSliderContainer,
+                volumeSlider: !!volumeSlider,
+                audioIcon: !!audioIcon
+            });
+
+            if (!audioToggleButton) {
+                console.error('CRITICAL: audioToggleButton not found in DOM!');
+                return;
+            }
+
+            console.log('Audio button element:', audioToggleButton);
+            console.log('Audio button position:', audioToggleButton.getBoundingClientRect());
+            
+            // Test if button is actually visible and clickable
+            const rect = audioToggleButton.getBoundingClientRect();
+            const elementAtPoint = document.elementFromPoint(rect.left + rect.width/2, rect.top + rect.height/2);
+            console.log('Element at button center point:', elementAtPoint);
+            console.log('Is button the top element?', elementAtPoint === audioToggleButton);
+            
+            if (elementAtPoint !== audioToggleButton) {
+                console.error('BLOCKING ELEMENT FOUND:', elementAtPoint);
+                console.error('Button is being blocked by:', elementAtPoint.tagName, elementAtPoint.className, elementAtPoint.id);
+            }
+
+            // Audio toggle button click
+            audioToggleButton.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                console.log('Audio toggle button clicked');
+                
+                playClickSound();
+                ensureSynthStarted();
+                
+                // Toggle volume slider visibility
+                volumeSliderExpanded = !volumeSliderExpanded;
+                if (volumeSliderExpanded) {
+                    volumeSliderContainer.classList.add('expanded');
+                } else {
+                    volumeSliderContainer.classList.remove('expanded');
+                }
+            });
+
+            // Touch event for mobile
+            audioToggleButton.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                console.log('Audio toggle button touched');
+                
+                playClickSound();
+                ensureSynthStarted();
+                
+                // Toggle volume slider visibility
+                volumeSliderExpanded = !volumeSliderExpanded;
+                if (volumeSliderExpanded) {
+                    volumeSliderContainer.classList.add('expanded');
+                } else {
+                    volumeSliderContainer.classList.remove('expanded');
+                }
+            });
+
+            // Volume slider change (invert for vertical slider - higher position = louder)
+            volumeSlider.addEventListener('input', (e) => {
+                masterVolume = (100 - parseFloat(e.target.value)) / 100;
+                updateMasterVolume();
+                
+                // Update mute state based on volume
+                if (masterVolume === 0) {
+                    isAudioMuted = true;
+                    audioIcon.className = 'bi bi-volume-mute';
+                    audioToggleButton.classList.add('muted');
+                } else {
+                    isAudioMuted = false;
+                    audioIcon.className = 'bi bi-volume-up';
+                    audioToggleButton.classList.remove('muted');
+                }
+            });
+
+            // Click outside to close volume slider
+            document.addEventListener('click', (e) => {
+                console.log('Document click detected:', e.target);
+                if (volumeSliderExpanded && 
+                    !audioToggleButton.contains(e.target) && 
+                    !volumeSliderContainer.contains(e.target)) {
+                    volumeSliderExpanded = false;
+                    volumeSliderContainer.classList.remove('expanded');
+                }
+            });
+        }
+
+        function updateMasterVolume() {
+            // Update background music volume
+            if (backgroundMusic) {
+                backgroundMusic.volume = masterVolume * 0.3; // 30% of master volume
+            }
+            
+            // Update synth volume
+            if (synthGain) {
+                synthGain.gain.setValueAtTime(0.03 * masterVolume, audioContext.currentTime);
+            }
+            if (window.synthGain2) {
+                window.synthGain2.gain.setValueAtTime(0.02 * masterVolume, audioContext.currentTime);
+            }
+            if (window.synthGain3) {
+                window.synthGain3.gain.setValueAtTime(0.015 * masterVolume, audioContext.currentTime);
+            }
+        }
+
         // Initialize everything when the document is ready
         document.addEventListener('DOMContentLoaded', function() {
             console.log('Document ready, initializing 3D scene...');
@@ -3106,6 +3263,7 @@
                 setupRollingParameterControls();
                 setupCircularDial(); // Add circular dial setup
                 setupVerticalSliders(); // Add vertical slider setup
+                initializeAudioControls(); // Initialize audio controls
             }, 100);
         });
         
@@ -3192,6 +3350,116 @@
                 transform: none;
                 transition: none;
             }
+        }
+
+        /* Audio Toggle Button */
+        .audio-toggle-button {
+            position: fixed;
+            bottom: 30px;
+            left: 30px;
+            background: transparent;
+            border: none;
+            width: 40px;
+            height: 40px;
+            color: var(--glass-white);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+            transition: all 0.3s ease;
+            pointer-events: auto;
+        }
+
+        .audio-toggle-button:hover {
+            transform: scale(1.02);
+            transition: all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+        }
+
+        .audio-toggle-button i {
+            font-size: 20px;
+            color: rgba(255, 255, 255, 0.85);
+            transition: all 0.3s ease;
+        }
+
+        .audio-toggle-button.muted i {
+            opacity: 0.5;
+        }
+
+        /* Volume Slider Container */
+        .volume-slider-container {
+            position: fixed;
+            bottom: 75px;
+            left: 50px;
+            background: transparent;
+            border: none;
+            width: 40px;
+            height: 120px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            opacity: 0;
+            transform: translateY(20px);
+            transition: all 0.3s ease;
+            pointer-events: none;
+            /* Center align with 40px button: left: 30px + (40px/2) - (40px/2) = 50px */
+            left: calc(30px + 20px - 20px);
+        }
+
+        .volume-slider-container.expanded {
+            opacity: 1;
+            transform: translateY(0);
+            pointer-events: all;
+        }
+
+        /* Vertical Volume Slider */
+        .volume-slider {
+            writing-mode: bt-lr; /* IE */
+            writing-mode: vertical-lr; /* Standard */
+            -webkit-appearance: slider-vertical;
+            width: 20px;
+            height: 100px;
+            background: transparent;
+            outline: none;
+            cursor: pointer;
+        }
+
+        .volume-slider::-webkit-slider-track {
+            -webkit-appearance: none;
+            appearance: none;
+            background: rgba(255, 255, 255, 0.3);
+            width: 4px;
+            border-radius: 2px;
+        }
+
+        .volume-slider::-moz-range-track {
+            background: rgba(255, 255, 255, 0.3);
+            width: 4px;
+            height: 100px;
+            border-radius: 2px;
+            border: none;
+        }
+
+        .volume-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #F6655D;
+            cursor: pointer;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+        }
+
+        .volume-slider::-moz-range-thumb {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #F6655D;
+            cursor: pointer;
+            border: none;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
         }
         
         /* Hide standard navigation buttons on landing page */
