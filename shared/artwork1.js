@@ -20,9 +20,11 @@ if (typeof window.Artwork1 === 'undefined') {
             // Default title
             this.title = options.title || '열간 압연 데이터 01: 보정 알고리즘 구조';
             
-            // Get global audio manager instance
+            // Get global managers instances
             this.globalAudioManager = window.globalAudioManager || window.GlobalAudioManager?.getInstance();
             this.audioId = 'artwork1';
+            this.globalDataPopupManager = window.globalDataPopupManager || window.GlobalDataPopupManager?.getInstance();
+            this.popupId = 'artwork1';
             
             // Three.js components
             this.scene = null;
@@ -96,8 +98,14 @@ if (typeof window.Artwork1 === 'undefined') {
             console.log('[ARTWORK1] Starting initialization');
             super.initialize();
             
-            // Initialize artwork-specific audio
+            // Initialize artwork audio
             this.initializeArtworkAudio();
+            
+            // Register with global data popup manager
+            if (this.globalDataPopupManager) {
+                this.globalDataPopupManager.registerPopup(this.popupId, this);
+                console.log('[ARTWORK1] Registered with Global Data Popup Manager');
+            }
         
             // Create audio progress bar
             this.createAudioProgressBar();
@@ -825,6 +833,12 @@ if (typeof window.Artwork1 === 'undefined') {
             super.cleanup();
             
             console.log('Cleaning up 연간압연 데이터 01: 보정 알고리즘 구조 module');
+            
+            // Unregister from global data popup manager
+            if (this.globalDataPopupManager) {
+                this.globalDataPopupManager.unregisterPopup(this.popupId);
+                console.log('[ARTWORK1] Unregistered from Global Data Popup Manager');
+            }
             
             // Stop data cycling if active
             this.stopDataCycling();

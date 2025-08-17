@@ -275,6 +275,13 @@ class ARContainerManager {
         try {
             console.log(`[AR-MANAGER] 📞 Calling deactivate() on ${this.activeMarkerId} module`);
             this.activeModule.deactivate();
+            
+            // Also call cleanup to properly unregister from global managers
+            if (typeof this.activeModule.cleanup === 'function') {
+                console.log(`[AR-MANAGER] 🧹 Calling cleanup() on ${this.activeMarkerId} module`);
+                this.activeModule.cleanup();
+            }
+            
             console.log(`[AR-MANAGER] ✅ Module ${this.activeMarkerId} deactivated successfully`);
         } catch (error) {
             console.error(`[AR-MANAGER] ❌ Error deactivating module:`, error);

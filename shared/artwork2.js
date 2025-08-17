@@ -20,9 +20,11 @@ if (typeof window.Artwork2 === 'undefined') {
             // Default title
             this.title = options.title || '열간 압연 데이터 02: 압연 효율 분포';
             
-            // Get global audio manager instance
+            // Get global managers instances
             this.globalAudioManager = window.globalAudioManager || window.GlobalAudioManager?.getInstance();
             this.audioId = 'artwork2';
+            this.globalDataPopupManager = window.globalDataPopupManager || window.GlobalDataPopupManager?.getInstance();
+            this.popupId = 'artwork2';
             
             // Three.js objects
             this.scene = null;
@@ -126,6 +128,12 @@ if (typeof window.Artwork2 === 'undefined') {
             
             // Create audio progress bar
             this.createAudioProgressBar();
+            
+            // Register with global data popup manager
+            if (this.globalDataPopupManager) {
+                this.globalDataPopupManager.registerPopup(this.popupId, this);
+                console.log('[ARTWORK2] Registered with Global Data Popup Manager');
+            }
             
             // Start animation loop
             this.animate();
@@ -1333,7 +1341,7 @@ if (typeof window.Artwork2 === 'undefined') {
                         
                         // Show data overlay if not already visible
                         if (!this.overlayVisible) {
-                            this.showDataOverlay();
+                            this.requestShowDataOverlay();
                         }
                     }
                 }
@@ -1347,19 +1355,34 @@ if (typeof window.Artwork2 === 'undefined') {
         }
         
         /**
-         * Show data overlay
+         * Show data overlay (internal method - called by Global Data Popup Manager)
          */
         showDataOverlay() {
+            // Direct control - do not call global manager to avoid recursion
             this.overlayVisible = true;
             const overlay = document.getElementById('dataOverlay');
             overlay.classList.add('active');
+            this.updateOverlayData();
             this.startDataCycling();
         }
         
         /**
-         * Hide data overlay
+         * Request to show data overlay (public API - calls Global Data Popup Manager)
+         */
+        requestShowDataOverlay() {
+            if (this.globalDataPopupManager) {
+                this.globalDataPopupManager.showPopup(this.popupId);
+            } else {
+                // Fallback to direct control
+                this.showDataOverlay();
+            }
+        }
+        
+        /**
+         * Hide data overlay (internal method - called by Global Data Popup Manager)
          */
         hideDataOverlay() {
+            // Direct control - do not call global manager to avoid recursion
             this.overlayVisible = false;
             const overlay = document.getElementById('dataOverlay');
             overlay.classList.remove('active');
@@ -1367,14 +1390,41 @@ if (typeof window.Artwork2 === 'undefined') {
         }
         
         /**
+         * Request to hide data overlay (public API - calls Global Data Popup Manager)
+         */
+        requestHideDataOverlay() {
+            if (this.globalDataPopupManager) {
+                this.globalDataPopupManager.hidePopup(this.popupId);
+            } else {
+                // Fallback to direct control
+                this.hideDataOverlay();
+            }
+        }
+        
+        /**
          * Show data when data button is clicked
          */
         showData() {
-            this.toggleDataOverlay();
+            this.requestToggleDataOverlay();
         }
         
         /**
          * Toggle data overlay visibility
+         */
+        /**
+         * Request to toggle data overlay (public API - calls Global Data Popup Manager)
+         */
+        requestToggleDataOverlay() {
+            if (this.globalDataPopupManager) {
+                this.globalDataPopupManager.togglePopup(this.popupId);
+            } else {
+                // Fallback to direct control
+                this.toggleDataOverlay();
+            }
+        }
+        
+        /**
+         * Toggle data overlay (internal method)
          */
         toggleDataOverlay() {
             if (this.overlayVisible) {
@@ -1385,6 +1435,14 @@ if (typeof window.Artwork2 === 'undefined') {
         }
         
         // This method has been moved to avoid duplication
+        
+        /**
+         * Update overlay data based on current dataset
+         */
+        updateOverlayData() {
+            // Use the existing updateDataDisplay method for artwork2
+            this.updateDataDisplay();
+        }
         
         /**
          * Start data cycling
@@ -1561,7 +1619,7 @@ if (typeof window.Artwork2 === 'undefined') {
             
             // Show the data overlay if not already visible
             if (!this.overlayVisible) {
-                this.showDataOverlay();
+                this.requestShowDataOverlay();
             }
         }
         
@@ -1662,6 +1720,12 @@ if (typeof window.Artwork2 === 'undefined') {
             super.cleanup();
             
             console.log('Cleaning up 연간압연 데이터 02: 압축 알고리즘 시각화 module');
+            
+            // Unregister from global data popup manager
+            if (this.globalDataPopupManager) {
+                this.globalDataPopupManager.unregisterPopup(this.popupId);
+                console.log('[ARTWORK2] Unregistered from Global Data Popup Manager');
+            }
             
             // Stop data cycling if active
             this.stopDataCycling();

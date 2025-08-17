@@ -98,11 +98,12 @@ class ExhibitionNavigator {
             }
         });
 
-        // PWA app visibility handling for audio management
+        // PWA app visibility handling for audio management and navigation
         document.addEventListener('visibilitychange', () => {
             if (document.hidden) {
                 // App is being backgrounded/minimized
-                console.log('App backgrounded - pausing audio');
+                console.log('App backgrounded - pausing audio and redirecting to home');
+                
                 // Pause Tone.js
                 if (typeof Tone !== 'undefined' && Tone.context.state === 'running') {
                     Tone.context.suspend();
@@ -115,6 +116,21 @@ class ExhibitionNavigator {
                         audio.dataset.wasPlaying = 'true';
                     }
                 });
+                
+                // Redirect to home page when app is minimized
+                setTimeout(() => {
+                    if (document.hidden) { // Double-check we're still hidden
+                        console.log('Redirecting to home page due to app minimization');
+                        // Check if we're currently on ar_detection.html and redirect to metal-slab.html
+                        if (window.location.pathname.includes('ar_detection.html')) {
+                            window.location.href = './metal-slab.html';
+                        } else {
+                            // For other pages, redirect to index.html
+                            window.location.href = './index.html';
+                        }
+                    }
+                }, 1000); // Wait 1 second to avoid false positives
+                
             } else {
                 // App is being foregrounded/restored
                 console.log('App foregrounded - resuming audio');
@@ -135,10 +151,20 @@ class ExhibitionNavigator {
 
         // Handle page hide/show events for iOS PWA
         window.addEventListener('pagehide', () => {
-            console.log('Page hidden - pausing audio');
+            console.log('Page hidden - pausing audio and redirecting to home');
             if (typeof Tone !== 'undefined' && Tone.context.state === 'running') {
                 Tone.context.suspend();
             }
+            
+            // Also redirect on page hide for iOS
+            setTimeout(() => {
+                console.log('Redirecting to home page due to page hide');
+                if (window.location.pathname.includes('ar_detection.html')) {
+                    window.location.href = './metal-slab.html';
+                } else {
+                    window.location.href = './index.html';
+                }
+            }, 500);
         });
 
         window.addEventListener('pageshow', () => {
