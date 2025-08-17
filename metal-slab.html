@@ -13,11 +13,9 @@
     
     <!-- Three.js for 3D visualization -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <!-- OrbitControls for camera interaction -->
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
     
-    <!-- Tone.js -->
-    <script src="https://unpkg.com/tone@14.7.77/build/Tone.js"></script>
-    <!-- Tone.js Unmute - Official iOS PWA fix -->
-    <script src="https://unpkg.com/unmute" data-add-button="true"></script>
     
     <!-- Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;900&display=swap" rel="stylesheet">
@@ -1166,7 +1164,7 @@
     
     <script>
         // Three.js scene setup
-        let scene, camera, renderer, metalSlab;
+        let scene, camera, renderer, metalSlab, controls;
         let mouseX = 0, mouseY = 0;
         let isMouseDown = false;
         
@@ -1202,548 +1200,14 @@
         let rollingMetal = null;
         let slabGlowLines = []; // Global array for glow lines
         
-        // Audio feedback system
-        let clickSound = null;
-        let backgroundMusic = null;
         
-        // Tone.js pad system
-        let padSynth = null;
-        let padReverb = null;
-        let padVolume = null;
-        let padPlaying = false;
-        let padEvolutionInterval = null;
         
-        // Individual note tracking for smooth morphing
-        let currentChord = {
-            bb: { note: 'Bb', octave: 2 },
-            d: { note: 'D', octave: 3 },
-            f: { note: 'F', octave: 3 }
-        };
         
-        // Individual synths for each note to allow smooth morphing
-        let bbSynth = null;
-        let dSynth = null;
-        let fSynth = null;
         
-        // Parameter-to-audio mappings
-        let currentRF = 0.5; // Roll Force parameter (0-1) - controls base note amplitude
-        let currentGap = 0.5; // Gap parameter (간격) (0-1) - controls middle note amplitude  
-        let currentFRA = 0.5; // FRA parameter (0-1) - controls overall chord amplitude
         
-        // Individual volume controls for each note
-        let bbVolume = null; // Base note (Bb) volume control
-        let dVolume = null;  // Middle note (D) volume control  
-        let fVolume = null;  // Top note (F) volume control
         
-        // Initialize audio system
-        function initializeAudio() {
-            // Initialize click sound
-            clickSound = new Audio('https://heund.github.io/ea_test1/sounds/click1.wav');
-            clickSound.volume = 0.3; // Set volume to 30% for subtle feedback
-            clickSound.preload = 'auto';
-            
-            // Initialize background music
-            backgroundMusic = new Audio('https://heund.github.io/ea_test1/sounds/INTRO_APPBG.wav');
-            backgroundMusic.volume = 0.15; // Set volume to 15% for ambient background
-            backgroundMusic.loop = true; // Enable looping
-            backgroundMusic.preload = 'auto';
-            
-            // Initialize Tone.js pad system
-            initializeTonePad();
-        }
         
-        // Initialize Tone.js pad with Bb major chord and reverb
-        function initializeTonePad() {
-            try {
-                // iOS PWA audio context fix - comprehensive solution based on web research
-                if (Tone.context.state !== 'running') {
-                    console.log('Tone.js context not running, attempting to start...');
-                    
-                    // Method 1: Standard Tone.start()
-                    Tone.start().then(() => {
-                        console.log('Tone.js context started successfully');
-                        // Method 2: Additional iOS fix - resume context
-                        if (Tone.context.state === 'suspended') {
-                            Tone.context.resume().then(() => {
-                                console.log('iOS PWA: AudioContext resumed successfully');
-                            });
-                        }
-                    }).catch(error => {
-                        console.log('Tone.js context start failed:', error);
-                        // Method 3: Fallback - direct context resume for iOS PWA
-                        if (Tone.context.state === 'suspended') {
-                            Tone.context.resume().then(() => {
-                                console.log('iOS PWA fallback: AudioContext resumed');
-                            });
-                        }
-                    });
-                }
-                
-                // Create reverb effect with more reverb
-                padReverb = new Tone.Reverb({
-                    decay: 15,
-                    wet: 0.85,
-                    preDelay: 0.15
-                }).toDestination();
-                
-                // Create volume control for fading
-                padVolume = new Tone.Volume(-7).connect(padReverb); // Start at audible level
-                
-                // Create individual volume controls for each note
-                bbVolume = new Tone.Volume(-15).connect(padVolume); // Base note volume
-                dVolume = new Tone.Volume(-15).connect(padVolume);  // Middle note volume  
-                fVolume = new Tone.Volume(-15).connect(padVolume);  // Top note volume
-                
-                // Create volume controls for sawtooth oscillators (for FRA blend)
-                bbSawVolume = new Tone.Volume(-15).connect(padVolume); // Start at audible level for testing
-                dSawVolume = new Tone.Volume(-15).connect(padVolume);
-                fSawVolume = new Tone.Volume(-15).connect(padVolume);
-                
-                // Create sine wave synths (smooth, default)
-                const sineSettings = {
-                    oscillator: {
-                        type: "sine",
-                        volume: -15
-                    },
-                    envelope: {
-                        attack: 0.8,
-                        decay: 0.5,
-                        sustain: 0.8,
-                        release: 4
-                    },
-                    filter: {
-                        frequency: 800,
-                        rolloff: -24
-                    }
-                };
-                
-                // Create sawtooth wave synths (aggressive, for FRA blend)
-                const sawSettings = {
-                    oscillator: {
-                        type: "sawtooth",
-                        volume: -15
-                    },
-                    envelope: {
-                        attack: 0.8,
-                        decay: 0.5,
-                        sustain: 0.8,
-                        release: 4
-                    },
-                    filter: {
-                        frequency: 600, // Slightly darker for subtlety
-                        rolloff: -24
-                    }
-                };
-                
-                // Create sine synths (default smooth sound)
-                bbSynth = new Tone.Synth(sineSettings).connect(bbVolume);
-                dSynth = new Tone.Synth(sineSettings).connect(dVolume);
-                fSynth = new Tone.Synth(sineSettings).connect(fVolume);
-                
-                // Create sawtooth synths (aggressive sound for FRA blend)
-                bbSawSynth = new Tone.Synth(sawSettings).connect(bbSawVolume);
-                dSawSynth = new Tone.Synth(sawSettings).connect(dSawVolume);
-                fSawSynth = new Tone.Synth(sawSettings).connect(fSawVolume);
-                
-                console.log('Tone.js pad system initialized');
-            } catch (error) {
-                console.log('Tone.js initialization error:', error);
-            }
-        }
         
-        // Start the Tone.js pad when CONT or ROLLING panel is expanded
-        function startTonePad() {
-            if (padPlaying || !bbSynth || !dSynth || !fSynth || !bbSawSynth || !dSawSynth || !fSawSynth) {
-                return; // Already playing or synths not ready
-            }
-            
-            try {
-                // Enhanced iOS PWA audio context handling
-                if (Tone.context.state !== 'running') {
-                    console.log('Starting Tone.js context for iOS PWA...');
-                    Tone.start().then(() => {
-                        console.log('Tone.js context started, triggering pad...');
-                        triggerPadNotes();
-                    }).catch(error => {
-                        console.log('Tone.js context start failed:', error);
-                        // Try alternative approach for iOS PWA
-                        setTimeout(() => {
-                            if (Tone.context.state === 'running') {
-                                triggerPadNotes();
-                            }
-                        }, 100);
-                    });
-                } else {
-                    triggerPadNotes();
-                }
-                
-                function triggerPadNotes() {
-                    // Start with initial chord: Bb2, D3, F3 (both sine and sawtooth layers)
-                    bbSynth.triggerAttack(`${currentChord.bb.note}${currentChord.bb.octave}`);
-                    dSynth.triggerAttack(`${currentChord.d.note}${currentChord.d.octave}`);
-                    fSynth.triggerAttack(`${currentChord.f.note}${currentChord.f.octave}`);
-                    
-                    // Start sawtooth layer (initially very quiet for FRA blend)
-                    bbSawSynth.triggerAttack(`${currentChord.bb.note}${currentChord.bb.octave}`);
-                    dSawSynth.triggerAttack(`${currentChord.d.note}${currentChord.d.octave}`);
-                    fSawSynth.triggerAttack(`${currentChord.f.note}${currentChord.f.octave}`);
-                    
-                    // Initialize process parameters to their default 0.5 values immediately
-                    setTimeout(() => {
-                        updateBaseNoteAmplitude(0.5);   // Initialize RF control
-                        updateMiddleNoteAmplitude(0.5); // Initialize Gap control  
-                        updateOverallAmplitude(0.5);    // Initialize FRA control
-                    }, 100); // Small delay to ensure audio context is ready
-                    
-                    padPlaying = true;
-                    
-                    // Start slow evolution of individual notes
-                    startPadEvolution();
-                    
-                    console.log('Bb major pad started with iOS PWA compatibility');
-                }
-                
-            } catch (error) {
-                console.log('Pad start error:', error);
-            }
-        }
-        
-        // Start the Bb major pad with individual notes
-        function startPad() {
-            if (bbSynth && dSynth && fSynth && !padPlaying) {
-                try {
-                    // Ensure Tone.js audio context is started
-                    if (Tone.context.state !== 'running') {
-                        Tone.start();
-                    }
-                    
-                    // Start with initial chord: Bb2, D3, F3
-                    bbSynth.triggerAttack(`${currentChord.bb.note}${currentChord.bb.octave}`);
-                    dSynth.triggerAttack(`${currentChord.d.note}${currentChord.d.octave}`);
-                    fSynth.triggerAttack(`${currentChord.f.note}${currentChord.f.octave}`);
-                    
-                    padPlaying = true;
-                    
-                    // Fade in the pad volume over 2 seconds
-                    padVolume.volume.rampTo(-7, 2);
-                    
-                    // Start slow evolution of individual notes
-                    startPadEvolution();
-                    
-                    console.log('Bb major pad started with smooth morphing evolution');
-                } catch (error) {
-                    console.log('Pad start error:', error);
-                }
-            }
-        }
-        
-        // Smoothly morph individual notes between octaves
-        function startPadEvolution() {
-            if (padEvolutionInterval) {
-                clearInterval(padEvolutionInterval);
-            }
-            
-            padEvolutionInterval = setInterval(() => {
-                if (bbSynth && dSynth && fSynth && padPlaying) {
-                    try {
-                        // Randomly choose which note to morph (bb, d, or f)
-                        const noteToMorph = ['bb', 'd', 'f'][Math.floor(Math.random() * 3)];
-                        
-                        // Choose a new octave with safety cap - no note above octave 3 for comfortable listening
-                        const currentOctave = currentChord[noteToMorph].octave;
-                        const maxOctave = 3; // Safety cap: nothing above octave 3 to prevent ear pain
-                        const possibleOctaves = [1, 2, 3].filter(oct => 
-                            oct !== currentOctave && oct <= maxOctave
-                        );
-                        const newOctave = possibleOctaves[Math.floor(Math.random() * possibleOctaves.length)];
-                        
-                        // Get the synth for this note
-                        let synthToMorph;
-                        if (noteToMorph === 'bb') synthToMorph = bbSynth;
-                        else if (noteToMorph === 'd') synthToMorph = dSynth;
-                        else synthToMorph = fSynth;
-                        
-                        // Create smooth crossfade by using volume ramping
-                        const newNote = `${currentChord[noteToMorph].note}${newOctave}`;
-                        
-                        // Create a temporary volume node for crossfading
-                        const tempVolume = new Tone.Volume(-60).connect(padReverb);
-                        const tempSynth = new Tone.Synth({
-                            oscillator: { type: "sine", volume: -20 },
-                            envelope: { attack: 0.8, decay: 0.5, sustain: 0.8, release: 4 },
-                            filter: { frequency: 800, rolloff: -24 }
-                        }).connect(tempVolume);
-                        
-                        // Start new note quietly
-                        tempSynth.triggerAttack(newNote);
-                        
-                        // Crossfade over 4 seconds
-                        tempVolume.volume.rampTo(-20, 4); // Fade in new note
-                        synthToMorph.volume.rampTo(-60, 4); // Fade out old note
-                        
-                        // After crossfade, replace the old synth
-                        setTimeout(() => {
-                            try {
-                                synthToMorph.triggerRelease();
-                                synthToMorph.dispose();
-                                
-                                // Replace with new synth at correct volume
-                                const newSynth = new Tone.Synth({
-                                    oscillator: { type: "sine", volume: -20 },
-                                    envelope: { attack: 0.8, decay: 0.5, sustain: 0.8, release: 4 },
-                                    filter: { frequency: 800, rolloff: -24 }
-                                }).connect(padVolume);
-                                
-                                newSynth.triggerAttack(newNote);
-                                
-                                // Update synth reference
-                                if (noteToMorph === 'bb') bbSynth = newSynth;
-                                else if (noteToMorph === 'd') dSynth = newSynth;
-                                else fSynth = newSynth;
-                                
-                                // Clean up temp synth
-                                tempSynth.triggerRelease();
-                                tempSynth.dispose();
-                                tempVolume.dispose();
-                                
-                            } catch (cleanupError) {
-                                console.log('Cleanup error:', cleanupError);
-                            }
-                        }, 4500);
-                        
-                        // Update our chord tracking
-                        currentChord[noteToMorph].octave = newOctave;
-                        
-                        console.log(`Morphing ${noteToMorph} from octave ${currentOctave} to ${newOctave}`);
-                        
-                    } catch (error) {
-                        console.log('Pad evolution error:', error);
-                    }
-                }
-            }, 20000); // Morph every 20 seconds for slow, organic evolution
-        }
-        
-        // Update overall Tone.js volume based on RF parameter
-        function updateBaseNoteAmplitude(rfValue) {
-            currentRF = rfValue;
-            
-            if (padVolume && padPlaying) {
-                try {
-                    // Map RF to overall Tone.js pad volume: 0.0 = -30dB, 1.0 = +5dB
-                    const minVolume = -30;
-                    const maxVolume = 5;
-                    const targetVolume = minVolume + (rfValue * (maxVolume - minVolume));
-                    
-                    // Instant volume response
-                    padVolume.volume.value = targetVolume;
-                    
-                    console.log(`RF: Overall Tone.js volume set to ${targetVolume.toFixed(1)}dB (RF: ${rfValue.toFixed(2)})`);
-                    
-                } catch (error) {
-                    console.log('RF amplitude update error:', error);
-                }
-            }
-        }
-        
-        // Gap parameter - DISABLED per user request
-        function updateMiddleNoteAmplitude(gapValue) {
-            currentGap = gapValue;
-            console.log(`Gap parameter: ${gapValue.toFixed(2)} (disabled per user request)`);
-            // Gap parameter left blank as requested
-        }
-        
-        // Update waveform blend based on FRA parameter (sine to sawtooth)
-        function updateOverallAmplitude(fraValue) {
-            currentFRA = fraValue;
-            
-            if (padPlaying && bbSawVolume && dSawVolume && fSawVolume) {
-                try {
-                    // FRA controls blend between sine (smooth) and sawtooth (aggressive)
-                    // 0.0 = pure sine (smooth), 1.0 = much more sawtooth (aggressive)
-                    
-                    // SUPER AGGRESSIVE sawtooth for debugging - should be VERY obvious
-                    const sawLevel = fraValue; // Direct mapping: 0.0 = silent, 1.0 = LOUD
-                    
-                    // Map to EXTREME dB range: 0.0 = -60dB (silent), 1.0 = +10dB (VERY LOUD)
-                    const minSawVolume = -60; // Silent
-                    const maxSawVolume = 10;  // VERY LOUD - should be impossible to miss
-                    const sawVolumeDb = minSawVolume + (sawLevel * (maxSawVolume - minSawVolume));
-                    
-                    // Apply EXTREME sawtooth volume for debugging
-                    bbSawVolume.volume.value = sawVolumeDb;
-                    dSawVolume.volume.value = sawVolumeDb;
-                    fSawVolume.volume.value = sawVolumeDb;
-                    
-                    console.log(`FRA: Sawtooth blend - Saw: ${sawVolumeDb.toFixed(1)}dB (FRA: ${fraValue.toFixed(2)})`);
-                    
-                } catch (error) {
-                    console.log('FRA waveform blend error:', error);
-                }
-            }
-        }
-        
-        // Start background music with user interaction handling
-        function startBackgroundMusic() {
-            if (backgroundMusic) {
-                try {
-                    backgroundMusic.play().then(() => {
-                        console.log('Background music started');
-                        musicStarted = true;
-                    }).catch(error => {
-                        console.log('Background music autoplay blocked:', error);
-                        // Will be started on first user interaction
-                    });
-                } catch (error) {
-                    console.log('Background music error:', error);
-                }
-            }
-        }
-        
-        // Setup app visibility handling for iOS PWA audio management
-        function setupAppVisibilityHandling() {
-            // Handle page visibility changes (app backgrounding/minimizing)
-            document.addEventListener('visibilitychange', () => {
-                if (document.hidden) {
-                    // App is being backgrounded/minimized
-                    console.log('App backgrounded - pausing audio');
-                    appIsVisible = false;
-                    
-                    // Pause background music
-                    if (backgroundMusic && !backgroundMusic.paused) {
-                        backgroundMusic.pause();
-                        audioWasPausedByVisibility = true;
-                    }
-                    
-                    // Suspend Tone.js context to save battery and stop audio
-                    if (Tone.context.state === 'running') {
-                        Tone.context.suspend().then(() => {
-                            console.log('Tone.js context suspended');
-                        }).catch(error => {
-                            console.log('Tone.js suspend error:', error);
-                        });
-                    }
-                } else {
-                    // App is being foregrounded/restored
-                    console.log('App foregrounded - resuming audio');
-                    appIsVisible = true;
-                    
-                    // Resume background music if it was paused by visibility change
-                    if (backgroundMusic && audioWasPausedByVisibility) {
-                        backgroundMusic.play().catch(error => {
-                            console.log('Background music resume error:', error);
-                        });
-                        audioWasPausedByVisibility = false;
-                    }
-                    
-                    // Resume Tone.js context
-                    if (Tone.context.state === 'suspended') {
-                        Tone.context.resume().then(() => {
-                            console.log('Tone.js context resumed');
-                        }).catch(error => {
-                            console.log('Tone.js resume error:', error);
-                        });
-                    }
-                }
-            });
-            
-            // Additional iOS PWA specific events
-            window.addEventListener('pagehide', () => {
-                console.log('Page hide - pausing all audio');
-                if (backgroundMusic && !backgroundMusic.paused) {
-                    backgroundMusic.pause();
-                    audioWasPausedByVisibility = true;
-                }
-                if (Tone.context.state === 'running') {
-                    Tone.context.suspend();
-                }
-            });
-            
-            window.addEventListener('pageshow', () => {
-                console.log('Page show - checking audio resume');
-                if (backgroundMusic && audioWasPausedByVisibility) {
-                    setTimeout(() => {
-                        backgroundMusic.play().catch(error => {
-                            console.log('Background music pageshow resume error:', error);
-                        });
-                        audioWasPausedByVisibility = false;
-                    }, 100);
-                }
-                if (Tone.context.state === 'suspended') {
-                    setTimeout(() => {
-                        Tone.context.resume();
-                    }, 100);
-                }
-            });
-            
-            console.log('App visibility handling setup complete');
-        }
-        
-        // Try to start background music on first user interaction
-        let musicStarted = false;
-        
-        // App visibility state for audio management
-        let appIsVisible = true;
-        let audioWasPausedByVisibility = false;
-        function tryStartMusicOnInteraction() {
-            if (!musicStarted && backgroundMusic) {
-                startBackgroundMusic();
-                musicStarted = true;
-            }
-            
-            // Also ensure Tone.js context is started on first interaction
-            if (typeof Tone !== 'undefined' && Tone.context.state !== 'running') {
-                Tone.start();
-            }
-        }
-        
-        // Play click sound with error handling
-        function playClickSound() {
-            // Try to start background music on first interaction
-            tryStartMusicOnInteraction();
-            
-            if (clickSound) {
-                try {
-                    clickSound.currentTime = 0; // Reset to beginning for rapid clicks
-                    clickSound.play().catch(e => {
-                        // Silently handle audio play errors (common on mobile)
-                        console.log('Audio play prevented:', e);
-                    });
-                } catch (error) {
-                    console.log('Audio error:', error);
-                }
-            }
-        }
-        
-        // Add click sound to all interactive elements
-        function addClickSounds() {
-            // Tab buttons
-            const controlTab = document.getElementById('controlTab');
-            const rollingTab = document.getElementById('rollingTab');
-            
-            // Reset buttons
-            const resetBtn = document.getElementById('resetBtn');
-            const resetRollingBtn = document.getElementById('resetRollingBtn');
-            
-            // Add click sound to tab buttons
-            if (controlTab) {
-                controlTab.addEventListener('click', playClickSound);
-                controlTab.addEventListener('touchstart', playClickSound);
-            }
-            if (rollingTab) {
-                rollingTab.addEventListener('click', playClickSound);
-                rollingTab.addEventListener('touchstart', playClickSound);
-            }
-            
-            // Add click sound to reset buttons
-            if (resetBtn) {
-                resetBtn.addEventListener('click', playClickSound);
-                resetBtn.addEventListener('touchstart', playClickSound);
-            }
-            if (resetRollingBtn) {
-                resetRollingBtn.addEventListener('click', playClickSound);
-                resetRollingBtn.addEventListener('touchstart', playClickSound);
-            }
-        }
         
         // Helper functions for slider interaction
         function pauseRotationForSlider() {
@@ -1810,8 +1274,11 @@
                 // Create metal slab
                 createMetalSlab();
                 
-                // Mouse controls
-                setupMouseControls();
+                // Custom iPad touch controls implementation
+                setupCustomTouchControls();
+                
+                // Remove conflicting mouse controls to allow OrbitControls to work
+                // setupMouseControls();
                 
                 // Start animation loop
                 animate();
@@ -2216,47 +1683,95 @@
             document.getElementById('reductionInfo').textContent = `${reductionPercent}%`;
         }
         
-        function setupMouseControls() {
+        function setupCustomTouchControls() {
             const canvas = document.getElementById('metalSlabCanvas');
+            let touchStartX = 0, touchStartY = 0;
+            let isTouching = false;
+            let initialDistance = 0;
+            let initialCameraDistance = 0;
             
-            canvas.addEventListener('mousedown', (event) => {
-                isMouseDown = true;
-                mouseX = event.clientX;
-                mouseY = event.clientY;
-            });
+            console.log('Setting up custom touch controls for iPad');
             
-            canvas.addEventListener('mousemove', (event) => {
-                if (!isMouseDown) return;
-                
-                const deltaX = event.clientX - mouseX;
-                const deltaY = event.clientY - mouseY;
-                
-                // Rotate camera around the slab
-                const spherical = new THREE.Spherical();
-                spherical.setFromVector3(camera.position);
-                
-                spherical.theta -= deltaX * 0.01;
-                spherical.phi += deltaY * 0.01;
-                
-                // Limit phi to prevent flipping
-                spherical.phi = Math.max(0.1, Math.min(Math.PI - 0.1, spherical.phi));
-                
-                camera.position.setFromSpherical(spherical);
-                camera.lookAt(0, 0, 0);
-                
-                mouseX = event.clientX;
-                mouseY = event.clientY;
-            });
+            // Prevent default touch behaviors
+            canvas.style.touchAction = 'none';
             
-            canvas.addEventListener('mouseup', () => {
-                isMouseDown = false;
-            });
+            canvas.addEventListener('touchstart', (event) => {
+                event.preventDefault();
+                isTouching = true;
+                
+                if (event.touches.length === 1) {
+                    // Single touch - rotation
+                    touchStartX = event.touches[0].clientX;
+                    touchStartY = event.touches[0].clientY;
+                    console.log('Touch start - single finger');
+                } else if (event.touches.length === 2) {
+                    // Two touches - zoom
+                    const touch1 = event.touches[0];
+                    const touch2 = event.touches[1];
+                    initialDistance = Math.sqrt(
+                        Math.pow(touch2.clientX - touch1.clientX, 2) + 
+                        Math.pow(touch2.clientY - touch1.clientY, 2)
+                    );
+                    initialCameraDistance = camera.position.length();
+                    console.log('Touch start - two fingers for zoom');
+                }
+            }, { passive: false });
             
-            canvas.addEventListener('wheel', (event) => {
-                const distance = camera.position.length();
-                const newDistance = Math.max(50, Math.min(200, distance + event.deltaY * 0.1));
-                camera.position.normalize().multiplyScalar(newDistance);
-            });
+            canvas.addEventListener('touchmove', (event) => {
+                event.preventDefault();
+                
+                if (!isTouching) return;
+                
+                if (event.touches.length === 1) {
+                    // Single touch rotation
+                    const touch = event.touches[0];
+                    const deltaX = touch.clientX - touchStartX;
+                    const deltaY = touch.clientY - touchStartY;
+                    
+                    // Rotate camera around the slab
+                    const spherical = new THREE.Spherical();
+                    spherical.setFromVector3(camera.position);
+                    
+                    spherical.theta -= deltaX * 0.008; // Touch sensitivity
+                    spherical.phi += deltaY * 0.008;
+                    
+                    // Limit phi to prevent flipping
+                    spherical.phi = Math.max(0.1, Math.min(Math.PI - 0.1, spherical.phi));
+                    
+                    camera.position.setFromSpherical(spherical);
+                    camera.lookAt(0, 0, 0);
+                    
+                    touchStartX = touch.clientX;
+                    touchStartY = touch.clientY;
+                    
+                } else if (event.touches.length === 2) {
+                    // Two touch zoom
+                    const touch1 = event.touches[0];
+                    const touch2 = event.touches[1];
+                    const currentDistance = Math.sqrt(
+                        Math.pow(touch2.clientX - touch1.clientX, 2) + 
+                        Math.pow(touch2.clientY - touch1.clientY, 2)
+                    );
+                    
+                    const scale = currentDistance / initialDistance;
+                    const newDistance = Math.max(50, Math.min(300, initialCameraDistance / scale));
+                    
+                    camera.position.normalize().multiplyScalar(newDistance);
+                    camera.lookAt(0, 0, 0);
+                }
+            }, { passive: false });
+            
+            canvas.addEventListener('touchend', (event) => {
+                event.preventDefault();
+                isTouching = false;
+                console.log('Touch end');
+            }, { passive: false });
+            
+            canvas.addEventListener('touchcancel', (event) => {
+                event.preventDefault();
+                isTouching = false;
+                console.log('Touch cancel');
+            }, { passive: false });
         }
         
         function setupParameterControls() {
@@ -2459,6 +1974,11 @@
                         metalSlab.updateTemperature(rollingParameters.temperature);
                     }
                 }
+            }
+            
+            // Update orbital controls
+            if (controls) {
+                controls.update();
             }
             
             renderer.render(scene, camera);
@@ -2991,19 +2511,7 @@
                 }, 100);
             }
             
-            // Initialize audio system
-            initializeAudio();
-            addClickSounds();
             
-            // Setup app visibility handling for audio management
-            setupAppVisibilityHandling();
-            
-            // Try to start background music (may be blocked by autoplay policy)
-            setTimeout(() => {
-                startBackgroundMusic();
-            }, 500); // Small delay to ensure audio context is ready
-            
-            console.log('Audio system initialized');
             
             // Initialize navigation after everything else is loaded
             setTimeout(() => {
