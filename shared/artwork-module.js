@@ -253,6 +253,7 @@ class ArtworkModule {
         const overlay = document.getElementById('dataOverlay');
         if (overlay) {
             overlay.classList.remove('active');
+            overlay.innerHTML = ''; // Clear overlay content
         }
     }
 

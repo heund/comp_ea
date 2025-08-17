@@ -222,7 +222,15 @@ if (typeof window.Artwork4 === 'undefined') {
          */
         setupEventListeners() {
             // Window resize handler
-            this.registerEventListener(window, 'resize', this.onWindowResize.bind(this));
+            window.addEventListener('resize', this.onWindowResize.bind(this));
+            
+            // Set up exit button to stop audio
+            const exitButton = document.getElementById('exitBtn');
+            if (exitButton) {
+                exitButton.addEventListener('click', () => {
+                    this.stopArtworkAudio();
+                });
+            }
         }
         
         /**
@@ -832,12 +840,14 @@ if (typeof window.Artwork4 === 'undefined') {
             const audioBtn = document.getElementById('audioBtn');
             if (audioBtn) {
                 const icon = audioBtn.querySelector('i');
-                if (this.isAudioPlaying) {
-                    icon.className = 'bi bi-pause-fill';
-                    audioBtn.classList.add('active');
-                } else {
-                    icon.className = 'bi bi-volume-up-fill';
-                    audioBtn.classList.remove('active');
+                if (icon) {
+                    if (this.isAudioPlaying) {
+                        icon.className = 'bi bi-pause-fill';
+                        audioBtn.classList.add('active');
+                    } else {
+                        icon.className = 'bi bi-volume-up-fill';
+                        audioBtn.classList.remove('active');
+                    }
                 }
                 console.log('[ARTWORK4] Audio button updated, playing:', this.isAudioPlaying);
             }

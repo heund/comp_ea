@@ -234,14 +234,16 @@ if (typeof window.Artwork5 === 'undefined') {
          * Setup event listeners
          */
         setupEventListeners() {
-            // Bind event handlers to this instance
-            this.handleWindowResize = this.onWindowResize.bind(this);
-            this.handleDataOverlayClick = this.cycleToNextDataset.bind(this);
-            this.handleThermalContainerClick = this.handleContainerClick.bind(this);
-            this.handleCanvasClickBound = this.handleCanvasClick.bind(this);
-            
             // Window resize handler
-            this.registerEventListener(window, 'resize', this.handleWindowResize);
+            window.addEventListener('resize', this.onWindowResize.bind(this));
+            
+            // Set up exit button to stop audio
+            const exitButton = document.getElementById('exitBtn');
+            if (exitButton) {
+                exitButton.addEventListener('click', () => {
+                    this.stopArtworkAudio();
+                });
+            }
             
             // Add data overlay click handler if available
             if (this.dataOverlay) {
@@ -251,7 +253,7 @@ if (typeof window.Artwork5 === 'undefined') {
             // Add thermal container click handler if available
             if (this.thermalContainer) {
                 console.log('Setting up thermal container click handler:', this.thermalContainer);
-                this.registerEventListener(this.thermalContainer, 'click', this.handleThermalContainerClick);
+                this.registerEventListener(this.thermalContainer, 'click', this.handleContainerClick.bind(this));
             } else {
                 console.warn('Thermal container not available for click handler setup');
             }
@@ -931,7 +933,7 @@ if (typeof window.Artwork5 === 'undefined') {
             // Setup thermal container click handler after re-initialization
             if (this.thermalContainer) {
                 console.log('Setting up thermal container click handler on activation:', this.thermalContainer);
-                this.registerEventListener(this.thermalContainer, 'click', this.handleThermalContainerClick);
+                this.registerEventListener(this.thermalContainer, 'click', this.handleContainerClick.bind(this));
             }
             
             // Activate thermal visualization
@@ -1300,10 +1302,10 @@ if (typeof window.Artwork5 === 'undefined') {
                         icon.className = 'bi bi-volume-up-fill';
                         audioBtn.classList.remove('active');
                     }
-                    console.log('[ARTWORK5] Audio button updated, playing:', this.isAudioPlaying);
-                } else {
-                    console.warn('[ARTWORK5] Audio button icon not found');
                 }
+                console.log('[ARTWORK5] Audio button updated, playing:', this.isAudioPlaying);
+            } else {
+                console.warn('[ARTWORK5] Audio button icon not found');
             }
         }
 

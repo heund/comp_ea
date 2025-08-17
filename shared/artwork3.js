@@ -37,6 +37,10 @@ if (typeof window.Artwork3 === 'undefined') {
             this.currentDataset = 0;
             this.overlayVisible = false;
             this.dataUpdateInterval = null;
+            
+            // Touch ripple effect variables
+            this.touchRipples = [];
+            this.isColorShifted = false;
             this.sampleDeformationData = [
                 {simulation_step: 1, strain_rate: 0.091, flow_stress: 129.2, total_deformation: 0.0, grain_size: 100.0, recrystallization_fraction: 0.0, material_type: "Medium Carbon Steel", temperature: 1100.0},
                 {simulation_step: 2, strain_rate: 0.095, flow_stress: 135.4, total_deformation: 0.05, grain_size: 98.5, recrystallization_fraction: 0.02, material_type: "Medium Carbon Steel", temperature: 1095.0},
@@ -332,26 +336,118 @@ if (typeof window.Artwork3 === 'undefined') {
             
             // Simple click event - just like any other HTML element
             canvas.addEventListener('click', (event) => {
-                this.handleCanvasClick(event, canvas);
+                this.handleCanvasTouch(event, canvas);
             });
             
             // Simple touch event for mobile
             canvas.addEventListener('touchend', (event) => {
                 event.preventDefault();
-                this.handleCanvasClick(event, canvas);
+                this.handleCanvasTouch(event, canvas);
             });
+            
+            // Set up exit button to stop audio
+            const exitButton = document.getElementById('exitBtn');
+            if (exitButton) {
+                exitButton.addEventListener('click', () => {
+                    this.stopArtworkAudio();
+                });
+            }
         }
         
         /**
-         * Handle canvas click for data overlay cycling
+         * Handle canvas touch for ripple effects and data overlay cycling
          */
-        handleCanvasClick(event, canvas) {
-            // Canvas click detected - show data overlay or cycle datasets
+        handleCanvasTouch(event, canvas) {
+            // Get touch/click coordinates
+            const rect = canvas.getBoundingClientRect();
+            let x, y;
+            
+            if (event.type === 'touchend' && event.changedTouches) {
+                x = event.changedTouches[0].clientX - rect.left;
+                y = event.changedTouches[0].clientY - rect.top;
+            } else {
+                x = event.clientX - rect.left;
+                y = event.clientY - rect.top;
+            }
+            
+            // Scale coordinates to canvas size
+            x = (x / rect.width) * canvas.width;
+            y = (y / rect.height) * canvas.height;
+            
+            // Create ripple effect at touch point
+            this.createTouchRipple(x, y);
+            
+            // Original functionality - show data overlay or cycle datasets
             if (this.overlayVisible) {
                 this.cycleToNextDataset();
             } else {
                 this.showDataOverlay();
             }
+        }
+        
+        /**
+         * Create a touch ripple effect
+         */
+        createTouchRipple(x, y) {
+            // Create a new ripple effect
+            const ripple = {
+                x: x,
+                y: y,
+                radius: 0,
+                maxRadius: 200,
+                startTime: performance.now(),
+                duration: 2000, // 2 seconds
+                intensity: 1.0
+            };
+            
+            this.touchRipples.push(ripple);
+            
+            // Trigger color shift
+            this.isColorShifted = true;
+            
+            // Reset color shift after ripple fades
+            setTimeout(() => {
+                this.isColorShifted = false;
+            }, ripple.duration);
+        }
+        
+        /**
+         * Update touch ripples
+         */
+        updateTouchRipples(currentTime) {
+            // Update and remove expired ripples
+            this.touchRipples = this.touchRipples.filter(ripple => {
+                const elapsed = currentTime - ripple.startTime;
+                const progress = elapsed / ripple.duration;
+                
+                if (progress >= 1.0) {
+                    return false; // Remove expired ripple
+                }
+                
+                // Update ripple properties
+                ripple.radius = ripple.maxRadius * progress;
+                ripple.intensity = 1.0 - progress; // Fade out over time
+                
+                return true; // Keep active ripple
+            });
+        }
+        
+        /**
+         * Calculate ripple influence at a given point
+         */
+        calculateRippleInfluence(waveX, waveY, ripple) {
+            // Calculate distance from wave point to ripple center
+            const dx = waveX - ripple.x;
+            const dy = waveY - ripple.y;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            
+            // Calculate influence based on ripple radius and distance
+            if (distance <= ripple.radius) {
+                const influence = ripple.intensity * (1.0 - distance / ripple.radius);
+                return Math.max(0, influence);
+            }
+            
+            return 0;
         }
         
         /**
@@ -497,6 +593,9 @@ if (typeof window.Artwork3 === 'undefined') {
             // Update time at consistent rate for natural wave animation
             this.time += deltaTime * 0.08; // Faster for more engaging wave movement
             
+            // Update touch ripples
+            this.updateTouchRipples(currentTime);
+            
             // Clear canvas with transparent background
             this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
             
@@ -524,10 +623,21 @@ if (typeof window.Artwork3 === 'undefined') {
                 // Using smooth cubic interpolation for better gradients
                 const smoothRatio = depthRatio * depthRatio * (3 - 2 * depthRatio); // Smooth step function
                 
+                // Calculate ripple influence for this wave position
+                let totalRippleInfluence = 0;
+                for (let ripple of this.touchRipples) {
+                    totalRippleInfluence += this.calculateRippleInfluence(this.canvas.width / 2, baseY, ripple);
+                }
+                totalRippleInfluence = Math.min(1.0, totalRippleInfluence);
+                
                 // Color palette with three-stage transitions
                 const centerR = 255, centerG = 80, centerB = 60;      // Coral-orange between orange and pink
                 const midR = 246, midG = 101, midB = 93;               // #F6655D exact color mid
                 const edgeR = 100, edgeG = 149, edgeB = 180;           // Greyish blue edges
+                
+                // Blue shift colors (opposite end of spectrum)
+                const blueR = 50, blueG = 120, blueB = 200;            // Deep blue
+                const lightBlueR = 100, lightBlueG = 180, lightBlueB = 255; // Light blue
                 
                 // Three-stage interpolation: red → orange → cyan
                 let r, g, b;
@@ -543,6 +653,17 @@ if (typeof window.Artwork3 === 'undefined') {
                     r = Math.round(midR + (edgeR - midR) * t);
                     g = Math.round(midG + (edgeG - midG) * t);
                     b = Math.round(midB + (edgeB - midB) * t);
+                }
+                
+                // Apply ripple color shift toward blue spectrum
+                if (totalRippleInfluence > 0) {
+                    const targetR = smoothRatio < 0.5 ? blueR : lightBlueR;
+                    const targetG = smoothRatio < 0.5 ? blueG : lightBlueG;
+                    const targetB = smoothRatio < 0.5 ? blueB : lightBlueB;
+                    
+                    r = Math.round(r + (targetR - r) * totalRippleInfluence);
+                    g = Math.round(g + (targetG - g) * totalRippleInfluence);
+                    b = Math.round(b + (targetB - b) * totalRippleInfluence);
                 }
                 
                 // Apply saturation factor
@@ -572,10 +693,21 @@ if (typeof window.Artwork3 === 'undefined') {
                     const amplitude1 = 30 + Math.sin(i * 0.1 + this.time * 0.02) * 20; // Large primary amplitude
                     const amplitude2 = 10 + Math.cos(i * 0.15 + this.time * 0.015) * 8; // Smaller secondary amplitude
                     
+                    // Calculate ripple influence for this specific point
+                    let pointRippleInfluence = 0;
+                    for (let ripple of this.touchRipples) {
+                        pointRippleInfluence += this.calculateRippleInfluence(x, baseY, ripple);
+                    }
+                    pointRippleInfluence = Math.min(1.0, pointRippleInfluence);
+                    
+                    // Add ripple distortion to wave amplitude
+                    const rippleAmplitude = pointRippleInfluence * 15; // Additional wave distortion from ripple
+                    
                     const wave1 = Math.sin(x * frequency1 + this.time * 0.01 + i * 0.1) * amplitude1;
                     const wave2 = Math.sin(x * frequency2 + this.time * 0.008 + i * 0.15) * amplitude2;
+                    const rippleWave = Math.sin(x * 0.02 + this.time * 0.05) * rippleAmplitude;
                     
-                    const y = baseY + wave1 + wave2;
+                    const y = baseY + wave1 + wave2 + rippleWave;
                     
                     if (x === 0) {
                         this.ctx.moveTo(x, y);
@@ -1520,12 +1652,14 @@ if (typeof window.Artwork3 === 'undefined') {
             const audioBtn = document.getElementById('audioBtn');
             if (audioBtn) {
                 const icon = audioBtn.querySelector('i');
-                if (this.isAudioPlaying) {
-                    icon.className = 'bi bi-pause-fill';
-                    audioBtn.classList.add('active');
-                } else {
-                    icon.className = 'bi bi-volume-up-fill';
-                    audioBtn.classList.remove('active');
+                if (icon) {
+                    if (this.isAudioPlaying) {
+                        icon.className = 'bi bi-pause-fill';
+                        audioBtn.classList.add('active');
+                    } else {
+                        icon.className = 'bi bi-volume-up-fill';
+                        audioBtn.classList.remove('active');
+                    }
                 }
                 console.log('[ARTWORK3] Audio button updated, playing:', this.isAudioPlaying);
             }
