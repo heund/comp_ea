@@ -133,6 +133,12 @@ class ARContainerManager {
      * @param {String} markerId - The ID of the found marker
      */
     onMarkerFound(markerId) {
+        // Check if any animation is currently active and block marker detection
+        if (this.isAnimationActive()) {
+            console.log(`Marker detection blocked: Animation is active for ${this.activeMarkerId}`);
+            return;
+        }
+        
         // Check if we have a module registered for this marker
         if (!this.moduleRegistry[markerId]) {
             console.warn(`No module registered for marker: ${markerId}`);
@@ -146,6 +152,46 @@ class ARContainerManager {
         
         // Activate the module for this marker
         this.activateModule(markerId);
+    }
+    
+    /**
+     * Check if any animation is currently active
+     * @returns {Boolean} - True if animation is active, false otherwise
+     */
+    isAnimationActive() {
+        if (!this.activeModule) {
+            return false;
+        }
+        
+        // Check for various animation states across different artwork types
+        const module = this.activeModule;
+        
+        // Check for thermal animation (artwork5)
+        if (module.thermalAnimationActive) {
+            return true;
+        }
+        
+        // Check for wave animation (artwork3)
+        if (module.waveAnimationId || module.animationFrame) {
+            return true;
+        }
+        
+        // Check for Three.js animation loops (artwork1, artwork2, artwork4)
+        if (module.animationFrameId || module.threeJSAnimationId) {
+            return true;
+        }
+        
+        // Check for data overlay visibility (any artwork with active data popup)
+        if (module.overlayVisible) {
+            return true;
+        }
+        
+        // Check for general active state
+        if (module.isActive) {
+            return true;
+        }
+        
+        return false;
     }
     
     /**

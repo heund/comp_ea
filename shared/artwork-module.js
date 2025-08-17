@@ -321,7 +321,139 @@ class ArtworkModule {
         this.isInitialized = false;
         this.isActive = false;
         
+        // Clean up module-specific DOM event listeners and intervals
+        this.cleanupModuleSpecificResources();
+        
         console.log(`[CLEANUP] ✅ ${this.title} module cleanup complete`);
+    }
+    
+    /**
+     * Centralized DOM event listener cleanup system
+     * Automatically removes all registered event listeners
+     */
+    cleanupDOMEventListeners() {
+        console.log(`[CLEANUP] 🎯 Centralized DOM event listener cleanup for ${this.title}`);
+        
+        // Clean up bound function references from registry
+        if (this.eventListenerRegistry) {
+            this.eventListenerRegistry.forEach(({ element, event, handler }) => {
+                try {
+                    element.removeEventListener(event, handler);
+                    console.log(`[CLEANUP] Removed ${event} listener from`, element.tagName || element.constructor.name);
+                } catch (error) {
+                    console.warn(`[CLEANUP] Error removing ${event} listener:`, error);
+                }
+            });
+            this.eventListenerRegistry.clear();
+        }
+        
+        // Clean up intervals and timers
+        if (this.intervalRegistry) {
+            this.intervalRegistry.forEach((intervalId) => {
+                clearInterval(intervalId);
+                console.log(`[CLEANUP] Cleared interval:`, intervalId);
+            });
+            this.intervalRegistry.clear();
+        }
+        
+        // Clean up animation frames
+        if (this.animationFrameRegistry) {
+            this.animationFrameRegistry.forEach((frameId) => {
+                cancelAnimationFrame(frameId);
+                console.log(`[CLEANUP] Cancelled animation frame:`, frameId);
+            });
+            this.animationFrameRegistry.clear();
+        }
+        
+        // Clean up CSS animations and DOM elements
+        this.cleanupCSSAnimations();
+    }
+    
+    /**
+     * Register an event listener for automatic cleanup
+     * @param {Element|Window|Document} element - The element to attach the listener to
+     * @param {string} event - The event type
+     * @param {Function} handler - The event handler function (should be bound)
+     */
+    registerEventListener(element, event, handler) {
+        if (!this.eventListenerRegistry) {
+            this.eventListenerRegistry = new Set();
+        }
+        
+        element.addEventListener(event, handler);
+        this.eventListenerRegistry.add({ element, event, handler });
+        
+        console.log(`[REGISTER] Added ${event} listener to`, element.tagName || element.constructor.name);
+    }
+    
+    /**
+     * Register an interval for automatic cleanup
+     * @param {Function} callback - The interval callback
+     * @param {number} delay - The interval delay in milliseconds
+     * @returns {number} The interval ID
+     */
+    registerInterval(callback, delay) {
+        if (!this.intervalRegistry) {
+            this.intervalRegistry = new Set();
+        }
+        
+        const intervalId = setInterval(callback, delay);
+        this.intervalRegistry.add(intervalId);
+        
+        console.log(`[REGISTER] Added interval:`, intervalId);
+        return intervalId;
+    }
+    
+    /**
+     * Register an animation frame for automatic cleanup
+     * @param {Function} callback - The animation callback
+     * @returns {number} The frame ID
+     */
+    registerAnimationFrame(callback) {
+        if (!this.animationFrameRegistry) {
+            this.animationFrameRegistry = new Set();
+        }
+        
+        const frameId = requestAnimationFrame(callback);
+        this.animationFrameRegistry.add(frameId);
+        
+        return frameId;
+    }
+    
+    /**
+     * Clean up CSS animations and dynamic DOM elements
+     */
+    cleanupCSSAnimations() {
+        // Module-specific CSS animation cleanup
+        const animatedElements = document.querySelectorAll('.wave-layer, .wave-effect, .thermal-layer, .thermal-gradient, .thermal-effect');
+        animatedElements.forEach(element => {
+            element.style.animation = 'none';
+            element.remove();
+        });
+        
+        // Clean up containers
+        const containers = document.querySelectorAll('.wave-container, .thermal-container');
+        containers.forEach(container => {
+            container.style.animation = 'none';
+            container.innerHTML = '';
+        });
+        
+        console.log(`[CLEANUP] Cleaned up CSS animations and containers`);
+    }
+    
+    /**
+     * Clean up module-specific resources - to be overridden by subclasses
+     * This should include:
+     * - Three.js object disposal
+     * - Canvas context cleanup
+     * - Module-specific DOM elements
+     */
+    cleanupModuleSpecificResources() {
+        // Base implementation - subclasses should override this
+        console.log(`[CLEANUP] 🎯 Base module-specific cleanup for ${this.title}`);
+        
+        // Call centralized DOM cleanup
+        this.cleanupDOMEventListeners();
     }
 }
 

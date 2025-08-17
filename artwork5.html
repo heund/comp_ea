@@ -1,0 +1,1202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Artwork 5 - Thermal Contour Analysis AR</title>
+    
+    <!-- A-Frame and AR.js -->
+    <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js@3.4.5/aframe/build/aframe-ar.min.js"></script>
+    
+    <!-- Bootstrap Icons -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+    
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --glass-bg: rgba(255, 255, 255, 0.1);
+            --glass-border: rgba(255, 255, 255, 0.2);
+            --glass-hover: rgba(255, 255, 255, 0.15);
+            --glass-white: rgba(255, 255, 255, 0.9);
+            --glass-light: rgba(255, 255, 255, 0.7);
+            --glass-darkest: rgba(0, 0, 0, 0.3);
+        }
+        
+        /* Reset body and html for AR */
+        html, body {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            position: fixed;
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: #000;
+            overflow: hidden;
+            user-select: none;
+        }
+
+        /* AR Controls */
+        .ar-controls-container {
+            position: fixed;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+            z-index: 1000;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.8s ease;
+        }
+        
+        .ar-controls-container.ar-active {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .ar-title {
+            font-family: 'Noto Sans KR', sans-serif;
+            font-size: 14px;
+            font-weight: 500;
+            color: #000000; /* Black text for gallery visibility */
+            background: var(--glass-bg);
+            backdrop-filter: blur(20px);
+            padding: 8px 16px;
+            border-radius: 12px;
+            border: 1px solid var(--glass-border);
+            text-align: center;
+            white-space: nowrap;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        }
+
+        .ar-controls {
+            display: flex;
+            gap: 15px;
+            background: var(--glass-bg);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--glass-border);
+            border-radius: 20px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        }
+
+        .control-btn {
+            width: 50px;
+            height: 50px;
+            border: none;
+            border-radius: 12px;
+            background: var(--glass-bg);
+            backdrop-filter: blur(10px);
+            color: #000000; /* Black icons for gallery visibility */
+            font-size: 18px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 10px;
+            border: 1px solid var(--glass-border);
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+            opacity: 0.8;
+        }
+
+        .control-btn:hover {
+            background: var(--glass-hover);
+            transform: scale(1.05);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+            opacity: 1;
+        }
+
+        .control-btn.active {
+            background: var(--glass-hover);
+            opacity: 1;
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2);
+        }
+
+        /* Thermal Visualization Container with Responsive Scaling */
+        .thermal-container {
+            --graphic-scale: 1.0; /* CSS custom property for dynamic scaling */
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) scale(var(--graphic-scale));
+            width: 600px;
+            height: 600px;
+            pointer-events: none;
+            z-index: 100;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.5s ease;
+            cursor: pointer;
+        }
+
+        .thermal-container.active {
+            opacity: 1;
+            visibility: visible;
+            pointer-events: auto;
+        }
+
+        .topological-shape {
+            position: relative;
+            width: 100%;
+            height: 100%;
+        }
+
+        .layer {
+            position: absolute;
+            animation: subtle-float 6s ease-in-out infinite;
+            mix-blend-mode: multiply;
+            filter: blur(2px);
+        }
+
+        .layer-1 {
+            width: 600px;
+            height: 480px;
+            top: 80px;
+            left: 30px;
+            background: radial-gradient(ellipse at 30% 40%, 
+                rgba(253, 237, 237, 1) 0%,
+                rgba(249, 190, 190, 0.8) 30%,
+                rgba(246, 132, 133, 0.6) 60%,
+                rgba(244, 48, 51, 0.3) 80%,
+                rgba(244, 48, 51, 0) 100%);
+            transform: rotate(-5deg);
+            border-radius: 45% 55% 62% 38% / 25% 25% 75% 75%;
+            opacity: 0.9;
+        }
+
+        .layer-2 {
+            width: 540px;
+            height: 432px;
+            top: 96px;
+            left: 60px;
+            background: radial-gradient(ellipse at 35% 45%, 
+                rgba(249, 190, 190, 0.9) 0%,
+                rgba(246, 132, 133, 0.7) 30%,
+                rgba(244, 48, 51, 0.5) 60%,
+                rgba(181, 30, 33, 0.3) 80%,
+                rgba(181, 30, 33, 0) 100%);
+            transform: rotate(3deg);
+            border-radius: 50% 40% 55% 45% / 30% 35% 65% 70%;
+            animation-delay: -1s;
+            opacity: 0.8;
+        }
+
+        .layer-3 {
+            width: 480px;
+            height: 384px;
+            top: 112px;
+            left: 80px;
+            background: radial-gradient(ellipse at 40% 50%, 
+                rgba(246, 132, 133, 0.8) 0%,
+                rgba(244, 48, 51, 0.6) 30%,
+                rgba(181, 30, 33, 0.4) 60%,
+                rgba(120, 16, 18, 0.2) 80%,
+                rgba(120, 16, 18, 0) 100%);
+            transform: rotate(-2deg);
+            border-radius: 40% 60% 45% 55% / 35% 25% 75% 65%;
+            animation-delay: -2s;
+            opacity: 0.7;
+        }
+
+        .layer-4 {
+            width: 420px;
+            height: 336px;
+            top: 128px;
+            left: 100px;
+            background: radial-gradient(ellipse at 45% 55%, 
+                rgba(244, 48, 51, 0.7) 0%,
+                rgba(181, 30, 33, 0.5) 30%,
+                rgba(120, 16, 18, 0.3) 60%,
+                rgba(64, 5, 6, 0.1) 80%,
+                rgba(64, 5, 6, 0) 100%);
+            transform: rotate(4deg);
+            border-radius: 55% 45% 40% 60% / 25% 40% 60% 75%;
+            animation-delay: -3s;
+            opacity: 0.6;
+        }
+
+        .layer-5 {
+            width: 360px;
+            height: 288px;
+            top: 144px;
+            left: 120px;
+            background: radial-gradient(ellipse at 50% 60%, 
+                rgba(181, 30, 33, 0.6) 0%,
+                rgba(120, 16, 18, 0.4) 30%,
+                rgba(64, 5, 6, 0.2) 60%,
+                rgba(64, 5, 6, 0.1) 80%,
+                rgba(64, 5, 6, 0) 100%);
+            transform: rotate(-3deg);
+            border-radius: 60% 40% 50% 50% / 40% 30% 70% 60%;
+            animation-delay: -4s;
+            opacity: 0.5;
+        }
+
+        .layer-6 {
+            width: 300px;
+            height: 240px;
+            top: 160px;
+            left: 140px;
+            background: radial-gradient(ellipse at 55% 65%, 
+                rgba(140, 20, 15, 0.6) 0%,
+                rgba(100, 12, 8, 0.4) 30%,
+                rgba(80, 8, 6, 0.2) 60%,
+                rgba(70, 7, 5, 0.1) 80%,
+                rgba(60, 6, 4, 0) 100%);
+            transform: rotate(2deg);
+            border-radius: 45% 55% 35% 65% / 45% 35% 65% 55%;
+            animation-delay: -5s;
+            opacity: 0.5;
+        }
+
+        .layer-7 {
+            width: 200px;
+            height: 160px;
+            top: 220px;
+            left: 200px;
+            background: radial-gradient(ellipse at 60% 70%, 
+                rgba(80, 8, 6, 0.6) 0%,
+                rgba(60, 6, 4, 0.4) 30%,
+                rgba(50, 5, 3, 0.2) 60%,
+                rgba(45, 4, 3, 0.1) 80%,
+                rgba(41, 4, 2, 0) 100%);
+            transform: rotate(-1deg);
+            border-radius: 50% 50% 45% 55% / 35% 45% 55% 65%;
+            animation-delay: -1.5s;
+            opacity: 0.6;
+        }
+
+        .layer-8 {
+            width: 150px;
+            height: 120px;
+            top: 240px;
+            left: 225px;
+            background: radial-gradient(ellipse at 65% 75%, 
+                rgba(41, 4, 2, 0.8) 0%,
+                rgba(41, 4, 2, 0.6) 30%,
+                rgba(41, 4, 2, 0.3) 60%,
+                rgba(41, 4, 2, 0.1) 80%,
+                rgba(41, 4, 2, 0) 100%);
+            transform: rotate(1deg);
+            border-radius: 55% 45% 40% 60% / 50% 40% 60% 50%;
+            animation-delay: -2.5s;
+            opacity: 0.9;
+        }
+
+        @keyframes subtle-float {
+            0%, 100% {
+                transform: translateY(0px) rotate(0deg) scale(1);
+            }
+            50% {
+                transform: translateY(-20px) rotate(2deg) scale(1.02);
+            }
+        }
+
+        /* Futuristic Data Overlay - Circular Design with Dynamic Scaling */
+        .data-overlay {
+            --popup-scale: 1.0; /* CSS custom property for dynamic scaling */
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) scale(calc(0.9 * var(--popup-scale)));
+            width: 280px;
+            height: 280px;
+            background: rgba(255,255,255,0.08);
+            border: 1px solid rgba(255,255,255,0.15);
+            border-radius: 50%;
+            backdrop-filter: blur(20px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+            z-index: 2000;
+            pointer-events: none;
+        }
+        
+        .data-overlay.active {
+            transform: translate(-50%, -50%) scale(calc(1.0 * var(--popup-scale)));
+            opacity: 1;
+            visibility: visible;
+            pointer-events: auto;
+        }
+        
+        .data-overlay.fade-out {
+            transform: translate(-50%, -50%) scale(calc(0.9 * var(--popup-scale)));
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+        }
+        
+        .data-content {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .data-overlay-close {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            width: 40px;
+            height: 40px;
+            background: rgba(255,255,255,0.25);
+            border: 2px solid rgba(255,255,255,0.6);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            backdrop-filter: blur(10px);
+        }
+        
+        .data-overlay-close:hover {
+            background: rgba(255,255,255,0.4);
+            border-color: rgba(255,255,255,0.8);
+            transform: scale(1.15);
+            box-shadow: 0 6px 16px rgba(0,0,0,0.4);
+        }
+        
+        .data-overlay-close::before,
+        .data-overlay-close::after {
+            content: '';
+            position: absolute;
+            width: 16px;
+            height: 3px;
+            background: rgba(255,255,255,0.95);
+            border-radius: 2px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+        }
+        
+        .data-overlay-close::before {
+            transform: rotate(45deg);
+        }
+        
+        .data-overlay-close::after {
+            transform: rotate(-45deg);
+        }
+        
+        /* Single Metric Display */
+        .single-metric {
+            text-align: center;
+            padding: 30px;
+        }
+        
+        .metric-value-large {
+            font-size: 64px;
+            font-weight: 700;
+            color: #ffffff;
+            font-family: 'Inter', sans-serif;
+            margin-bottom: 5px;
+            text-shadow: 0 0 20px rgba(255,255,255,0.5);
+            line-height: 1;
+        }
+        
+        .metric-unit {
+            font-size: 24px;
+            color: rgba(255,255,255,0.8);
+            font-weight: 300;
+            margin-bottom: 15px;
+        }
+        
+        .metric-label-large {
+            font-size: 14px;
+            color: rgba(255,255,255,0.7);
+            font-weight: 500;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+        }
+
+        /* Data Panel */
+        .data-panel {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: var(--glass-bg);
+            backdrop-filter: blur(20px);
+            color: var(--glass-white);
+            padding: 20px;
+            border-radius: 12px;
+            border: 1px solid var(--glass-border);
+            font-size: 12px;
+            max-width: 300px;
+            opacity: 0;
+            pointer-events: none;
+            transition: all 0.3s ease;
+            z-index: 1001;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        }
+
+        .data-panel.visible {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .data-panel h4 {
+            margin: 0 0 10px 0;
+            color: var(--glass-light);
+            font-size: 14px;
+        }
+
+        .data-item {
+            margin: 8px 0;
+            padding: 5px 0;
+            border-bottom: 1px solid var(--glass-border);
+        }
+
+        .data-label {
+            color: var(--glass-light);
+            font-weight: 500;
+        }
+
+        .data-value {
+            color: var(--glass-white);
+            margin-left: 10px;
+        }
+
+        /* Interactive Data Hotspots */
+        .data-hotspot {
+            position: absolute;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            z-index: 1002;
+            opacity: 0;
+            transform: scale(0.8);
+            pointer-events: none;
+        }
+
+        .data-hotspot.active {
+            opacity: 1;
+            transform: scale(1);
+            pointer-events: auto;
+        }
+
+        .data-hotspot:hover .data-label-button {
+            background: var(--glass-hover);
+            transform: scale(1.05);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+        }
+
+        .data-value-large {
+            font-size: 55px;
+            font-weight: 900;
+            color: #000000;
+            text-shadow: 2px 2px 4px rgba(255, 255, 255, 0.8);
+            margin-bottom: 8px;
+            line-height: 1;
+            font-family: 'Inter', sans-serif;
+        }
+
+        .data-label-button {
+            background: var(--glass-bg);
+            backdrop-filter: blur(10px);
+            color: var(--glass-white);
+            padding: 6px 12px;
+            border-radius: 8px;
+            border: 1px solid var(--glass-border);
+            font-size: 10px;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+            white-space: nowrap;
+        }
+
+        /* Audio Progress Bar */
+        .audio-progress-container {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 300px;
+            background: var(--glass-bg);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--glass-border);
+            border-radius: 12px;
+            padding: 12px 16px;
+            z-index: 1003;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.8s ease;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        }
+        
+        .audio-progress-container.visible {
+            opacity: 1;
+            visibility: visible;
+        }
+        
+        .audio-progress-container.ar-active {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .audio-info {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 8px;
+        }
+
+        .audio-title {
+            font-size: 12px;
+            color: #000000; /* Black text for gallery visibility */
+            font-weight: 500;
+        }
+
+        .audio-time {
+            font-size: 11px;
+            color: #000000; /* Black text for gallery visibility */
+            font-family: 'Inter', sans-serif;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 4px;
+            background: var(--glass-darkest);
+            border-radius: 2px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: #000000; /* Black progress bar for gallery visibility */
+            border-radius: 2px;
+            width: 0%;
+            transition: width 0.1s ease;
+        }
+    </style>
+</head>
+<body>
+    <!-- Thermal Visualization Container -->
+    <div class="thermal-container" id="thermalContainer">
+        <div class="topological-shape">
+            <div class="layer layer-1"></div>
+            <div class="layer layer-2"></div>
+            <div class="layer layer-3"></div>
+            <div class="layer layer-4"></div>
+            <div class="layer layer-5"></div>
+            <div class="layer layer-6"></div>
+            <div class="layer layer-7"></div>
+            <div class="layer layer-8"></div>
+        </div>
+    </div>
+
+    <!-- Circular Data Overlay - Matching Artwork2 Design -->
+    <div class="data-overlay" id="dataOverlay">
+        <div class="data-content">
+            <div class="metric-value-large" id="metricValue">1250</div>
+            <div class="metric-unit" id="metricUnit">°C</div>
+            <div class="metric-label-large" id="metricLabel">Core Temperature</div>
+        </div>
+        <div class="data-overlay-close" id="overlayClose"></div>
+    </div>
+
+    <!-- Audio Progress Bar -->
+    <div class="audio-progress-container" id="audioProgress">
+        <div class="audio-info">
+            <div class="audio-title">Thermal Analysis Audio</div>
+            <div class="audio-time" id="audioTime">0:00 / 0:00</div>
+        </div>
+        <div class="progress-bar">
+            <div class="progress-fill" id="progressFill"></div>
+        </div>
+    </div>
+
+    <!-- AR Controls -->
+    <div class="ar-controls-container">
+        <div class="ar-title">열간압연 데이터 05: 다중 열 변수 시계열 필드값</div>
+        <div class="ar-controls">
+            <button class="control-btn" id="dataBtn" title="Reveal Data"><i class="bi bi-bar-chart-fill"></i></button>
+            <button class="control-btn" id="audioBtn" title="Toggle Audio"><i class="bi bi-volume-up-fill"></i></button>
+            <button class="control-btn" id="exitBtn" title="Exit to Gallery"><i class="bi bi-x-circle-fill"></i></button>
+        </div>
+    </div>
+
+    <!-- Audio Element -->
+    <audio id="artworkAudio" preload="auto">
+        <source src="./artwork1 demo1.mp3" type="audio/mpeg">
+        Your browser does not support the audio element.
+    </audio>
+
+    <!-- A-Frame AR Scene -->
+    <a-scene
+        embedded
+        arjs="sourceType: webcam; debugUIEnabled: false; detectionMode: mono_and_matrix; matrixCodeType: 3x3;"
+        vr-mode-ui="enabled: false"
+        renderer="logarithmicDepthBuffer: true; colorManagement: true; sortObjects: true"
+        background="color: #000000; transparent: true"
+        id="arScene">
+        
+        <!-- Camera -->
+        <a-camera
+            gps-camera
+            rotation-reader
+            look-controls="enabled: false"
+            arjs-look-controls="smoothingFactor: 0.1">
+        </a-camera>
+        
+        <!-- AR Marker -->
+        <a-marker
+            type="pattern"
+            url="./pattern-ar_code_test1.patt"
+            id="markerCustom"
+            smooth="true"
+            smoothCount="10"
+            smoothTolerance="0.01"
+            smoothThreshold="5">
+        </a-marker>
+    </a-scene>
+
+    <script>
+        class ThermalARSystem {
+            constructor() {
+                this.isMarkerVisible = false;
+                this.experienceTriggered = false;
+                this.dataRevealed = false;
+                this.audioPlaying = false;
+                this.audioProgressInterval = null;
+                this.dataUpdateInterval = null;
+                this.hotspotsActive = false;
+
+                // Data overlay system variables - matching artwork3
+                this.currentDataset = 0;
+                this.overlayVisible = false;
+
+                this.initializeDataSystem(); // Initialize thermal metrics
+                this.initializeAR();
+                this.setupEventListeners();
+                this.initializeAudio();
+                
+                // Add window resize event listener for responsive behavior
+                window.addEventListener('resize', () => this.onWindowResize());
+                // Also handle orientation changes for iPad
+                window.addEventListener('orientationchange', () => {
+                    setTimeout(() => this.onWindowResize(), 100);
+                });
+                
+                // Apply initial scaling based on current viewport
+                setTimeout(() => this.onWindowResize(), 100);
+            }
+
+            initializeAR() {
+                const marker = document.querySelector('#markerCustom');
+                if (marker) {
+                    marker.addEventListener('markerFound', () => {
+                        this.isMarkerVisible = true;
+                        if (!this.experienceTriggered) {
+                            this.experienceTriggered = true;
+                            this.showVisualization();
+                        }
+                    });
+
+                    marker.addEventListener('markerLost', () => {
+                        this.isMarkerVisible = false;
+                        // Keep visualization active once triggered
+                    });
+                }
+            }
+
+            showVisualization() {
+                const container = document.getElementById('thermalContainer');
+                if (container) {
+                    container.classList.add('active');
+                    
+                    // Fade in AR UI elements when marker is detected
+                    this.showARInterface();
+                    
+                    // Setup thermal visualization click detection now that container is active
+                    this.setupThermalClickDetection();
+                    
+                    // Thermal visualization is now active - data overlay can be accessed via data button or by clicking the graph
+                }
+            }
+
+            // Data overlay system - matching artwork2
+            initializeDataSystem() {
+                // Define thermal metrics that will cycle in the overlay
+                this.thermalMetrics = [
+                    { value: 1250, unit: '°C', label: 'Core Temperature' },
+                    { value: 8.2, unit: 'Level', label: 'Gradient Level' },
+                    { value: 94.3, unit: '%', label: 'Heat Flow' },
+                    { value: 87.6, unit: '%', label: 'Thermal Efficiency' }
+                ];
+                this.currentDatasetIndex = 0;
+                this.overlayVisible = false;
+                this.dataUpdateInterval = null;
+            }
+
+            showDataOverlay() {
+                const overlay = document.getElementById('dataOverlay');
+                if (overlay) {
+                    // Remove any fade-out class and prepare for fade-in
+                    overlay.classList.remove('fade-out');
+                    overlay.style.display = 'block';
+                    
+                    // Force a reflow to ensure the display change takes effect
+                    overlay.offsetHeight;
+                    
+                    // Add active class for smooth fade-in animation
+                    overlay.classList.add('active');
+                    this.overlayVisible = true;
+                    this.dataRevealed = true;
+                    
+                    // Initialize with first dataset
+                    this.updateOverlayData();
+                    
+                    // Start dynamic data cycling for thermal effect
+                    this.startDataCycling();
+                }
+            }
+            
+            hideDataOverlay() {
+                const overlay = document.getElementById('dataOverlay');
+                if (overlay) {
+                    // Add fade-out class for smooth animation
+                    overlay.classList.remove('active');
+                    overlay.classList.add('fade-out');
+                    this.overlayVisible = false;
+                    
+                    // Stop data cycling
+                    this.stopDataCycling();
+                    
+                    // Hide overlay after fade-out animation completes (400ms)
+                    setTimeout(() => {
+                        if (overlay.classList.contains('fade-out')) {
+                            overlay.style.display = 'none';
+                            overlay.classList.remove('fade-out');
+                        }
+                    }, 400);
+                }
+            }
+            
+            toggleDataOverlay() {
+                this.dataRevealed = !this.dataRevealed;
+                if (this.dataRevealed) {
+                    this.showDataOverlay();
+                } else {
+                    this.hideDataOverlay();
+                }
+            }
+
+            startDataCycling() {
+                if (this.dataUpdateInterval) return;
+                
+                this.dataUpdateInterval = setInterval(() => {
+                    if (this.overlayVisible) {
+                        this.updateDynamicData();
+                    }
+                }, 400); // Optimized frequency for better performance
+            }
+            
+            stopDataCycling() {
+                if (this.dataUpdateInterval) {
+                    clearInterval(this.dataUpdateInterval);
+                    this.dataUpdateInterval = null;
+                }
+            }
+            
+            updateDynamicData() {
+                if (!this.overlayVisible) return;
+                
+                const time = Date.now() * 0.001;
+                let value;
+                
+                // Generate dynamic values based on current dataset - matching artwork3 pattern
+                switch (this.currentDataset) {
+                    case 0: // Core Temperature
+                        value = 1250 + Math.sin(time * 2.1) * 25 + Math.cos(time * 1.7) * 15;
+                        value = Math.max(1200, Math.min(1300, value));
+                        document.getElementById('metricValue').textContent = Math.floor(value);
+                        break;
+                    case 1: // Heat Flux
+                        value = 8.2 + Math.sin(time * 1.8) * 0.5 + Math.cos(time * 2.2) * 0.3;
+                        value = Math.max(7.5, Math.min(9.0, value));
+                        document.getElementById('metricValue').textContent = value.toFixed(1);
+                        break;
+                    case 2: // Thermal Conductivity
+                        value = 94.3 + Math.sin(time * 2.5) * 2.5 + Math.cos(time * 1.9) * 1.5;
+                        value = Math.max(90, Math.min(98, value));
+                        document.getElementById('metricValue').textContent = value.toFixed(1);
+                        break;
+                    case 3: // Surface Emissivity
+                        value = 0.876 + Math.sin(time * 1.6) * 0.035 + Math.cos(time * 2.1) * 0.025;
+                        value = Math.max(0.85, Math.min(0.95, value));
+                        document.getElementById('metricValue').textContent = value.toFixed(3);
+                        break;
+                }
+            }
+            
+            cycleToNextDataset() {
+                if (this.dataRevealed) {
+                    this.currentDataset = (this.currentDataset + 1) % 4;
+                    this.updateOverlayData();
+                }
+            }
+
+            updateOverlayData() {
+                const datasets = [
+                    { title: 'Core Temperature', unit: '°C', baseValue: 1250 },
+                    { title: 'Heat Flux', unit: 'W/m²', baseValue: 8.2 },
+                    { title: 'Thermal Conductivity', unit: 'W/m·K', baseValue: 94.3 },
+                    { title: 'Emissivity', unit: '', baseValue: 0.876 }
+                ];
+                
+                const dataset = datasets[this.currentDataset];
+                document.getElementById('metricLabel').textContent = dataset.title;
+                document.getElementById('metricUnit').textContent = dataset.unit;
+                
+                // Start with base value, will be updated by cycling
+                document.getElementById('metricValue').textContent = dataset.baseValue;
+            }
+
+            highlightThermalLayers() {
+                const layers = document.querySelectorAll('.layer');
+                layers.forEach((layer, index) => {
+                    setTimeout(() => {
+                        layer.style.opacity = '1.0';
+                        setTimeout(() => {
+                            layer.style.opacity = '0.8';
+                        }, 400);
+                    }, index * 100);
+                });
+            }
+
+            setupEventListeners() {
+                // Data button toggles the data overlay
+                document.getElementById('dataBtn').addEventListener('click', () => {
+                    this.toggleDataOverlay();
+                });
+
+                document.getElementById('audioBtn').addEventListener('click', () => {
+                    this.toggleAudio();
+                });
+
+                document.getElementById('exitBtn').addEventListener('click', () => {
+                    this.resetExperience();
+                });
+                
+                // Close overlay when clicking the close button
+                const closeBtn = document.getElementById('overlayClose');
+                if (closeBtn) {
+                    closeBtn.addEventListener('click', () => {
+                        this.hideDataOverlay();
+                    });
+                }
+                
+                // Click overlay to cycle through datasets
+                const overlay = document.getElementById('dataOverlay');
+                if (overlay) {
+                    overlay.addEventListener('click', (event) => {
+                        if (event.target === overlay || event.target.closest('.data-content')) {
+                            this.cycleToNextDataset();
+                        }
+                    });
+                }
+            }
+
+
+
+            initializeAudio() {
+                this.audioElement = document.getElementById('artworkAudio');
+                if (this.audioElement) {
+                    this.audioElement.addEventListener('loadedmetadata', () => {
+                        this.updateAudioTime();
+                    });
+
+                    this.audioElement.addEventListener('timeupdate', () => {
+                        this.updateAudioProgress();
+                    });
+
+                    this.audioElement.addEventListener('ended', () => {
+                        this.stopAudio();
+                    });
+                }
+            }
+
+            setupThermalClickDetection() {
+                const thermalContainer = document.getElementById('thermalContainer');
+                if (!thermalContainer) return;
+                
+                // Simple click event - just like any other HTML element
+                thermalContainer.addEventListener('click', (event) => {
+                    this.handleThermalClick(event, thermalContainer);
+                });
+                
+                // Simple touch event for mobile
+                thermalContainer.addEventListener('touchend', (event) => {
+                    event.preventDefault();
+                    this.handleThermalClick(event, thermalContainer);
+                });
+            }
+
+            handleThermalClick(event, container) {
+                // Thermal visualization click detected - show data overlay or cycle datasets
+                if (this.dataRevealed) {
+                    this.cycleToNextDataset();
+                } else {
+                    this.showDataOverlay();
+                }
+            }
+
+            toggleAudio() {
+                if (!this.audioElement) return;
+
+                if (this.audioPlaying) {
+                    this.stopAudio();
+                } else {
+                    this.playAudio();
+                }
+            }
+
+            playAudio() {
+                if (!this.audioElement) return;
+
+                this.audioElement.play().then(() => {
+                    this.audioPlaying = true;
+                    document.getElementById('audioBtn').classList.add('active');
+                    document.getElementById('audioProgress').classList.add('visible');
+                }).catch(error => {
+                    console.log('Audio play failed:', error);
+                });
+            }
+
+            stopAudio() {
+                if (!this.audioElement) return;
+
+                this.audioElement.pause();
+                this.audioElement.currentTime = 0;
+                this.audioPlaying = false;
+                document.getElementById('audioBtn').classList.remove('active');
+                document.getElementById('audioProgress').classList.remove('visible');
+            }
+
+            updateAudioTime() {
+                if (!this.audioElement) return;
+
+                const current = this.formatTime(this.audioElement.currentTime);
+                const duration = this.formatTime(this.audioElement.duration);
+                document.getElementById('audioTime').textContent = `${current} / ${duration}`;
+            }
+
+            updateAudioProgress() {
+                if (!this.audioElement) return;
+
+                const progress = (this.audioElement.currentTime / this.audioElement.duration) * 100;
+                document.getElementById('progressFill').style.width = `${progress}%`;
+                this.updateAudioTime();
+            }
+
+            formatTime(seconds) {
+                if (isNaN(seconds)) return '0:00';
+                const minutes = Math.floor(seconds / 60);
+                const secs = Math.floor(seconds % 60);
+                return `${minutes}:${secs.toString().padStart(2, '0')}`;
+            }
+
+            resetExperience() {
+                this.experienceTriggered = false;
+                this.dataRevealed = false;
+                
+                const container = document.getElementById('thermalContainer');
+                container.classList.remove('active');
+                
+                // Hide data overlay if visible
+                this.hideDataOverlay();
+                
+                if (this.audioPlaying) {
+                    this.stopAudio();
+                }
+
+                document.getElementById('dataBtn').classList.remove('active');
+            }
+
+            showARInterface() {
+                const arControls = document.querySelector('.ar-controls-container');
+                if (arControls) {
+                    setTimeout(() => {
+                        arControls.classList.add('ar-active');
+                    }, 500);
+                }
+                
+                const audioProgress = document.querySelector('.audio-progress-container');
+                if (audioProgress && this.audioPlaying) {
+                    setTimeout(() => {
+                        audioProgress.classList.add('ar-active');
+                    }, 800);
+                }
+            }
+
+            hideARInterface() {
+                const arControls = document.querySelector('.ar-controls-container');
+                if (arControls) {
+                    arControls.classList.remove('ar-active');
+                }
+                
+                const audioProgress = document.querySelector('.audio-progress-container');
+                if (audioProgress) {
+                    audioProgress.classList.remove('ar-active');
+                }
+            }
+            
+            calculateScaleFactor(minDimension) {
+                // Define breakpoints for different device sizes
+                // iPad: ~768px minimum dimension
+                // Large phone: ~414px minimum dimension  
+                // Small phone: ~375px minimum dimension
+                
+                // For canvas-based visualization, scale factor affects canvas size
+                if (minDimension >= 768) {
+                    // iPad size - use original size
+                    return 1.0;
+                } else if (minDimension >= 414) {
+                    // Large phone - scale down canvas
+                    return 0.8;
+                } else if (minDimension >= 375) {
+                    // Medium phone - scale down more
+                    return 0.7;
+                } else {
+                    // Small phone - scale down most
+                    return 0.6;
+                }
+            }
+            
+            calculatePopupScaleFactor(minDimension) {
+                // Popup should scale DOWN on smaller devices
+                if (minDimension >= 768) {
+                    // iPad size - use original popup size
+                    return 1.0;
+                } else if (minDimension >= 414) {
+                    // Large phone - make popup smaller
+                    return 0.75;
+                } else if (minDimension >= 375) {
+                    // Medium phone - make popup even smaller
+                    return 0.65;
+                } else {
+                    // Small phone - make popup smallest
+                    return 0.55;
+                }
+            }
+            
+            updatePopupScale(scaleFactor) {
+                const dataOverlay = document.getElementById('dataOverlay');
+                if (dataOverlay) {
+                    // Apply scale to the popup while maintaining its transform origin
+                    dataOverlay.style.setProperty('--popup-scale', scaleFactor);
+                }
+            }
+            
+            updateGraphicScale(scaleFactor) {
+                const thermalContainer = document.getElementById('thermalContainer');
+                if (thermalContainer) {
+                    // Apply scale to the thermal graphic while maintaining its transform origin
+                    thermalContainer.style.setProperty('--graphic-scale', scaleFactor);
+                }
+            }
+            
+            onWindowResize() {
+                // Get viewport dimensions for scaling calculations
+                const width = window.innerWidth;
+                const height = window.innerHeight;
+                
+                // Calculate scaling based on minimum dimension
+                const minDimension = Math.min(width, height);
+                
+                // Calculate graphic scale factor (INVERTED LOGIC like other artworks)
+                // Larger scale factor = graphic appears smaller on small devices
+                let graphicScaleFactor;
+                if (minDimension >= 768) {
+                    // iPad size - use original size
+                    graphicScaleFactor = 1.0;
+                } else if (minDimension >= 414) {
+                    // Large phone - make graphic slightly bigger than before
+                    graphicScaleFactor = 0.75;
+                } else if (minDimension >= 375) {
+                    // Medium phone - make graphic slightly bigger than before
+                    graphicScaleFactor = 0.65;
+                } else {
+                    // Small phone - make graphic slightly bigger than before
+                    graphicScaleFactor = 0.55;
+                }
+                
+                // Update graphic scaling
+                this.updateGraphicScale(graphicScaleFactor);
+                
+                // Update popup scaling proportionally (same as other artworks)
+                const popupScaleFactor = this.calculatePopupScaleFactor(minDimension);
+                this.updatePopupScale(popupScaleFactor);
+            }
+        }
+
+        // Initialize AR system
+        let arTrigger;
+        window.addEventListener('DOMContentLoaded', () => {
+            arTrigger = new ThermalARSystem();
+            
+            // Setup exit button functionality for iPad/mobile
+            const exitBtn = document.getElementById('exitBtn');
+            if (exitBtn) {
+                exitBtn.addEventListener('click', () => {
+                    // Mobile-specific exit functionality for iPad
+                    
+                    // Stop all AR activities and clean up
+                    if (arTrigger) {
+                        arTrigger.resetExperience();
+                    }
+                    
+                    // For mobile apps, navigate back to gallery or main screen
+                    // This works better on iPad than window.close()
+                    if (window.history.length > 1) {
+                        window.history.back();
+                    } else {
+                        // For mobile apps, try to navigate to gallery/main screen
+                        // This assumes the app has a gallery.html or index.html
+                        const possibleGalleryUrls = [
+                            '../gallery.html',
+                            '../index.html',
+                            '../../gallery.html',
+                            '../../index.html',
+                            '../../../gallery.html',
+                            '../../../index.html'
+                        ];
+                        
+                        // Try the first available gallery URL
+                        window.location.href = possibleGalleryUrls[0];
+                    }
+                });
+            }
+        });
+    </script>
+</body>
+</html>

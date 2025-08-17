@@ -130,31 +130,26 @@ if (typeof window.Artwork2 === 'undefined') {
             const canvas = document.getElementById('visualizationCanvas');
             if (!canvas) return;
             
-            // Store bound event handlers for later removal
-            this.boundOnMouseDown = this.onMouseDown.bind(this);
-            this.boundOnMouseMove = this.onMouseMove.bind(this);
-            this.boundOnMouseUp = this.onMouseUp.bind(this);
-            this.boundOnTouchStart = this.onTouchStart.bind(this);
-            this.boundOnTouchMove = this.onTouchMove.bind(this);
-            this.boundOnTouchEnd = this.onTouchEnd.bind(this);
-            this.boundOnMouseWheel = this.onMouseWheel.bind(this);
-            this.boundOnWindowResize = this.onWindowResize.bind(this);
-            
             // Mouse events
-            canvas.addEventListener('mousedown', this.boundOnMouseDown);
-            document.addEventListener('mousemove', this.boundOnMouseMove);
-            document.addEventListener('mouseup', this.boundOnMouseUp);
+            this.registerEventListener(canvas, 'mousedown', this.onMouseDown.bind(this));
+            this.registerEventListener(document, 'mousemove', this.onMouseMove.bind(this));
+            this.registerEventListener(document, 'mouseup', this.onMouseUp.bind(this));
             
-            // Touch events for mobile
-            canvas.addEventListener('touchstart', this.boundOnTouchStart, { passive: false });
-            document.addEventListener('touchmove', this.boundOnTouchMove, { passive: false });
-            document.addEventListener('touchend', this.boundOnTouchEnd);
+            // Touch events for mobile - need passive: false for preventDefault
+            // Store bound functions for proper cleanup
+            this.boundTouchStart = this.onTouchStart.bind(this);
+            this.boundTouchMove = this.onTouchMove.bind(this);
+            this.boundTouchEnd = this.onTouchEnd.bind(this);
+            
+            canvas.addEventListener('touchstart', this.boundTouchStart, { passive: false });
+            document.addEventListener('touchmove', this.boundTouchMove, { passive: false });
+            document.addEventListener('touchend', this.boundTouchEnd, { passive: false });
             
             // Mouse wheel for zoom
-            canvas.addEventListener('wheel', this.boundOnMouseWheel, { passive: false });
+            this.registerEventListener(canvas, 'wheel', this.onMouseWheel.bind(this));
             
             // Window resize event
-            window.addEventListener('resize', this.boundOnWindowResize);
+            this.registerEventListener(window, 'resize', this.onWindowResize.bind(this));
         }
         
         /**
@@ -357,11 +352,8 @@ if (typeof window.Artwork2 === 'undefined') {
          * Set up event listeners
          */
         setupEventListeners() {
-            // Store bound function references for later removal
-            this.boundOnWindowResize = this.onWindowResize.bind(this);
-            
             // Window resize handler
-            window.addEventListener('resize', this.boundOnWindowResize);
+            this.registerEventListener(window, 'resize', this.onWindowResize.bind(this));
             
             // Exit button is handled by ar_detection.html
         }
@@ -1642,22 +1634,18 @@ if (typeof window.Artwork2 === 'undefined') {
                 this.animationFrameId = null;
             }
             
-            // Remove event listeners
-            if (this.boundOnWindowResize) {
-                window.removeEventListener('resize', this.boundOnWindowResize);
-            }
-            
+            // Event listeners are automatically cleaned up by centralized system
+            // But we need to manually clean up touch events that were added with passive: false
             const canvas = document.getElementById('visualizationCanvas');
-            if (canvas) {
-                if (this.boundOnMouseDown) canvas.removeEventListener('mousedown', this.boundOnMouseDown);
-                if (this.boundOnTouchStart) canvas.removeEventListener('touchstart', this.boundOnTouchStart);
-                if (this.boundOnMouseWheel) canvas.removeEventListener('wheel', this.boundOnMouseWheel);
+            if (canvas && this.boundTouchStart) {
+                canvas.removeEventListener('touchstart', this.boundTouchStart);
             }
-            
-            if (this.boundOnMouseMove) document.removeEventListener('mousemove', this.boundOnMouseMove);
-            if (this.boundOnMouseUp) document.removeEventListener('mouseup', this.boundOnMouseUp);
-            if (this.boundOnTouchMove) document.removeEventListener('touchmove', this.boundOnTouchMove);
-            if (this.boundOnTouchEnd) document.removeEventListener('touchend', this.boundOnTouchEnd);
+            if (this.boundTouchMove) {
+                document.removeEventListener('touchmove', this.boundTouchMove);
+            }
+            if (this.boundTouchEnd) {
+                document.removeEventListener('touchend', this.boundTouchEnd);
+            }
             
             // Dispose compression spheres
             if (this.compressionSpheres) {

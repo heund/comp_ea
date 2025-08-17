@@ -86,14 +86,6 @@ if (typeof window.Artwork3 === 'undefined') {
                 { name: 'GreyScale', colors: ['#E9EAEB', '#BEC3C5', '#989C9E', '#747779', '#525455', '#323334', '#151616'] }
             ];
             
-            // Sample data for visualization
-            this.sampleData = [
-                {current_corrections_count: 2, data_integrity: 0.85, correction_effectiveness: 0.78, active_corrections_count: 5},
-                {current_corrections_count: 3, data_integrity: 0.92, correction_effectiveness: 0.81, active_corrections_count: 7},
-                {current_corrections_count: 1, data_integrity: 0.76, correction_effectiveness: 0.69, active_corrections_count: 3},
-                {current_corrections_count: 4, data_integrity: 0.88, correction_effectiveness: 0.85, active_corrections_count: 8},
-                {current_corrections_count: 2, data_integrity: 0.91, correction_effectiveness: 0.77, active_corrections_count: 6}
-            ];
             
             // Data for overlay
             this.dataPoints = [
@@ -237,10 +229,10 @@ if (typeof window.Artwork3 === 'undefined') {
                 if (canvas) {
                     console.log('Setting up data overlay listeners for canvas');
                     
-                    // Canvas click handler for node interactions
+                    // Canvas click handler for data overlay
                     canvas.addEventListener('click', (event) => {
                         try {
-                            this.handleNodeClick(event, canvas);
+                            this.handleCanvasClick(event, canvas);
                         } catch (error) {
                             console.error('Error in canvas click handler:', error);
                         }
@@ -273,7 +265,7 @@ if (typeof window.Artwork3 === 'undefined') {
                                         clientY: touch.clientY,
                                         target: canvas
                                     };
-                                    this.handleNodeClick(syntheticEvent, canvas);
+                                    this.handleCanvasClick(syntheticEvent, canvas);
                                 }
                             }
                             isTouchDragging = false;
@@ -358,13 +350,14 @@ if (typeof window.Artwork3 === 'undefined') {
             const overlay = document.getElementById('dataOverlay');
             if (overlay) {
                 this.overlayVisible = true;
+                
+                // Initialize with first dataset BEFORE showing overlay
+                this.updateOverlayData();
+                
                 overlay.classList.add('active');
                 
                 // Start data cycling
                 this.startDataCycling();
-                
-                // Initialize with first dataset
-                this.updateOverlayData();
             }
         }
         
@@ -392,26 +385,6 @@ if (typeof window.Artwork3 === 'undefined') {
             }
         }
         
-        /**
-         * Update overlay data display
-         */
-        updateOverlayData() {
-            const datasets = [
-                { title: 'Strain Rate', unit: '/s', baseValue: 0.091 },
-                { title: 'Flow Stress', unit: 'MPa', baseValue: 129.2 },
-                { title: 'Total Deformation', unit: '', baseValue: 0.0 },
-                { title: 'Grain Size', unit: 'μm', baseValue: 100.0 }
-            ];
-            
-            const dataset = datasets[this.currentDataset];
-            const metricLabel = document.getElementById('metricLabel');
-            const metricUnit = document.getElementById('metricUnit');
-            const metricValue = document.getElementById('metricValue');
-            
-            if (metricLabel) metricLabel.textContent = dataset.title;
-            if (metricUnit) metricUnit.textContent = dataset.unit;
-            if (metricValue) metricValue.textContent = dataset.baseValue;
-        }
         
         /**
          * Update data values with dynamic calculations
@@ -619,12 +592,12 @@ if (typeof window.Artwork3 === 'undefined') {
             
             // Create 800 nodes
             for (let i = 0; i < n_nodes; i++) {
-                const row = this.sampleData[i % this.sampleData.length];
+                const row = this.sampleDeformationData[i % this.sampleDeformationData.length];
                 const variation = (Math.random() - 0.5) * 0.2;
                 
-                const correctionIntensity = Math.min(1.0, (row.current_corrections_count + variation) / 5.0);
-                const systemHealth = Math.min(1.0, ((row.data_integrity + row.correction_effectiveness) / 2.0) + variation * 0.1);
-                const correctionBurden = Math.min(1.0, (row.active_corrections_count + Math.floor(variation * 3)) / 10.0);
+                const strainIntensity = Math.min(1.0, (row.strain_rate + variation) / 0.3);
+                const stressLevel = Math.min(1.0, (row.flow_stress + variation * 50) / 300.0);
+                const deformationLevel = Math.min(1.0, (row.total_deformation + variation * 2) / 5.0);
                 
                 // Generate 3D position using rejection sampling
                 let x, y, z, distanceSquared;
@@ -644,7 +617,7 @@ if (typeof window.Artwork3 === 'undefined') {
                 z = (z / unitDistance) * actualDistance;
                 
                 this.networkGraph.nodes.push({
-                    id: i, intensity: correctionIntensity, health: systemHealth, burden: correctionBurden,
+                    id: i, intensity: strainIntensity, health: stressLevel, burden: deformationLevel,
                     x: x, y: y, z: z, vx: 0, vy: 0, vz: 0
                 });
             }
@@ -707,7 +680,7 @@ if (typeof window.Artwork3 === 'undefined') {
                 
                 const nodeMesh = new THREE.Mesh(nodeGeometry, nodeMaterial);
                 nodeMesh.position.set(node.x, node.y, node.z);
-                nodeMesh.userData = { nodeData: node, type: 'correction-node', clickable: true };
+                nodeMesh.userData = { nodeData: node, type: 'deformation-node', clickable: true };
                 this.scene.add(nodeMesh);
                 this.networkNodes.push(nodeMesh);
             });
@@ -1021,6 +994,10 @@ if (typeof window.Artwork3 === 'undefined') {
         showDataOverlay() {
             this.overlayVisible = true;
             const overlay = document.getElementById('dataOverlay');
+            
+            // Initialize with first dataset BEFORE showing overlay
+            this.updateOverlayData();
+            
             overlay.classList.add('active');
             this.startDataCycling();
         }
@@ -1043,24 +1020,6 @@ if (typeof window.Artwork3 === 'undefined') {
             this.updateOverlayData();
         }
         
-        /**
-         * Update overlay data
-         */
-        updateOverlayData() {
-            const datasets = [
-                { title: 'Core<br>Efficiency', unit: '%', baseValue: 87.3 },
-                { title: 'Network<br>Load', unit: '%', baseValue: 64.2 },
-                { title: 'Active<br>Corrections', unit: '', baseValue: 142 },
-                { title: 'Data<br>Integrity', unit: '%', baseValue: 91.8 }
-            ];
-            
-            const dataset = datasets[this.currentDataset];
-            document.getElementById('metricLabel').innerHTML = dataset.title;
-            document.getElementById('metricUnit').textContent = dataset.unit;
-            
-            // Start with base value, will be updated by cycling
-            document.getElementById('metricValue').textContent = dataset.baseValue;
-        }
         
         /**
          * Start data cycling
@@ -1105,6 +1064,176 @@ if (typeof window.Artwork3 === 'undefined') {
             } else {
                 newValue = Math.max(0, newValue);
                 document.getElementById('metricValue').textContent = Math.round(newValue);
+            }
+        }
+        
+        /**
+         * Show data when data button is clicked
+         */
+        showData() {
+            this.toggleDataOverlay();
+        }
+        
+        /**
+         * Toggle data overlay
+         */
+        toggleDataOverlay() {
+            if (this.overlayVisible) {
+                this.hideDataOverlay();
+            } else {
+                this.showDataOverlay();
+            }
+        }
+        
+        /**
+         * Handle canvas click for data overlay
+         */
+        handleCanvasClick(event, canvas) {
+            // Toggle data overlay or cycle through datasets
+            if (this.overlayVisible) {
+                this.cycleToNextDataset();
+            } else {
+                this.showDataOverlay();
+            }
+        }
+        
+        /**
+         * Show data overlay
+         */
+        showDataOverlay() {
+            this.overlayVisible = true;
+            const overlay = document.getElementById('dataOverlay');
+            
+            // Initialize with first dataset BEFORE showing overlay
+            this.updateOverlayData();
+            
+            overlay.classList.add('active');
+            this.startDataCycling();
+        }
+        
+        /**
+         * Hide data overlay
+         */
+        hideDataOverlay() {
+            this.overlayVisible = false;
+            const overlay = document.getElementById('dataOverlay');
+            overlay.classList.remove('active');
+            this.stopDataCycling();
+        }
+        
+        /**
+         * Cycle to next dataset
+         */
+        cycleToNextDataset() {
+            this.currentDataset = (this.currentDataset + 1) % 4;
+            this.updateOverlayData();
+        }
+        
+        /**
+         * Update overlay data
+         */
+        updateOverlayData() {
+            const datasets = [
+                { title: 'Strain<br>Rate', unit: '/s', getValue: (data) => data.strain_rate },
+                { title: 'Flow<br>Stress', unit: 'MPa', getValue: (data) => data.flow_stress },
+                { title: 'Total<br>Deformation', unit: 'mm', getValue: (data) => data.total_deformation },
+                { title: 'Grain<br>Size', unit: 'μm', getValue: (data) => data.grain_size }
+            ];
+            
+            const dataset = datasets[this.currentDataset];
+            const currentData = this.sampleDeformationData[Math.floor(Math.random() * this.sampleDeformationData.length)];
+            const value = dataset.getValue(currentData);
+            
+            const metricLabel = document.getElementById('metricLabel');
+            const metricUnit = document.getElementById('metricUnit');
+            const metricValue = document.getElementById('metricValue');
+            const additionalInfo = document.getElementById('additionalInfo');
+            
+            if (metricLabel) metricLabel.innerHTML = dataset.title;
+            if (metricUnit) metricUnit.textContent = dataset.unit;
+            if (metricValue) metricValue.textContent = value.toFixed(dataset.unit === '/s' ? 3 : 1);
+            
+            // Update additional info with material and temperature (if element exists)
+            if (additionalInfo) {
+                additionalInfo.innerHTML = 
+                    `Step: ${currentData.simulation_step}<br>` +
+                    `Material: ${currentData.material_type}<br>` +
+                    `Temperature: ${currentData.temperature}°C`;
+            }
+        }
+        
+        /**
+         * Start data cycling
+         */
+        startDataCycling() {
+            if (this.dataUpdateInterval) return;
+            
+            this.dataUpdateInterval = setInterval(() => {
+                this.updateDynamicData();
+            }, 150);
+        }
+        
+        /**
+         * Stop data cycling
+         */
+        stopDataCycling() {
+            if (this.dataUpdateInterval) {
+                clearInterval(this.dataUpdateInterval);
+                this.dataUpdateInterval = null;
+            }
+        }
+        
+        /**
+         * Update dynamic data using actual deformation calculations
+         */
+        updateDynamicData() {
+            // Get random data point from actual deformation dataset
+            const dataPoint = this.sampleDeformationData[Math.floor(Math.random() * this.sampleDeformationData.length)];
+            const variation = (Math.random() - 0.5) * 0.1; // Same variation as artwork3.html
+            
+            const datasets = [
+                { 
+                    title: 'Strain<br>Rate', 
+                    unit: '/s', 
+                    getValue: () => Math.max(0.05, dataPoint.strain_rate + variation),
+                    precision: 3
+                },
+                { 
+                    title: 'Flow<br>Stress', 
+                    unit: 'MPa', 
+                    getValue: () => Math.max(100, dataPoint.flow_stress + variation * 50),
+                    precision: 1
+                },
+                { 
+                    title: 'Total<br>Deformation', 
+                    unit: 'mm', 
+                    getValue: () => Math.max(0, dataPoint.total_deformation + variation * 2),
+                    precision: 2
+                },
+                { 
+                    title: 'Grain<br>Size', 
+                    unit: 'μm', 
+                    getValue: () => Math.max(20, dataPoint.grain_size + variation * 10),
+                    precision: 1
+                }
+            ];
+            
+            const dataset = datasets[this.currentDataset];
+            const newValue = dataset.getValue();
+            
+            const metricValue = document.getElementById('metricValue');
+            const additionalInfo = document.getElementById('additionalInfo');
+            
+            if (metricValue) {
+                metricValue.textContent = newValue.toFixed(dataset.precision);
+            }
+            
+            // Update additional info with current data point (if element exists)
+            if (additionalInfo) {
+                additionalInfo.innerHTML = 
+                    `Step: ${dataPoint.simulation_step}<br>` +
+                    `Material: ${dataPoint.material_type}<br>` +
+                    `Temperature: ${dataPoint.temperature}°C`;
             }
         }
         

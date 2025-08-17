@@ -131,6 +131,9 @@ if (typeof window.Artwork5 === 'undefined') {
             // Setup canvas click detection
             this.setupCanvasClickDetection();
             
+            // Setup event listeners (including thermal container click)
+            this.setupEventListeners();
+            
             // Initialize and set up data overlay
             this.initializeDataOverlay();
             this.setupDataOverlayListeners();
@@ -227,16 +230,19 @@ if (typeof window.Artwork5 === 'undefined') {
             this.handleCanvasClickBound = this.handleCanvasClick.bind(this);
             
             // Window resize handler
-            window.addEventListener('resize', this.handleWindowResize);
+            this.registerEventListener(window, 'resize', this.handleWindowResize);
             
             // Add data overlay click handler if available
             if (this.dataOverlay) {
-                this.dataOverlay.addEventListener('click', this.handleDataOverlayClick);
+                this.registerEventListener(this.dataOverlay, 'click', this.handleDataOverlayClick);
             }
             
             // Add thermal container click handler if available
             if (this.thermalContainer) {
-                this.thermalContainer.addEventListener('click', this.handleThermalContainerClick);
+                console.log('Setting up thermal container click handler:', this.thermalContainer);
+                this.registerEventListener(this.thermalContainer, 'click', this.handleThermalContainerClick);
+            } else {
+                console.warn('Thermal container not available for click handler setup');
             }
         }
         
@@ -245,101 +251,210 @@ if (typeof window.Artwork5 === 'undefined') {
          */
         initializeDataOverlay() {
             try {
-                // Make sure the default text in the HTML uses line breaks consistently
-                const metricLabel = document.getElementById('metricLabel');
-                const metricValue = document.getElementById('metricValue');
-                const metricUnit = document.getElementById('metricUnit');
+                // Initialize overlay state
+                this.overlayVisible = false;
+                this.currentDataset = 0;
                 
-                if (metricLabel && metricValue && metricUnit) {
-                    // Set initial thermal data
-                    const initialData = this.thermalDataPoints[0];
-                    metricLabel.innerHTML = initialData.label.replace(' ', '<br>');
-                    metricValue.textContent = initialData.value.toFixed(1);
-                    metricUnit.textContent = initialData.unit;
-                    
-                    console.log('Thermal data overlay initialized with:', initialData);
-                }
+                // Sample thermal data from original artwork5.html
+                this.sampleData = [
+                    {zone_1: 1217.45, zone_2: 1133.62, zone_3: 967.77, zone_4_L: 997.18, zone_4_R: 996.13, temp_gradient: 249.7, thermal_stability: 0.913},
+                    {zone_1: 1229.47, zone_2: 1137.59, zone_3: 972.92, zone_4_L: 987.61, zone_4_R: 1000.68, temp_gradient: 256.6, thermal_stability: 0.853},
+                    {zone_1: 1236.19, zone_2: 1167.79, zone_3: 971.20, zone_4_L: 1006.91, zone_4_R: 1019.96, temp_gradient: 265.0, thermal_stability: 0.819},
+                    {zone_1: 1265.76, zone_2: 1178.55, zone_3: 1003.74, zone_4_L: 1027.83, zone_4_R: 1054.80, temp_gradient: 262.0, thermal_stability: 0.671},
+                    {zone_1: 1300.00, zone_2: 1221.83, zone_3: 1048.45, zone_4_L: 1060.67, zone_4_R: 1070.49, temp_gradient: 251.6, thermal_stability: 0.500}
+                ];
+                
+                console.log('Data overlay initialized for artwork5');
             } catch (error) {
-                console.error('Error initializing thermal data overlay:', error);
+                console.error('Error initializing data overlay:', error);
             }
         }
         
         /**
-         * Set up data overlay event listeners
+         * Show data overlay
+         */
+        showDataOverlay() {
+            this.overlayVisible = true;
+            const overlay = document.getElementById('dataOverlay');
+            overlay.classList.add('active');
+            
+            // Update with current dataset
+            this.updateOverlayData();
+            
+            // Start data cycling for dynamic updates
+            this.startDataCycling();
+            
+            console.log('Data overlay shown for artwork5');
+        }
+        
+        /**
+         * Hide data overlay
+         */
+        hideDataOverlay() {
+            this.overlayVisible = false;
+            const overlay = document.getElementById('dataOverlay');
+            overlay.classList.remove('active');
+            
+            // Stop data cycling
+            this.stopDataCycling();
+            
+            console.log('Data overlay hidden for artwork5');
+        }
+        
+        /**
+         * Cycle to next dataset
+         */
+        cycleToNextDataset() {
+            this.currentDataset = (this.currentDataset + 1) % 4; // 4 different data types
+            this.updateOverlayData();
+            console.log(`Cycled to dataset ${this.currentDataset} for artwork5`);
+        }
+        
+        /**
+         * Update overlay data based on current dataset with dynamic values
+         */
+        updateOverlayData() {
+            const datasets = [
+                { title: 'Zone 1<br>Temp', unit: '°C' },
+                { title: 'Zone 2<br>Temp', unit: '°C' },
+                { title: 'Temp<br>Gradient', unit: '°C' },
+                { title: 'Thermal<br>Stability', unit: '' }
+            ];
+            
+            const dataset = datasets[this.currentDataset];
+            
+            // Get DOM elements with null checks
+            const metricLabel = document.getElementById('metricLabel');
+            const metricUnit = document.getElementById('metricUnit');
+            const metricValue = document.getElementById('metricValue');
+            const additionalInfo = document.getElementById('additionalInfo');
+            
+            if (!metricLabel || !metricUnit || !metricValue) {
+                console.warn('Data overlay DOM elements not found. Overlay may not be initialized.');
+                return;
+            }
+            
+            metricLabel.innerHTML = dataset.title;
+            metricUnit.textContent = dataset.unit;
+            
+            // Calculate dynamic value based on current dataset
+            const time = (Date.now() * 0.001);
+            let value;
+            
+            switch (this.currentDataset) {
+                case 0: // Zone 1 Temperature
+                    value = 1085 + Math.sin(time * 0.7) * 5.5 + Math.cos(time * 1.3) * 3.2;
+                    value = Math.max(1070, Math.min(1100, value));
+                    break;
+                    
+                case 1: // Zone 2 Temperature
+                    value = 1120 + Math.sin(time * 0.5) * 4.8 + Math.cos(time * 0.9) * 3.5;
+                    value = Math.max(1110, Math.min(1130, value));
+                    break;
+                    
+                case 2: // Temperature Gradient
+                    value = 35 + Math.sin(time * 1.1) * 3.2 + Math.cos(time * 1.7) * 2.5;
+                    value = Math.max(30, Math.min(40, value));
+                    break;
+                    
+                case 3: // Thermal Stability
+                    value = 0.875 + Math.sin(time * 1.5) * 0.08 + Math.cos(time * 2.1) * 0.05;
+                    value = Math.max(0.8, Math.min(0.95, value));
+                    break;
+            }
+            
+            metricValue.textContent = value.toFixed(dataset.unit === '' ? 3 : 1);
+            
+            // Update additional info with dynamic values if element exists
+            if (additionalInfo) {
+                const zone3Temp = 1095 + Math.sin(time * 0.8) * 4.2 + Math.cos(time * 1.1) * 2.8;
+                const zone4LTemp = 1105 + Math.sin(time * 0.6) * 3.8 + Math.cos(time * 1.4) * 3.1;
+                const zone4RTemp = 1102 + Math.sin(time * 0.9) * 4.1 + Math.cos(time * 1.2) * 2.9;
+                
+                additionalInfo.innerHTML = 
+                    `Zone 3: ${zone3Temp.toFixed(1)}°C<br>` +
+                    `Zone 4L: ${zone4LTemp.toFixed(1)}°C<br>` +
+                    `Zone 4R: ${zone4RTemp.toFixed(1)}°C`;
+            }
+        }
+        
+        /**
+         * Show data when data button is clicked
+         */
+        showData() {
+            this.toggleDataOverlay();
+        }
+        
+        /**
+         * Toggle data overlay
+         */
+        toggleDataOverlay() {
+            if (this.overlayVisible) {
+                this.hideDataOverlay();
+            } else {
+                this.showDataOverlay();
+            }
+        }
+        
+        /**
+         * Handle canvas click event
+         */
+        handleCanvasClick(event, canvas) {
+            console.log('Canvas clicked for artwork5');
+            
+            // Toggle data overlay or cycle through datasets
+            if (this.overlayVisible) {
+                this.cycleToNextDataset();
+            } else {
+                this.showDataOverlay();
+            }
+        }
+        
+        /**
+         * Handle thermal container click event
+         */
+        handleContainerClick(event) {
+            console.log('Thermal container clicked for artwork5');
+            
+            if (!this.isActive) return;
+            
+            // Toggle data overlay or cycle through datasets
+            if (this.overlayVisible) {
+                this.cycleToNextDataset();
+            } else {
+                this.showDataOverlay();
+            }
+        }
+        
+        /**
+         * Set up data overlay listeners
          */
         setupDataOverlayListeners() {
-            try {
-                const canvas = document.getElementById('visualizationCanvas');
-                const overlayClose = document.getElementById('overlayClose');
+            // Data overlay click handler for cycling datasets
+            this.handleDataOverlayClick = () => {
+                this.cycleToNextDataset();
+            };
+        }
+        
+        /**
+         * Setup canvas click detection for data overlay interaction
+         */
+        setupCanvasClickDetection() {
+            const canvas = document.getElementById('visualizationCanvas');
+            if (!canvas) return;
+            
+            this.handleCanvasClick = (event) => {
+                if (!this.isActive) return;
                 
-                if (canvas) {
-                    console.log('Setting up data overlay listeners for canvas');
-                    
-                    // Canvas click handler for node interactions
-                    canvas.addEventListener('click', (event) => {
-                        try {
-                            this.handleNodeClick(event, canvas);
-                        } catch (error) {
-                            console.error('Error in canvas click handler:', error);
-                        }
-                    });
-                    
-                    // Touch handler for mobile devices
-                    let isTouchDragging = false;
-                    let touchStartTime = 0;
-                    
-                    canvas.addEventListener('touchstart', (event) => {
-                        isTouchDragging = false;
-                        touchStartTime = Date.now();
-                    }, { passive: false });
-                    
-                    canvas.addEventListener('touchmove', (event) => {
-                        isTouchDragging = true;
-                    }, { passive: false });
-                    
-                    canvas.addEventListener('touchend', (event) => {
-                        try {
-                            event.preventDefault();
-                            const touchDuration = Date.now() - touchStartTime;
-                            
-                            // Only trigger click if it wasn't a drag and was a quick tap
-                            if (!isTouchDragging && touchDuration < 300) {
-                                if (event.changedTouches.length > 0) {
-                                    const touch = event.changedTouches[0];
-                                    const syntheticEvent = {
-                                        clientX: touch.clientX,
-                                        clientY: touch.clientY,
-                                        target: canvas
-                                    };
-                                    this.handleNodeClick(syntheticEvent, canvas);
-                                }
-                            }
-                            isTouchDragging = false;
-                        } catch (error) {
-                            console.error('Error in touchend handler:', error);
-                        }
-                    }, { passive: false });
+                // Toggle data overlay or cycle through datasets
+                if (this.overlayVisible) {
+                    this.cycleToNextDataset();
                 } else {
-                    console.warn('Canvas element not found for data overlay listeners');
+                    this.showDataOverlay();
                 }
-                
-                // Close button handler
-                if (overlayClose) {
-                    overlayClose.addEventListener('click', () => {
-                        try {
-                            this.hideDataOverlay();
-                        } catch (error) {
-                            console.error('Error in overlay close handler:', error);
-                        }
-                    });
-                } else {
-                    console.warn('Overlay close button not found');
-                }
-                
-                // Data button functionality is handled by parent class
-            } catch (error) {
-                console.error('Error setting up data overlay listeners:', error);
-            }
+            };
+            
+            this.registerEventListener(canvas, 'click', this.handleCanvasClick);
         }
         
         /**
@@ -356,93 +471,6 @@ if (typeof window.Artwork5 === 'undefined') {
             } else {
                 return 1.1; // Desktop
             }
-        }
-    
-        /**
-         * Setup canvas click detection for data overlay interaction
-         */
-        setupCanvasClickDetection() {
-            const canvas = document.getElementById('waveCanvas');
-            if (!canvas) return;
-            
-            // Simple click event - just like any other HTML element
-            canvas.addEventListener('click', (event) => {
-                this.handleCanvasClick(event, canvas);
-            });
-            
-            // Simple touch event for mobile
-            canvas.addEventListener('touchend', (event) => {
-                event.preventDefault();
-                this.handleCanvasClick(event, canvas);
-            });
-        }
-        
-        /**
-         * Handle container click event
-         */
-        handleContainerClick(event) {
-            // Toggle data overlay
-            if (!this.isDataOverlayVisible) {
-                this.showDataOverlay();
-            } else {
-                this.cycleToNextDataset();
-            }
-        }
-        
-        /**
-         * Show data overlay with cycling datasets
-         */
-        showDataOverlay() {
-            const overlay = document.getElementById('dataOverlay');
-            if (overlay) {
-                this.overlayVisible = true;
-                overlay.classList.add('active');
-                
-                // Start data cycling
-                this.startDataCycling();
-                
-                // Initialize with first dataset
-                this.updateOverlayData();
-            }
-        }
-        
-        /**
-         * Hide data overlay
-         */
-        hideDataOverlay() {
-            const overlay = document.getElementById('dataOverlay');
-            if (overlay) {
-                this.overlayVisible = false;
-                overlay.classList.remove('active');
-                
-                // Stop data cycling
-                this.stopDataCycling();
-            }
-        }
-        
-        /**
-         * Cycle to next dataset
-         */
-        cycleToNextDataset() {
-            if (this.overlayVisible) {
-                this.currentDataset = (this.currentDataset + 1) % this.thermalDataPoints.length;
-                this.updateOverlayData();
-            }
-        }
-        
-        /**
-         * Update overlay data display
-         */
-        updateOverlayData() {
-            const thermalData = this.thermalDataPoints[this.currentDataset];
-            
-            const metricLabel = document.getElementById('metricLabel');
-            const metricUnit = document.getElementById('metricUnit');
-            const metricValue = document.getElementById('metricValue');
-            
-            if (metricLabel) metricLabel.innerHTML = thermalData.label.replace(' ', '<br>');
-            if (metricUnit) metricUnit.textContent = thermalData.unit;
-            if (metricValue) metricValue.textContent = thermalData.value.toFixed(1);
         }
         
         /**
@@ -491,7 +519,7 @@ if (typeof window.Artwork5 === 'undefined') {
             
             this.dataUpdateInterval = setInterval(() => {
                 if (this.overlayVisible) {
-                    this.updateDataValues();
+                    this.updateOverlayData();
                 }
             }, 200); // Fast updates for dynamic effect
         }
@@ -533,6 +561,13 @@ if (typeof window.Artwork5 === 'undefined') {
                     visibility: hidden;
                     transition: all 0.5s ease;
                     cursor: pointer;
+                    /* Prevent blue highlight/selection on click */
+                    -webkit-user-select: none;
+                    -moz-user-select: none;
+                    -ms-user-select: none;
+                    user-select: none;
+                    -webkit-tap-highlight-color: transparent;
+                    -webkit-touch-callout: none;
                 }
                 
                 .thermal-container.active {
@@ -882,6 +917,12 @@ if (typeof window.Artwork5 === 'undefined') {
             console.log('Force initializing thermal container...');
             this.initializeThermalContainer();
             
+            // Setup thermal container click handler after re-initialization
+            if (this.thermalContainer) {
+                console.log('Setting up thermal container click handler on activation:', this.thermalContainer);
+                this.registerEventListener(this.thermalContainer, 'click', this.handleThermalContainerClick);
+            }
+            
             // Activate thermal visualization
             if (this.thermalContainer && !this.thermalAnimationActive) {
                 console.log('Activating thermal visualization...');
@@ -947,34 +988,6 @@ if (typeof window.Artwork5 === 'undefined') {
             }
         }
         
-        /**
-         * Remove all event listeners to prevent memory leaks
-         */
-        removeEventListeners() {
-            console.log('Removing event listeners...');
-            
-            // Remove data overlay click listener
-            if (this.dataOverlay && this.handleDataOverlayClick) {
-                this.dataOverlay.removeEventListener('click', this.handleDataOverlayClick);
-            }
-            
-            // Remove window resize listener if any
-            if (this.handleWindowResize) {
-                window.removeEventListener('resize', this.handleWindowResize);
-            }
-            
-            // Remove any other event listeners specific to this artwork
-            if (this.thermalContainer && this.handleThermalContainerClick) {
-                this.thermalContainer.removeEventListener('click', this.handleThermalContainerClick);
-            }
-            
-            // Clean up canvas event listeners if any
-            const canvas = document.getElementById('thermalCanvas');
-            if (canvas && this.handleCanvasClickBound) {
-                canvas.removeEventListener('click', this.handleCanvasClickBound);
-                canvas.removeEventListener('touchend', this.handleCanvasClickBound);
-            }
-        }
         
         /**
          * Remove injected thermal styles from document
@@ -1034,8 +1047,7 @@ if (typeof window.Artwork5 === 'undefined') {
             // Deactivate thermal visualization
             this.deactivateThermalVisualization();
             
-            // Remove event listeners
-            this.removeEventListeners();
+            // Event listeners are automatically cleaned up by centralized system
             
             // Remove thermal styles and container (CSS cleanup)
             this.removeThermalStyles();

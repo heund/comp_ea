@@ -118,6 +118,19 @@ if (typeof window.Artwork4 === 'undefined') {
             this.initializeDataOverlay();
             this.setupDataOverlayListeners();
             
+            // Setup event listeners
+            this.setupEventListeners();
+            
+            // Apply dynamic camera positioning - positioned to face Voronoi shape directly
+            const canvas = document.getElementById('visualizationCanvas');
+            const container = canvas.parentElement;
+            const minDimension = Math.min(container.clientWidth, container.clientHeight);
+            const scaleFactor = this.calculateScaleFactor(minDimension);
+            const baseDistance = 25;
+            const distance = baseDistance * scaleFactor;
+            this.camera.position.set(0, 0, distance);
+            this.camera.lookAt(0, 0, 0);
+            
             this.isInitialized = true;
             console.log(`[INIT] ✅ ${this.title} module initialized successfully`);
         }
@@ -143,12 +156,6 @@ if (typeof window.Artwork4 === 'undefined') {
             
             // Create camera with dynamic scaling for different devices
             this.camera = new THREE.PerspectiveCamera(75, width / height, 0.1, 1000);
-            
-            // Apply dynamic camera positioning - positioned to face Voronoi shape directly
-            const baseDistance = 25;
-            const distance = baseDistance * scaleFactor;
-            this.camera.position.set(0, 0, distance);
-            this.camera.lookAt(0, 0, 0);
             
             // Create renderer
             this.renderer = new THREE.WebGLRenderer({ 
@@ -204,7 +211,7 @@ if (typeof window.Artwork4 === 'undefined') {
          */
         setupEventListeners() {
             // Window resize handler
-            window.addEventListener('resize', this.onWindowResize.bind(this));
+            this.registerEventListener(window, 'resize', this.onWindowResize.bind(this));
         }
         
         /**
@@ -427,43 +434,132 @@ if (typeof window.Artwork4 === 'undefined') {
             this.handleCanvasClick = (event) => {
                 if (!this.isActive) return;
                 
-                // Show data overlay when canvas is clicked
-                this.showDataOverlay();
+                // Toggle data overlay or cycle through datasets
+                if (this.overlayVisible) {
+                    this.cycleToNextDataset();
+                } else {
+                    this.showDataOverlay();
+                }
             };
             
-            canvas.addEventListener('click', this.handleCanvasClick);
+            this.registerEventListener(canvas, 'click', this.handleCanvasClick);
         }
         
         /**
-         * Show data overlay with current dataset
+         * Show data when data button is clicked
+         */
+        showData() {
+            this.toggleDataOverlay();
+        }
+        
+        /**
+         * Show data overlay
          */
         showDataOverlay() {
-            const currentData = this.sampleData[this.currentDataset];
+            this.overlayVisible = true;
+            const overlay = document.getElementById('dataOverlay');
+            overlay.classList.add('active');
+            this.updateOverlayData();
+            this.startDataCycling();
+        }
+        
+        /**
+         * Hide data overlay
+         */
+        hideDataOverlay() {
+            this.overlayVisible = false;
+            const overlay = document.getElementById('dataOverlay');
+            overlay.classList.remove('active');
+            this.stopDataCycling();
+        }
+        
+        /**
+         * Cycle to next dataset
+         */
+        cycleToNextDataset() {
+            this.currentDataset = (this.currentDataset + 1) % 4;
+            this.updateOverlayData();
+        }
+        
+        /**
+         * Update overlay data based on current dataset
+         */
+        updateOverlayData() {
+            const datasets = [
+                { title: 'Current<br>Corrections', unit: '', baseValue: 4 },
+                { title: 'Data<br>Integrity', unit: '%', baseValue: 88 },
+                { title: 'Correction<br>Effectiveness', unit: '%', baseValue: 85 },
+                { title: 'Active<br>Corrections', unit: '', baseValue: 8 }
+            ];
             
-            this.updateDataOverlay({
-                title: '보로노이 응력 누적 분석',
-                subtitle: '열간 압연 데이터 04',
-                metrics: [
-                    { label: '현재 보정 수', value: currentData.current_corrections_count, unit: '개' },
-                    { label: '데이터 무결성', value: (currentData.data_integrity * 100).toFixed(1), unit: '%' },
-                    { label: '보정 효과성', value: (currentData.correction_effectiveness * 100).toFixed(1), unit: '%' },
-                    { label: '활성 보정 수', value: currentData.active_corrections_count, unit: '개' }
-                ]
-            });
+            const dataset = datasets[this.currentDataset];
+            const metricLabel = document.getElementById('metricLabel');
+            const metricUnit = document.getElementById('metricUnit');
+            const metricValue = document.getElementById('metricValue');
             
-            // Add click listener to data overlay for cycling
-            this.dataOverlay = document.getElementById('data-overlay');
-            if (this.dataOverlay && this.handleDataOverlayClick) {
-                this.dataOverlay.addEventListener('click', this.handleDataOverlayClick);
+            if (metricLabel) metricLabel.innerHTML = dataset.title;
+            if (metricUnit) metricUnit.textContent = dataset.unit;
+            if (metricValue) metricValue.textContent = dataset.baseValue;
+        }
+        
+        /**
+         * Start data cycling for dynamic updates
+         */
+        startDataCycling() {
+            if (this.dataUpdateInterval) return;
+            
+            this.dataUpdateInterval = setInterval(() => {
+                this.updateDynamicData();
+            }, 180); // Update every 180ms for dynamic effect
+        }
+        
+        /**
+         * Stop data cycling
+         */
+        stopDataCycling() {
+            if (this.dataUpdateInterval) {
+                clearInterval(this.dataUpdateInterval);
+                this.dataUpdateInterval = null;
             }
         }
         
         /**
-         * Cycle through different datasets
+         * Update dynamic data with variations
          */
-        cycleDataset() {
-            this.currentDataset = (this.currentDataset + 1) % this.sampleData.length;
-            this.showDataOverlay(); // Refresh with new data
+        updateDynamicData() {
+            const datasets = [
+                { title: 'Current<br>Corrections', unit: '', baseValue: 4, range: 3 },
+                { title: 'Data<br>Integrity', unit: '%', baseValue: 88, range: 12 },
+                { title: 'Correction<br>Effectiveness', unit: '%', baseValue: 85, range: 15 },
+                { title: 'Active<br>Corrections', unit: '', baseValue: 8, range: 5 }
+            ];
+            
+            const dataset = datasets[this.currentDataset];
+            const variation = (Math.random() - 0.5) * dataset.range;
+            let newValue = dataset.baseValue + variation;
+            
+            const metricValue = document.getElementById('metricValue');
+            if (!metricValue) return;
+            
+            // Format the value appropriately
+            if (dataset.unit === '%') {
+                newValue = Math.max(0, Math.min(100, newValue));
+                metricValue.textContent = newValue.toFixed(1);
+            } else {
+                newValue = Math.max(0, newValue);
+                metricValue.textContent = Math.round(newValue);
+            }
+        }
+        
+        /**
+         * Toggle data overlay
+         */
+        toggleDataOverlay() {
+            if (this.overlayVisible) {
+                this.hideDataOverlay();
+            } else {
+                this.showDataOverlay();
+            }
         }
         
         /**
@@ -490,28 +586,6 @@ if (typeof window.Artwork4 === 'undefined') {
             console.log('[ARTWORK4] ✅ Deactivation complete');
         }
         
-        /**
-         * Remove all event listeners to prevent memory leaks
-         */
-        removeEventListeners() {
-            console.log('[ARTWORK4] 🧹 Removing event listeners...');
-            
-            // Remove data overlay click listener
-            if (this.dataOverlay && this.handleDataOverlayClick) {
-                this.dataOverlay.removeEventListener('click', this.handleDataOverlayClick);
-            }
-            
-            // Remove canvas click listener
-            const canvas = document.getElementById('visualizationCanvas');
-            if (canvas && this.handleCanvasClick) {
-                canvas.removeEventListener('click', this.handleCanvasClick);
-            }
-            
-            // Remove window resize listener
-            if (this.handleWindowResize) {
-                window.removeEventListener('resize', this.handleWindowResize);
-            }
-        }
         
         /**
          * Clean up resources
@@ -519,8 +593,7 @@ if (typeof window.Artwork4 === 'undefined') {
         cleanup() {
             console.log(`[CLEANUP] 🧹 Starting cleanup for ${this.title} module`);
             
-            // Remove event listeners
-            this.removeEventListeners();
+            // Event listeners are automatically cleaned up by centralized system
             
             // Clean up Three.js objects
             if (this.scene) {
