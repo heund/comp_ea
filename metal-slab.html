@@ -607,21 +607,34 @@
         }
         
         /* Reset Button */
-        .reset-btn {
-            width: 40px;
-            height: 40px;
-            padding: 0;
-            background: var(--glass-bg);
-            border: 1px solid var(--glass-border);
-            border-radius: 50%; /* Circular */
-            color: var(--glass-white);
-            cursor: pointer;
-            transition: all 0.3s ease;
-            margin: 15px auto 0 auto;
+        .reset-btn, .synth-btn {
             display: flex;
             align-items: center;
             justify-content: center;
-            backdrop-filter: blur(20px);
+            gap: 8px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: var(--glass-white);
+            padding: 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(10px);
+            margin: 20px auto 0 auto;
+            width: 40px;
+            height: 40px;
+        }
+        
+        .synth-btn {
+            margin-top: 10px;
+        }
+        
+        .synth-btn.active {
+            background: rgba(0, 255, 100, 0.2);
+            border-color: rgba(0, 255, 100, 0.4);
+            color: #00ff64;
         }
         
         .reset-btn:hover {
@@ -1113,6 +1126,7 @@
                 <path d="M3 21v-5h5"/>
             </svg>
         </button>
+        
     </div>
     
     <!-- Rolling Panel -->
@@ -1178,6 +1192,15 @@
         let appIsVisible = true;
         let audioWasPausedByVisibility = false;
         
+        // Web Audio API Synth variables
+        let audioContext;
+        let synthOscillator;
+        let synthGain;
+        let synthFilter;
+        let synthLFO;
+        let synthLFOGain;
+        let synthIsPlaying = false;
+        
         // Initialize audio system
         function initializeAudio() {
             // Initialize background music
@@ -1216,7 +1239,7 @@
             // Handle app visibility changes for audio management
             document.addEventListener('visibilitychange', () => {
                 if (document.hidden) {
-                    console.log('App hidden - pausing background music');
+                    console.log('App hidden - pausing all audio');
                     appIsVisible = false;
                     
                     // Pause background music
@@ -1224,8 +1247,17 @@
                         backgroundMusic.pause();
                         audioWasPausedByVisibility = true;
                     }
+                    
+                    // Suspend synth audio context
+                    if (audioContext && audioContext.state === 'running') {
+                        audioContext.suspend().then(() => {
+                            console.log('Synth audio context suspended');
+                        }).catch(error => {
+                            console.log('Synth suspend error:', error);
+                        });
+                    }
                 } else {
-                    console.log('App visible - resuming background music');
+                    console.log('App visible - resuming all audio');
                     appIsVisible = true;
                     
                     // Resume background music if it was paused by visibility change
@@ -1234,6 +1266,15 @@
                             console.log('Background music resume error:', error);
                         });
                         audioWasPausedByVisibility = false;
+                    }
+                    
+                    // Resume synth audio context
+                    if (audioContext && audioContext.state === 'suspended') {
+                        audioContext.resume().then(() => {
+                            console.log('Synth audio context resumed');
+                        }).catch(error => {
+                            console.log('Synth resume error:', error);
+                        });
                     }
                 }
             });
@@ -1244,6 +1285,13 @@
                 if (backgroundMusic && !backgroundMusic.paused) {
                     backgroundMusic.pause();
                     audioWasPausedByVisibility = true;
+                }
+                
+                // Suspend synth audio context on page hide
+                if (audioContext && audioContext.state === 'running') {
+                    audioContext.suspend().catch(error => {
+                        console.log('Synth suspend on pagehide error:', error);
+                    });
                 }
             });
             
@@ -1257,6 +1305,15 @@
                         audioWasPausedByVisibility = false;
                     }, 100);
                 }
+                
+                // Resume synth audio context on page show
+                if (audioContext && audioContext.state === 'suspended') {
+                    setTimeout(() => {
+                        audioContext.resume().catch(error => {
+                            console.log('Synth resume on pageshow error:', error);
+                        });
+                    }, 100);
+                }
             });
         }
         
@@ -1265,6 +1322,121 @@
                 startBackgroundMusic();
                 musicStarted = true;
             }
+            
+            // Initialize synth on first interaction
+            if (!audioContext) {
+                initializeSynth();
+            }
+        }
+        
+        // Initialize Web Audio API Synth with continuous tone
+        function initializeSynth() {
+            try {
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                
+                // Create synth components for a chord (3 oscillators)
+                synthOscillator = audioContext.createOscillator();
+                const synthOsc2 = audioContext.createOscillator();
+                const synthOsc3 = audioContext.createOscillator();
+                
+                synthGain = audioContext.createGain();
+                const synthGain2 = audioContext.createGain();
+                const synthGain3 = audioContext.createGain();
+                
+                synthFilter = audioContext.createBiquadFilter();
+                synthLFO = audioContext.createOscillator();
+                synthLFOGain = audioContext.createGain();
+                
+                // Configure oscillators for chord (root, fifth, octave)
+                synthOscillator.type = 'sawtooth';
+                synthOsc2.type = 'sawtooth';
+                synthOsc3.type = 'sine';
+                
+                // Set initial frequencies (C major chord)
+                synthOscillator.frequency.setValueAtTime(220, audioContext.currentTime); // Root
+                synthOsc2.frequency.setValueAtTime(330, audioContext.currentTime); // Fifth
+                synthOsc3.frequency.setValueAtTime(440, audioContext.currentTime); // Octave
+                
+                // Configure filter
+                synthFilter.type = 'lowpass';
+                synthFilter.frequency.setValueAtTime(1000, audioContext.currentTime);
+                synthFilter.Q.setValueAtTime(3, audioContext.currentTime);
+                
+                // Configure LFO for subtle modulation
+                synthLFO.type = 'sine';
+                synthLFO.frequency.setValueAtTime(0.5, audioContext.currentTime);
+                synthLFOGain.gain.setValueAtTime(20, audioContext.currentTime);
+                
+                // Configure gains for continuous play
+                synthGain.gain.setValueAtTime(0.03, audioContext.currentTime); // Low volume for continuous play
+                synthGain2.gain.setValueAtTime(0.02, audioContext.currentTime);
+                synthGain3.gain.setValueAtTime(0.015, audioContext.currentTime);
+                
+                // Connect audio graph
+                synthOscillator.connect(synthGain);
+                synthOsc2.connect(synthGain2);
+                synthOsc3.connect(synthGain3);
+                
+                synthGain.connect(synthFilter);
+                synthGain2.connect(synthFilter);
+                synthGain3.connect(synthFilter);
+                
+                synthFilter.connect(audioContext.destination);
+                
+                // Connect LFO for filter modulation
+                synthLFO.connect(synthLFOGain);
+                synthLFOGain.connect(synthFilter.frequency);
+                
+                // Start oscillators immediately for continuous play
+                synthOscillator.start();
+                synthOsc2.start();
+                synthOsc3.start();
+                synthLFO.start();
+                
+                // Store additional oscillators for parameter updates
+                window.synthOsc2 = synthOsc2;
+                window.synthOsc3 = synthOsc3;
+                window.synthGain2 = synthGain2;
+                window.synthGain3 = synthGain3;
+                
+                synthIsPlaying = true;
+                console.log('Continuous synth initialized and playing');
+            } catch (error) {
+                console.log('Synth initialization error:', error);
+            }
+        }
+        
+        // Update synth parameters based on cont parameters
+        function updateSynthParameters() {
+            if (!audioContext || !synthOscillator || !synthFilter || !synthLFO) return;
+            
+            const currentTime = audioContext.currentTime;
+            
+            // Map rollForce (0-1) to chord frequencies
+            const baseFreq = 110 + (parameters.rollForce * 330); // 110-440 Hz
+            const fifthFreq = baseFreq * 1.5; // Perfect fifth
+            const octaveFreq = baseFreq * 2; // Octave
+            
+            synthOscillator.frequency.linearRampToValueAtTime(baseFreq, currentTime + 0.2);
+            if (window.synthOsc2) {
+                window.synthOsc2.frequency.linearRampToValueAtTime(fifthFreq, currentTime + 0.2);
+            }
+            if (window.synthOsc3) {
+                window.synthOsc3.frequency.linearRampToValueAtTime(octaveFreq, currentTime + 0.2);
+            }
+            
+            // Map gap (0-1) to filter cutoff frequency (300-3000 Hz)
+            const filterFreq = 300 + (parameters.gap * 2700);
+            synthFilter.frequency.linearRampToValueAtTime(filterFreq, currentTime + 0.2);
+            
+            // Map fra (0-1) to LFO rate and filter resonance
+            const lfoRate = 0.2 + (parameters.fra * 2); // Slower, more musical LFO
+            const resonance = 1 + (parameters.fra * 8); // 1-9 Q factor
+            
+            synthLFO.frequency.linearRampToValueAtTime(lfoRate, currentTime + 0.2);
+            synthFilter.Q.linearRampToValueAtTime(resonance, currentTime + 0.2);
+            
+            console.log(`Synth chord: ${baseFreq.toFixed(1)}Hz, filter: ${filterFreq.toFixed(1)}Hz, Q: ${resonance.toFixed(1)}, LFO: ${lfoRate.toFixed(1)}Hz`);
         }
         
         // Global click sound function that can be called from navigation.js
@@ -1925,9 +2097,8 @@
                 parameters.rollForce = parseFloat(e.target.value);
                 document.getElementById('rollForceValue').textContent = parameters.rollForce.toFixed(2);
                 createMetalSlab();
+                updateSynthParameters(); // Update synth
                 pauseRotationForSlider();
-                
-                // Visualization updates handled by createMetalSlab()
             });
             
             // Gap slider
@@ -1935,9 +2106,8 @@
                 parameters.gap = parseFloat(e.target.value);
                 document.getElementById('gapValue').textContent = parameters.gap.toFixed(2);
                 createMetalSlab();
+                updateSynthParameters(); // Update synth
                 pauseRotationForSlider();
-                
-                // Visualization updates handled by createMetalSlab()
             });
             
             // FRA slider
@@ -1945,9 +2115,8 @@
                 parameters.fra = parseFloat(e.target.value);
                 document.getElementById('fraValue').textContent = parameters.fra.toFixed(2);
                 createMetalSlab();
+                updateSynthParameters(); // Update synth
                 pauseRotationForSlider();
-                
-                // Visualization updates handled by createMetalSlab()
             });
             
             // Reset button
@@ -1966,10 +2135,12 @@
                     document.getElementById('fraValue').textContent = '0.50';
                     
                     createMetalSlab();
+                    updateSynthParameters(); // Update synth with reset values
                     
-                    // Audio parameters reset removed
+                    playClickSound();
                 });
             }
+            
         }
         
         // Setup rolling parameter controls
@@ -2297,6 +2468,10 @@
             
             // Click event for the tab
             controlTab.addEventListener('click', () => {
+                // Prevent clicks when any panel is expanded (except this one)
+                if (currentExpandedPanel && currentExpandedPanel !== 'cont') {
+                    return;
+                }
                 playClickSound();
                 togglePanel();
             });
@@ -2304,6 +2479,10 @@
             // Touch event for mobile/tablet
             controlTab.addEventListener('touchstart', (e) => {
                 e.preventDefault();
+                // Prevent clicks when any panel is expanded (except this one)
+                if (currentExpandedPanel && currentExpandedPanel !== 'cont') {
+                    return;
+                }
                 playClickSound();
                 togglePanel();
             });
@@ -2418,6 +2597,10 @@
             
             // Click event for the tab
             rollingTab.addEventListener('click', () => {
+                // Prevent clicks when any panel is expanded (except this one)
+                if (currentExpandedPanel && currentExpandedPanel !== 'rolling') {
+                    return;
+                }
                 playClickSound();
                 togglePanel();
             });
@@ -2425,6 +2608,10 @@
             // Touch event for mobile/tablet
             rollingTab.addEventListener('touchstart', (e) => {
                 e.preventDefault();
+                // Prevent clicks when any panel is expanded (except this one)
+                if (currentExpandedPanel && currentExpandedPanel !== 'rolling') {
+                    return;
+                }
                 playClickSound();
                 togglePanel();
             });
@@ -2621,9 +2808,9 @@
                 const value = parseFloat(e.target.value);
                 parameters.gap = value;
                 gapValue.textContent = value.toFixed(2);
-                if (typeof updateDataPanel === 'function' && typeof getCurrentDimensions === 'function') {
-                    updateDataPanel(getCurrentDimensions());
-                }
+                createMetalSlab();
+                updateSynthParameters(); // Update synth
+                pauseRotationForSlider();
             });
             
             // FRA slider event listener
@@ -2631,9 +2818,9 @@
                 const value = parseFloat(e.target.value);
                 parameters.fra = value; // Fixed: use 'fra' not 'fullRollingAmount'
                 fraValue.textContent = value.toFixed(2);
-                if (typeof updateDataPanel === 'function' && typeof getCurrentDimensions === 'function') {
-                    updateDataPanel(getCurrentDimensions());
-                }
+                createMetalSlab();
+                updateSynthParameters(); // Update synth
+                pauseRotationForSlider();
             });
             
             // Initialize slider values
@@ -2759,6 +2946,10 @@
             display: none !important;
             visibility: hidden !important;
             opacity: 0 !important;
+            pointer-events: none !important;
+            position: absolute !important;
+            left: -9999px !important;
+            top: -9999px !important;
         }
     </style>
     
