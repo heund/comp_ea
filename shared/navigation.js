@@ -51,7 +51,6 @@ class ExhibitionNavigator {
     createNavigationElements() {
         // Get existing navigation elements (they should already exist in HTML)
         this.backButton = document.getElementById('backButton');
-        this.homeButton = document.getElementById('homeButton');
         this.statusIndicator = document.getElementById('statusIndicator');
         
         // Only create if they don't exist (for artwork pages that might not have them)
@@ -59,16 +58,8 @@ class ExhibitionNavigator {
             const navHTML = `
                 <!-- Simple Navigation with SVG icons -->
                 <button class="back-button" id="backButton">
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
-                        <path d="M15 18l-6-6 6-6"></path>
-                    </svg>
-                </button>
-                
-                <button class="home-button" id="homeButton">
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
-                        <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
-                        <polyline points="9 22 9 12 15 12 15 22"></polyline>
-                    </svg>
+                    <span class="back-button-text">메탈 슬래브 시뮬레이션</span>
+                    <i class="bi bi-arrow-left"></i>
                 </button>
                 
                 <div class="status-indicator" id="statusIndicator">
@@ -80,11 +71,7 @@ class ExhibitionNavigator {
             
             // Re-get the elements after creating them
             this.backButton = document.getElementById('backButton');
-            this.homeButton = document.getElementById('homeButton');
             this.statusIndicator = document.getElementById('statusIndicator');
-        } else if (!this.homeButton) {
-            // If back button exists but home button doesn't, get the home button
-            this.homeButton = document.getElementById('homeButton');
         }
     }
 
@@ -100,16 +87,7 @@ class ExhibitionNavigator {
             });
         }
 
-        // Home button - go to home page
-        if (this.homeButton) {
-            this.homeButton.addEventListener('click', () => {
-                // Play click sound if available
-                if (typeof playClickSound === 'function') {
-                    playClickSound();
-                }
-                this.navigateHome();
-            });
-        }
+        // Home button functionality removed
 
         // Keyboard navigation
         document.addEventListener('keydown', (event) => {
@@ -117,8 +95,6 @@ class ExhibitionNavigator {
                 this.navigateNext();
             } else if (event.key === 'ArrowLeft') {
                 this.navigatePrevious();
-            } else if (event.key === 'Home' || event.key === 'Escape') {
-                this.navigateHome();
             }
         });
 
@@ -260,9 +236,7 @@ class ExhibitionNavigator {
         }
     }
 
-    navigateHome() {
-        this.navigateTo('metal-slab.html');
-    }
+    // navigateHome function removed
 
     navigateTo(pageName) {
         if (pageName === this.currentPage) return;
@@ -449,15 +423,6 @@ class ExhibitionNavigator {
                 this.backButton.classList.add('visible');
             } else {
                 this.backButton.classList.remove('visible');
-            }
-        }
-
-        // Show/hide home button - only if it exists
-        if (this.homeButton) {
-            if (this.currentPage === 'metal-slab.html') {
-                this.homeButton.classList.remove('visible');
-            } else {
-                this.homeButton.classList.add('visible');
             }
         }
     }

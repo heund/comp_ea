@@ -235,6 +235,45 @@
         }
         
         /* Thermal CSS styles moved to artwork5.js for self-contained module */
+        
+        /* Back Button Styling - Matching next-button style from metal-slab.html */
+        .back-button {
+            position: fixed;
+            bottom: 30px;
+            left: 30px;
+            height: 60px;
+            display: flex;
+            flex-direction: row; /* Ensure horizontal layout */
+            align-items: center;
+            justify-content: flex-start;
+            cursor: pointer;
+            transition: all 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+            border: none;
+            z-index: 1000;
+            background: transparent;
+            box-shadow: none;
+            padding: 0 15px;
+            width: auto; /* Allow width to adjust to content */
+            white-space: nowrap; /* Prevent text wrapping */
+        }
+        
+        .back-button:hover {
+            transform: scale(1.02);
+            transition: all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+        }
+        
+        .back-button-text {
+            font-family: 'Noto Serif KR', serif;
+            color: #000000;
+            font-size: 16px;
+            margin-right: 10px;
+            font-weight: 400;
+        }
+        
+        .back-button i {
+            font-size: 24px;
+            color: #000000;
+        }
     </style>
     
     <!-- Artwork Module System - Using conditional loading to prevent duplicate declarations -->
@@ -374,11 +413,8 @@
     </script>
     <!-- Navigation Buttons -->
     <button class="back-button" id="backButton">
+        <span class="back-button-text">메탈 슬래브 시뮬레이션</span>
         <i class="bi bi-arrow-left"></i>
-    </button>
-    
-    <button class="home-button" id="homeButton">
-        <i class="bi bi-house"></i>
     </button>
     
     <!-- Artwork Module System -->

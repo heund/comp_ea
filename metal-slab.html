@@ -1791,8 +1791,7 @@
                 createMetalSlab();
                 pauseRotationForSlider();
                 
-                // Update base note amplitude based on RF parameter
-                updateBaseNoteAmplitude(parameters.rollForce);
+                // Visualization updates handled by createMetalSlab()
             });
             
             // Gap slider
@@ -1802,8 +1801,7 @@
                 createMetalSlab();
                 pauseRotationForSlider();
                 
-                // Update middle note amplitude based on Gap parameter (간격)
-                updateMiddleNoteAmplitude(parameters.gap);
+                // Visualization updates handled by createMetalSlab()
             });
             
             // FRA slider
@@ -1813,8 +1811,7 @@
                 createMetalSlab();
                 pauseRotationForSlider();
                 
-                // Update overall chord amplitude based on FRA parameter
-                updateOverallAmplitude(parameters.fra);
+                // Visualization updates handled by createMetalSlab()
             });
             
             // Reset button
@@ -2158,9 +2155,6 @@
                          console.log('Switched back to default slab animation');
                      }
                      
-                     // Start the Bb major pad when panel is expanded
-                     startPad();
-                     
                      console.log('CONT panel opened');
                 }
             }
@@ -2280,9 +2274,6 @@
                     
                     currentExpandedPanel = 'rolling';
                     switchAnimationMode('rolling'); // Switch to rolling animation when ROLLING is expanded
-                    
-                    // Start the Bb major pad when panel is expanded
-                    startPad();
                     
                     console.log('ROLLING panel opened');
                 }
