@@ -1400,57 +1400,7 @@
                 synthGain2.connect(synthFilter);
                 synthGain3.connect(synthFilter);
                 
-                // Create optional FX chain for rolling parameters
-                synthReverb = audioContext.createConvolver();
-                synthDelay = audioContext.createDelay(1.0);
-                synthDelayFeedback = audioContext.createGain();
-                synthDelayWet = audioContext.createGain();
-                synthDistortion = audioContext.createWaveShaper();
-                synthDryGain = audioContext.createGain();
-                synthWetGain = audioContext.createGain();
-                
-                // Configure FX (initially bypassed)
-                synthDelay.delayTime.setValueAtTime(0.2, audioContext.currentTime);
-                synthDelayFeedback.gain.setValueAtTime(0.2, audioContext.currentTime);
-                synthDelayWet.gain.setValueAtTime(0.0, audioContext.currentTime); // Start dry
-                synthDryGain.gain.setValueAtTime(1.0, audioContext.currentTime); // Full dry signal
-                synthWetGain.gain.setValueAtTime(0.0, audioContext.currentTime); // No wet signal initially
-                
-                // Create simple reverb impulse
-                const length = audioContext.sampleRate * 1; // 1 second
-                const impulse = audioContext.createBuffer(2, length, audioContext.sampleRate);
-                for (let channel = 0; channel < 2; channel++) {
-                    const channelData = impulse.getChannelData(channel);
-                    for (let i = 0; i < length; i++) {
-                        const decay = Math.pow(1 - i / length, 1.5);
-                        channelData[i] = (Math.random() * 2 - 1) * decay * 0.5;
-                    }
-                }
-                synthReverb.buffer = impulse;
-                
-                // Create distortion curve
-                const samples = 44100;
-                const curve = new Float32Array(samples);
-                for (let i = 0; i < samples; i++) {
-                    const x = (i * 2) / samples - 1;
-                    curve[i] = Math.tanh(x * 2) * 0.7; // Soft saturation
-                }
-                synthDistortion.curve = curve;
-                synthDistortion.oversample = '2x';
-                
-                // Connect FX chain: Filter -> [Dry/Wet Split] -> [Distortion -> Delay -> Reverb] -> Output
-                synthFilter.connect(synthDryGain); // Dry path
-                synthFilter.connect(synthDistortion); // Wet path starts with distortion
-                
-                synthDistortion.connect(synthDelay);
-                synthDelay.connect(synthDelayFeedback);
-                synthDelayFeedback.connect(synthDelay); // Feedback loop
-                synthDelay.connect(synthReverb);
-                synthReverb.connect(synthWetGain);
-                
-                // Mix dry and wet signals
-                synthDryGain.connect(audioContext.destination);
-                synthWetGain.connect(audioContext.destination);
+                synthFilter.connect(audioContext.destination);
                 
                 // Connect LFO for filter modulation
                 synthLFO.connect(synthLFOGain);
@@ -1482,17 +1432,11 @@
                     }
                 }, 100);
                 
-                // Store additional oscillators and FX nodes for parameter updates
+                // Store additional oscillators for parameter updates
                 window.synthOsc2 = synthOsc2;
                 window.synthOsc3 = synthOsc3;
                 window.synthGain2 = synthGain2;
                 window.synthGain3 = synthGain3;
-                window.synthReverb = synthReverb;
-                window.synthDelay = synthDelay;
-                window.synthDelayFeedback = synthDelayFeedback;
-                window.synthDistortion = synthDistortion;
-                window.synthDryGain = synthDryGain;
-                window.synthWetGain = synthWetGain;
             } catch (error) {
                 console.log('Synth initialization error:', error);
             }
@@ -1531,46 +1475,6 @@
             synthLFOGain.gain.linearRampToValueAtTime(lfoDepth, currentTime + 0.2);
             
             console.log(`Synth chord: ${baseFreq.toFixed(1)}Hz, filter: ${filterFreq.toFixed(1)}Hz, Q: ${resonance.toFixed(1)}, LFO: ${lfoRate.toFixed(1)}Hz`);
-        }
-        
-        // Update audio FX parameters based on rolling parameters
-        function updateAudioFX() {
-            if (!audioContext || !synthReverb || !synthDelay || !synthDistortion) return;
-            
-            const currentTime = audioContext.currentTime;
-            
-            // Map rollingSpeed (0-1) to reverb wet amount - MUCH MORE DRAMATIC
-            const reverbWet = rollingParameters.rollingSpeed * 0.8; // 0-80% reverb
-            if (synthWetGain) {
-                synthWetGain.gain.linearRampToValueAtTime(reverbWet, currentTime + 0.2);
-                synthDryGain.gain.linearRampToValueAtTime(1 - reverbWet * 0.7, currentTime + 0.2);
-            }
-            
-            // Map temperature (0-1) to delay time and feedback - MORE EXTREME
-            const delayTime = 0.05 + (rollingParameters.temperature * 0.6); // 0.05-0.65 seconds
-            const delayFeedback = rollingParameters.temperature * 0.7; // 0-70% feedback
-            
-            if (synthDelay && synthDelayFeedback) {
-                synthDelay.delayTime.linearRampToValueAtTime(delayTime, currentTime + 0.2);
-                synthDelayFeedback.gain.linearRampToValueAtTime(delayFeedback, currentTime + 0.2);
-            }
-            
-            // Map passReduction (0-1) to distortion intensity - NEW PARAMETER
-            const distortionAmount = 1 + (rollingParameters.passReduction * 4); // 1x-5x gain boost
-            if (synthDistortion && synthDistortion.curve) {
-                // Recreate distortion curve with variable intensity
-                const samples = 44100;
-                const curve = new Float32Array(samples);
-                const intensity = 1 + rollingParameters.passReduction * 8; // 1-9 intensity
-                
-                for (let i = 0; i < samples; i++) {
-                    const x = (i * 2) / samples - 1;
-                    curve[i] = Math.tanh(x * intensity) * 0.8;
-                }
-                synthDistortion.curve = curve;
-            }
-            
-            console.log(`Audio FX: reverb=${(reverbWet*100).toFixed(1)}%, delay=${delayTime.toFixed(2)}s, feedback=${(delayFeedback*100).toFixed(1)}%, distortion=${distortionAmount.toFixed(1)}x`);
         }
         
         // Global click sound function that can be called from navigation.js
@@ -2348,9 +2252,6 @@
                 const dimensions = calculateDimensions();
                 updateDataPanel(dimensions);
                 
-                // Update audio FX
-                updateAudioFX();
-                
                 pauseRotationForSlider();
             });
             
@@ -2368,9 +2269,6 @@
                 const dimensions = calculateDimensions();
                 updateDataPanel(dimensions);
                 
-                // Update audio FX
-                updateAudioFX();
-                
                 pauseRotationForSlider();
             });
             
@@ -2382,9 +2280,6 @@
                 // Update data panel with new process data
                 const dimensions = calculateDimensions();
                 updateDataPanel(dimensions);
-                
-                // Update audio FX
-                updateAudioFX();
                 
                 pauseRotationForSlider();
             });
