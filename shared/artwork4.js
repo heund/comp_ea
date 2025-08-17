@@ -1,62 +1,98 @@
 /**
  * Artwork4 - 열간 압연 데이터 04: 응력 누적 분포
- * Voronoi Stress Accumulation Visualization
- * Based on artwork4.html Three.js animation
+ * Voronoi Diamond Stress Accumulation Visualization
+ * Extracted from artwork4.html
  */
 
 // Check if the class already exists to prevent redefinition
 if (typeof window.Artwork4 === 'undefined') {
 
-    class Artwork4 extends ArtworkBase {
-        constructor() {
-            super();
+    class Artwork4 extends ArtworkModule {
+        constructor(container, options = {}) {
+            super(container, options);
             this.title = '열간 압연 데이터 04: 응력 누적 분포';
             
-            // Voronoi-specific properties
-            this.voronoiCells = [];
-            this.seedPoints = [];
-            this.phaseBoundaryLine = null;
-            this.currentColorScheme = 0;
+            // Voronoi diamond visualization properties
+            this.voronoiShapes = [];
+            this.dataPoints = [];
             this.wireframeMode = false;
-            this.showPhaseLines = true;
+            this.animationProgress = 0;
+            this.isAnimating = true;
             
-            // Color schemes for Voronoi visualization
-            this.colorSchemes = [
-                {
-                    name: 'Thermal',
-                    colors: ['#000428', '#004e92', '#009ffd', '#00d2ff']
-                },
-                {
-                    name: 'Stress',
-                    colors: ['#8360c3', '#2ebf91', '#52c234', '#cddc39']
-                },
-                {
-                    name: 'Plasma',
-                    colors: ['#f093fb', '#f5576c', '#4facfe', '#00f2fe']
-                }
+            // Diamond with seamless triangular wings - scaled to 2.5x with EXACT relative dot positions from voronoi_test.html
+            this.voronoiData = [
+                // MAIN DIAMOND - Subdivided into 4 even triangular sections
+                // Top triangle section
+                { center: { x: 0, y: 3.25, z: 0 }, vertices: [
+                    { x: 0, y: 10, z: 0 },    // Top point
+                    { x: -5, y: 0, z: 0 },   // Left point
+                    { x: 0, y: 0, z: 0 }     // Center point
+                ], color: 0xFFA398, dataPoint: { value: 0.174, x: -3.0, y: 0, z: 0.25 }},
+                
+                // Right triangle section
+                { center: { x: 1.75, y: 0, z: 0 }, vertices: [
+                    { x: 0, y: 10, z: 0 },    // Top point
+                    { x: 0, y: 0, z: 0 },    // Center point
+                    { x: 5, y: 0, z: 0 }     // Right point
+                ], color: 0xFFA398, dataPoint: { value: 0.173, x: -1.0, y: 0, z: 0.25 }},
+                
+                // Bottom triangle section
+                { center: { x: 0, y: -3.25, z: 0 }, vertices: [
+                    { x: 5, y: 0, z: 0 },    // Right point
+                    { x: 0, y: 0, z: 0 },    // Center point
+                    { x: 0, y: -10, z: 0 }    // Bottom point
+                ], color: 0xFF603C, dataPoint: { value: 0.172, x: 1.0, y: 0, z: 0.25 }},
+                
+                // Left triangle section
+                { center: { x: -1.75, y: 0, z: 0 }, vertices: [
+                    { x: 0, y: -10, z: 0 },   // Bottom point
+                    { x: 0, y: 0, z: 0 },    // Center point
+                    { x: -5, y: 0, z: 0 }    // Left point
+                ], color: 0xFF603C, dataPoint: { value: 0.171, x: 3.0, y: 0, z: 0.25 }},
+                
+                // Left triangular wing - seamlessly connected
+                { center: { x: -7.5, y: 2.5, z: 0 }, vertices: [
+                    { x: 0, y: 10, z: 0 },    // Share diamond's top point
+                    { x: -5, y: 0, z: 0 },   // Share diamond's left point
+                    { x: -10, y: 5, z: 0 }    // Wing tip point
+                ], color: 0xFFA398, dataPoint: { value: 0.172, x: -6.25, y: 5, z: 0.25 }},
+                
+                // Right triangular wing - seamlessly connected
+                { center: { x: 7.5, y: 2.5, z: 0 }, vertices: [
+                    { x: 0, y: 10, z: 0 },    // Share diamond's top point
+                    { x: 5, y: 0, z: 0 },    // Share diamond's right point
+                    { x: 10, y: 5, z: 0 }     // Wing tip point
+                ], color: 0xFFA398, dataPoint: { value: 0.172, x: 6.25, y: 5, z: 0.25 }},
+                
+                // Left bottom triangular wing - flipped downward
+                { center: { x: -7.5, y: -2.5, z: 0 }, vertices: [
+                    { x: 0, y: -10, z: 0 },   // Share diamond's bottom point
+                    { x: -5, y: 0, z: 0 },   // Share diamond's left point
+                    { x: -10, y: -5, z: 0 }   // Wing tip point (flipped down)
+                ], color: 0xFF603C, dataPoint: { value: 0.172, x: -6.25, y: -5, z: 0.25 }},
+                
+                // Right bottom triangular wing - flipped downward
+                { center: { x: 7.5, y: -2.5, z: 0 }, vertices: [
+                    { x: 0, y: -10, z: 0 },   // Share diamond's bottom point
+                    { x: 5, y: 0, z: 0 },    // Share diamond's right point
+                    { x: 10, y: -5, z: 0 }    // Wing tip point (flipped down)
+                ], color: 0xFF603C, dataPoint: { value: 0.172, x: 6.25, y: -5, z: 0.25 }}
             ];
             
-            // Embedded stress accumulation data
-            this.stressData = [
-                { x: 2, y: 3, total_accumulation: 85.2, phase: 'austenite' },
-                { x: 5, y: 4, total_accumulation: 92.7, phase: 'ferrite' },
-                { x: 8, y: 2, total_accumulation: 78.4, phase: 'pearlite' },
-                { x: 3, y: 6, total_accumulation: 96.1, phase: 'austenite' },
-                { x: 7, y: 7, total_accumulation: 88.9, phase: 'ferrite' },
-                { x: 1, y: 5, total_accumulation: 73.6, phase: 'martensite' },
-                { x: 9, y: 1, total_accumulation: 91.3, phase: 'bainite' },
-                { x: 4, y: 8, total_accumulation: 84.7, phase: 'austenite' },
-                { x: 6, y: 3, total_accumulation: 89.5, phase: 'ferrite' },
-                { x: 2, y: 7, total_accumulation: 76.8, phase: 'pearlite' }
+            // Sample data for data overlay cycling
+            this.sampleData = [
+                {current_corrections_count: 2, data_integrity: 0.85, correction_effectiveness: 0.78, active_corrections_count: 5},
+                {current_corrections_count: 3, data_integrity: 0.92, correction_effectiveness: 0.81, active_corrections_count: 7},
+                {current_corrections_count: 1, data_integrity: 0.76, correction_effectiveness: 0.69, active_corrections_count: 3},
+                {current_corrections_count: 4, data_integrity: 0.88, correction_effectiveness: 0.85, active_corrections_count: 8},
+                {current_corrections_count: 2, data_integrity: 0.91, correction_effectiveness: 0.77, active_corrections_count: 6}
             ];
             
-            // Data points for popup display
-            this.dataPoints = [
-                { label: '응력 누적도', value: 87.3, unit: 'MPa', baseValue: 87.3 },
-                { label: '변형 속도', value: 0.045, unit: 's⁻¹', baseValue: 0.045 },
-                { label: '온도 구배', value: 1250, unit: '°C', baseValue: 1250 },
-                { label: '상 분포율', value: 68.2, unit: '%', baseValue: 68.2 }
-            ];
+            // Data overlay system
+            this.currentDataset = 0;
+            this.overlayVisible = false;
+            this.mouse = new THREE.Vector2();
+            this.raycaster = new THREE.Raycaster();
             
             // Animation properties
             this.animationFrame = null;
