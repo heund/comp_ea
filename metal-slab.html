@@ -1403,9 +1403,9 @@
                 synthLFOGain.gain.setValueAtTime(20, audioContext.currentTime);
                 
                 // Configure gains for continuous play
-                synthGain.gain.setValueAtTime(0.015, audioContext.currentTime); // Low volume for continuous play
-                synthGain2.gain.setValueAtTime(0.01, audioContext.currentTime);
-                synthGain3.gain.setValueAtTime(0.008, audioContext.currentTime);
+                synthGain.gain.setValueAtTime(0.04, audioContext.currentTime); // Low volume for continuous play
+                synthGain2.gain.setValueAtTime(0.03, audioContext.currentTime);
+                synthGain3.gain.setValueAtTime(0.025, audioContext.currentTime);
                 
                 // Connect audio graph
                 synthOscillator.connect(synthGain);
@@ -3164,18 +3164,18 @@
         function updateMasterVolume() {
             // Update background music volume
             if (backgroundMusic) {
-                backgroundMusic.volume = masterVolume * 0.3; // 30% of master volume
+                backgroundMusic.volume = masterVolume * 0.15; // 15% of master volume
             }
             
             // Update synth volume
             if (synthGain) {
-                synthGain.gain.setValueAtTime(0.015 * masterVolume, audioContext.currentTime);
+                synthGain.gain.setValueAtTime(0.04 * masterVolume, audioContext.currentTime);
             }
             if (window.synthGain2) {
-                window.synthGain2.gain.setValueAtTime(0.01 * masterVolume, audioContext.currentTime);
+                window.synthGain2.gain.setValueAtTime(0.03 * masterVolume, audioContext.currentTime);
             }
             if (window.synthGain3) {
-                window.synthGain3.gain.setValueAtTime(0.008 * masterVolume, audioContext.currentTime);
+                window.synthGain3.gain.setValueAtTime(0.025 * masterVolume, audioContext.currentTime);
             }
         }
 
