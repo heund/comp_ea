@@ -1174,7 +1174,7 @@
         function initAudio() {
             // Create background music element
             backgroundMusic = new Audio();
-            backgroundMusic.src = './shared/sounds/INTRO_APPBG.wav'; // Using existing sound file
+            backgroundMusic.src = 'https://heund.github.io/comp_ea/shared/sounds/INTRO_APPBG.wav'; // Using existing sound file
             backgroundMusic.loop = true;
             backgroundMusic.volume = 0.3;
             
@@ -1185,17 +1185,17 @@
         function playBackgroundMusic() {
             if (backgroundMusic && backgroundMusic.paused) {
                 backgroundMusic.play().catch(error => {
-                    console.log('Background music playback prevented by browser:', error);
+                    // Silent error handling
                 });
             }
         }
         
         // Global click sound function that can be called from navigation.js
         function playClickSound() {
-            const clickSound = new Audio('./shared/sounds/click1.wav');
+            const clickSound = new Audio('https://heund.github.io/comp_ea/shared/sounds/click1.wav');
             clickSound.volume = 0.5;
             clickSound.play().catch(error => {
-                console.log('Click sound playback prevented by browser:', error);
+                // Silent error handling
             });
         }
         let orbitControls;
@@ -1353,8 +1353,6 @@
                 // Handle window resize
                 window.addEventListener('resize', onWindowResize);
                 
-                console.log('Three.js initialized successfully');
-                
             } catch (error) {
                 console.error('Error initializing Three.js:', error);
             }
@@ -1370,7 +1368,6 @@
                 
                 // Calculate dimensions based on parameters
                 const dimensions = calculateDimensions();
-                console.log('Creating DEFAULT slab with dimensions:', dimensions);
                 
                 // Create wireframe geometry
                 const geometry = new THREE.BoxGeometry(
@@ -1419,8 +1416,6 @@
                 
                 // Update data panel with new dimensions
                 updateDataPanel(dimensions);
-                
-                console.log('DEFAULT metal slab created with CONSISTENT appearance');
                 
             } catch (error) {
                 console.error('Error creating metal slab:', error);
@@ -1542,9 +1537,7 @@
                 glowLine.position.set(0, 0, -0.01 - (index * 0.001)); // Layer behind main line
                 scene.add(glowLine);
                 slabGlowLines.push(glowLine);
-                console.log(`Created glow line ${index} with scale ${glowScale}:`, glowLine);
             });
-            console.log('Total glow lines created:', slabGlowLines.length);
             
             // Store the creation function for updates
             metalSlab.updateShape = function(reductionFactor, dynamicCompressionFactor = 1.0) {
@@ -1573,9 +1566,6 @@
             
             // Function to update temperature glow
             metalSlab.updateTemperature = function(temperature) {
-                console.log('updateTemperature called with:', temperature);
-                console.log('slabGlowLines available:', slabGlowLines.length);
-                
                 // Temperature 0-1 maps to opacity and color intensity
                 const baseOpacity = temperature * 0.8; // Increased for visibility
                 const heatIntensity = temperature;
@@ -1608,15 +1598,12 @@
                     );
                 }
                 
-                console.log('Glow color:', glowColor, 'Base opacity:', baseOpacity);
-                
                 // Update all glow lines with layered opacity for bloom effect
                 slabGlowLines.forEach((glowLine, index) => {
                     glowLine.material.color = glowColor;
                     // Each layer has different opacity for depth effect
                     const layerOpacity = baseOpacity * (1 - index * 0.2); // Reduced falloff
                     glowLine.material.opacity = Math.max(0, layerOpacity);
-                    console.log(`Glow line ${index}: opacity = ${layerOpacity}`);
                 });
             };
             
@@ -1649,8 +1636,6 @@
             bottomRoll.position.set(0, -3.5, 0); // Position further below slab
             scene.add(bottomRoll);
             rollingRolls.push(bottomRoll);
-            
-            console.log('Hot rolling animation created successfully');
         }
         
         // Switch between animation modes
@@ -1693,10 +1678,8 @@
                 
                 // Force a clean recreation of the default slab
                 createMetalSlab();
-                console.log('Switched to slab animation mode - consistent semi-transparent grey slab');
             } else if (mode === 'rolling') {
                 createHotRollingAnimation();
-                console.log('Switched to rolling animation mode');
             }
             
             // Force renderer update
@@ -1726,8 +1709,6 @@
                 
                 // Always create the original default 3D slab
                 createMetalSlab();
-                
-                console.log('Restored original default 3D slab');
             }
         }
         
@@ -1864,8 +1845,6 @@
                     // Audio parameters reset removed
                 });
             }
-            
-            console.log('Parameter controls setup complete');
         }
         
         // Setup rolling parameter controls
@@ -1946,8 +1925,6 @@
                     }
                 });
             }
-            
-            console.log('Rolling parameter controls setup complete');
         }
         
         function animate() {
@@ -2132,7 +2109,6 @@
                     }
                     
                     currentExpandedPanel = null;
-                    console.log('CONT panel closed');
                 } else {
                     // Close any other expanded panel first, but keep data panel if switching between CONT/ROLLING
                     const switchingPanels = (currentExpandedPanel === 'rolling');
@@ -2216,7 +2192,7 @@
                 }
             });
             
-            console.log('Sliding panel setup complete');
+            // Sliding panel setup complete
         }
         
         function setupRollingPanel() {
