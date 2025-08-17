@@ -3073,42 +3073,33 @@
     <!-- Shared Navigation Script -->
     <script src="./shared/navigation.js"></script>
     
-    <!-- Loading Screen Script -->
+    <!-- Navigation Script -->
     <script>
         document.addEventListener('DOMContentLoaded', function() {
+            const nextButton = document.getElementById('nextButton');
             const navButton = document.getElementById('navButton');
-            const loadingScreen = document.getElementById('loadingScreen');
             
-            // Check if we're returning from AR detection (back button)
-            if (sessionStorage.getItem('returning_from_ar') === 'true') {
-                // Clear the flag
-                sessionStorage.removeItem('returning_from_ar');
+            // Function to handle navigation
+            function handleNavigation(e) {
+                // Play click sound if available
+                if (typeof playClickSound === 'function') {
+                    playClickSound();
+                }
+                
+                // Navigate to ar_detection.html
+                window.location.href = 'ar_detection.html';
+                
+                // Prevent default navigation
+                e.preventDefault();
             }
             
-            if (navButton && loadingScreen) {
-                navButton.addEventListener('click', function(e) {
-                    // Play click sound if available
-                    if (typeof playClickSound === 'function') {
-                        playClickSound();
-                    }
-                    
-                    // Set a flag in sessionStorage to indicate we're navigating to AR
-                    // and that we've already shown the loading screen
-                    sessionStorage.setItem('loading_ar', 'true');
-                    sessionStorage.setItem('loading_screen_shown', 'true');
-                    
-                    // Show loading screen with smooth transition
-                    loadingScreen.classList.add('visible');
-                    
-                    // Let the loading screen appear fully before navigating (longer delay for smoother transition)
-                    setTimeout(() => {
-                        // Navigate to ar_detection.html using standard window.location
-                        window.location.href = 'ar_detection.html';
-                    }, 800); // Increased from 300ms to 800ms for smoother transition
-                    
-                    // Prevent default navigation
-                    e.preventDefault();
-                });
+            // Add event listeners to both buttons
+            if (nextButton) {
+                nextButton.addEventListener('click', handleNavigation);
+            }
+            
+            if (navButton) {
+                navButton.addEventListener('click', handleNavigation);
             }
         });
     </script>
