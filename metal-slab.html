@@ -1164,10 +1164,40 @@
 
     
     <script>
-        // Three.js scene setup
-        let scene, camera, renderer;
+        // Global variables
+        let scene, camera, renderer, controls;
+        let backgroundMusic, clickSound;
         let metalSlab;
         let slabGlowLines = [];
+        
+        // Audio functionality
+        function initAudio() {
+            // Create background music element
+            backgroundMusic = new Audio();
+            backgroundMusic.src = './shared/sounds/INTRO_APPBG.wav'; // Using existing sound file
+            backgroundMusic.loop = true;
+            backgroundMusic.volume = 0.3;
+            
+            // Preload audio
+            backgroundMusic.load();
+        }
+        
+        function playBackgroundMusic() {
+            if (backgroundMusic && backgroundMusic.paused) {
+                backgroundMusic.play().catch(error => {
+                    console.log('Background music playback prevented by browser:', error);
+                });
+            }
+        }
+        
+        // Global click sound function that can be called from navigation.js
+        function playClickSound() {
+            const clickSound = new Audio('./shared/sounds/click1.wav');
+            clickSound.volume = 0.5;
+            clickSound.play().catch(error => {
+                console.log('Click sound playback prevented by browser:', error);
+            });
+        }
         let orbitControls;
         let mouseX = 0, mouseY = 0;
         let isMouseDown = false;
@@ -1831,10 +1861,7 @@
                     
                     createMetalSlab();
                     
-                    // Reset audio parameters to defaults
-                    updateBaseNoteAmplitude(0.5);   // Reset RF to default base note amplitude
-                    updateMiddleNoteAmplitude(0.5); // Reset Gap to default middle note amplitude
-                    updateOverallAmplitude(0.5);    // Reset FRA to default overall amplitude
+                    // Audio parameters reset removed
                 });
             }
             
@@ -2160,11 +2187,15 @@
             }
             
             // Click event for the tab
-            controlTab.addEventListener('click', togglePanel);
+            controlTab.addEventListener('click', () => {
+                playClickSound();
+                togglePanel();
+            });
             
             // Touch event for mobile/tablet
             controlTab.addEventListener('touchstart', (e) => {
                 e.preventDefault();
+                playClickSound();
                 togglePanel();
             });
             
@@ -2280,11 +2311,15 @@
             }
             
             // Click event for the tab
-            rollingTab.addEventListener('click', togglePanel);
+            rollingTab.addEventListener('click', () => {
+                playClickSound();
+                togglePanel();
+            });
             
             // Touch event for mobile/tablet
             rollingTab.addEventListener('touchstart', (e) => {
                 e.preventDefault();
+                playClickSound();
                 togglePanel();
             });
             
@@ -2502,9 +2537,14 @@
             fraValue.textContent = parameters.fra.toFixed(2);
         }
 
-        // DOM ready event
-        document.addEventListener('DOMContentLoaded', () => {
-            console.log('DOM loaded, initializing...');
+        // Initialize everything when the document is ready
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('Document ready, initializing 3D scene...');
+            
+            // Initialize audio
+            initAudio();
+            // Start background music
+            playBackgroundMusic();
             
             // Add a small delay to ensure Three.js is fully loaded
             setTimeout(() => {
