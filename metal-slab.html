@@ -3424,10 +3424,23 @@
     <!-- Shared Navigation Script -->
     <script src="./shared/navigation.js"></script>
     
+    <!-- Artwork Module Dependencies -->
+    <script src="./shared/artwork-module.js"></script>
+    <script src="./shared/artwork1.js"></script>
+    
     <!-- Navigation Script -->
     <script>
         document.addEventListener('DOMContentLoaded', function() {
             const nextButton = document.getElementById('nextButton');
+            
+            // Initialize Artwork1 module
+            const visualizationContainer = document.querySelector('.visualization-container');
+            if (visualizationContainer && window.Artwork1) {
+                console.log('Initializing Artwork1 module...');
+                const artwork1 = new window.Artwork1(visualizationContainer);
+                artwork1.initialize();
+                console.log('Artwork1 module initialized');
+            }
             
             // Function to handle navigation
             function handleNavigation(e) {

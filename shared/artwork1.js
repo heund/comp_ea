@@ -16,31 +16,37 @@ if (typeof window.Artwork1 === 'undefined') {
          */
         constructor(container, options = {}) {
             super(container, options);
+            this.title = '열간 압연 데이터 01: 네트워크 구조';
             
-            // Default title
-            this.title = options.title || '열간 압연 데이터 01: 보정 알고리즘 구조';
-            
-            // Three.js objects
+            // Three.js components
             this.scene = null;
             this.camera = null;
             this.renderer = null;
-            this.animationFrame = null;
+            this.controls = null;
             
-            // Network graph objects
+            // Network visualization data
+            this.networkGraph = {
+                nodes: [],
+                edges: []
+            };
+            
+            // 3D objects
             this.networkNodes = [];
             this.networkEdges = [];
             this.centralCore = null;
-            this.networkGraph = { nodes: [] };
             
-            // Data overlay properties
-            this.overlayVisible = false;
-            this.currentDataset = 0;
-            this.dataUpdateInterval = null;
+            // Animation
+            this.animationId = null;
+            this.time = 0;
             
-            // Mouse interaction
-            this.mouse = new THREE.Vector2();
+            // Interaction
             this.raycaster = new THREE.Raycaster();
+            this.mouse = new THREE.Vector2();
             
+            // Audio for this artwork
+            this.artworkAudio = null;
+            this.isAudioPlaying = false;
+            this.audioProgressInterval = null;
             // Animation properties
             this.isWireframe = false;
             this.colorSchemeIndex = 0;
@@ -74,13 +80,21 @@ if (typeof window.Artwork1 === 'undefined') {
                 { label: 'Active Corrections', value: 142, unit: '' },
                 { label: 'Data Integrity', value: 91.8, unit: '%' }
             ];
+            console.log('Artwork1 constructor completed');
         }
-        
+
         /**
          * Initialize the artwork module
          */
         initialize() {
+            console.log('[ARTWORK1] Starting initialization');
             super.initialize();
+            
+            // Initialize artwork-specific audio
+            this.initializeArtworkAudio();
+        
+            // Create audio progress bar
+            this.createAudioProgressBar();
             
             console.log('Initializing 연간압연 데이터 01: 보정 알고리즘 구조 module');
             
@@ -871,12 +885,256 @@ if (typeof window.Artwork1 === 'undefined') {
             }
             
             this.scene = null;
-            this.camera = null;
+            console.log('[ARTWORK1] Cleanup complete');
+        }
+
+        /**
+         * Initialize artwork-specific audio
+         */
+        initializeArtworkAudio() {
+            console.log('[ARTWORK1] Initializing artwork audio');
+            
+            // Create audio element for artwork1.wav
+            this.artworkAudio = new Audio();
+            this.artworkAudio.src = 'shared/sounds/artwork1.wav';
+            this.artworkAudio.loop = false;
+            this.artworkAudio.volume = 0.7;
+            
+            // Add audio event listeners for progress tracking
+            this.artworkAudio.addEventListener('loadedmetadata', () => {
+                this.updateAudioTime();
+            });
+
+            this.artworkAudio.addEventListener('timeupdate', () => {
+                this.updateAudioProgress();
+            });
+
+            this.artworkAudio.addEventListener('ended', () => {
+                this.stopArtworkAudio();
+            });
+            
+            // Set up audio button event listener
+            this.setupAudioButton();
+            
+            console.log('[ARTWORK1] Artwork audio initialized');
+        }
+
+        /**
+         * Override base class setupControlButtons to prevent conflicts
+         */
+        setupControlButtons() {
+            console.log('[ARTWORK1] Overriding setupControlButtons to use custom audio handling');
+            // Don't call super.setupControlButtons() to avoid base module audio conflicts
+            this.setupAudioButton();
+        }
+
+        /**
+         * Set up the main audio button to play artwork1.wav
+         */
+        setupAudioButton() {
+            const audioButton = document.getElementById('audioToggleButton');
+            if (audioButton) {
+                console.log('[ARTWORK1] Setting up audio button for artwork1.wav');
+                
+                // Remove existing event listeners to avoid conflicts
+                const newButton = audioButton.cloneNode(true);
+                audioButton.parentNode.replaceChild(newButton, audioButton);
+                
+                // Add new event listener for artwork1 audio
+                newButton.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    this.toggleArtworkAudio();
+                });
+                
+                console.log('[ARTWORK1] Audio button setup complete');
+            } else {
+                console.warn('[ARTWORK1] Audio toggle button not found');
+            }
+        }
+
+        /**
+         * Toggle artwork audio playback
+         */
+        toggleArtworkAudio() {
+            if (!this.artworkAudio) {
+                console.warn('[ARTWORK1] Artwork audio not initialized');
+                return;
+            }
+
+            if (this.isAudioPlaying) {
+                this.stopArtworkAudio();
+            } else {
+                this.playArtworkAudio();
+            }
+        }
+
+        /**
+         * Play artwork audio and show progress bar
+         */
+        playArtworkAudio() {
+            if (!this.artworkAudio) return;
+
+            this.artworkAudio.play().then(() => {
+                this.isAudioPlaying = true;
+                console.log('[ARTWORK1] Artwork audio started successfully');
+                
+                // Show progress bar
+                const progressBar = document.getElementById('artwork1AudioProgress');
+                if (progressBar) {
+                    progressBar.classList.add('visible');
+                }
+            }).catch(error => {
+                console.error('[ARTWORK1] Error playing artwork audio:', error);
+            });
+        }
+
+        /**
+         * Stop artwork audio and hide progress bar
+         */
+        stopArtworkAudio() {
+            if (!this.artworkAudio) return;
+
+            this.artworkAudio.pause();
+            this.artworkAudio.currentTime = 0;
+            this.isAudioPlaying = false;
+            
+            // Hide progress bar
+            const progressBar = document.getElementById('artwork1AudioProgress');
+            if (progressBar) {
+                progressBar.classList.remove('visible');
+            }
+            
+            console.log('[ARTWORK1] Artwork audio stopped');
+        }
+
+        /**
+         * Update audio progress bar
+         */
+        updateAudioProgress() {
+            if (!this.artworkAudio) return;
+
+            const progress = (this.artworkAudio.currentTime / this.artworkAudio.duration) * 100;
+            const progressFill = document.getElementById('artwork1ProgressFill');
+            if (progressFill) {
+                progressFill.style.width = `${progress}%`;
+            }
+            this.updateAudioTime();
+        }
+
+        /**
+         * Update audio time display
+         */
+        updateAudioTime() {
+            if (!this.artworkAudio) return;
+
+            const current = this.formatTime(this.artworkAudio.currentTime);
+            const duration = this.formatTime(this.artworkAudio.duration);
+            const timeDisplay = document.getElementById('artwork1AudioTime');
+            if (timeDisplay) {
+                timeDisplay.textContent = `${current} / ${duration}`;
+            }
+        }
+
+        /**
+         * Format time in MM:SS format
+         */
+        formatTime(seconds) {
+            if (isNaN(seconds)) return '0:00';
+            const minutes = Math.floor(seconds / 60);
+            const secs = Math.floor(seconds % 60);
+            return `${minutes}:${secs.toString().padStart(2, '0')}`;
+        }
+
+        /**
+         * Create audio progress bar HTML and CSS
+         */
+        createAudioProgressBar() {
+            console.log('[ARTWORK1] Creating audio progress bar');
+            
+            // Create CSS styles
+            const style = document.createElement('style');
+            style.textContent = `
+                /* Audio Progress Bar for Artwork1 */
+                .artwork1-audio-progress-container {
+                    position: fixed;
+                    bottom: 20px;
+                    left: 50%;
+                    transform: translateX(-50%);
+                    width: 300px;
+                    background: rgba(255, 255, 255, 0.1);
+                    backdrop-filter: blur(20px);
+                    border: 1px solid rgba(255, 255, 255, 0.2);
+                    border-radius: 12px;
+                    padding: 12px 16px;
+                    z-index: 1003;
+                    opacity: 0;
+                    visibility: hidden;
+                    transition: all 0.3s ease;
+                    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+                }
+                
+                .artwork1-audio-progress-container.visible {
+                    opacity: 1;
+                    visibility: visible;
+                }
+                
+                .artwork1-audio-info {
+                    display: flex;
+                    align-items: center;
+                    justify-content: space-between;
+                    margin-bottom: 8px;
+                }
+                
+                .artwork1-audio-title {
+                    font-size: 12px;
+                    color: #ffffff;
+                    font-weight: 500;
+                }
+                
+                .artwork1-audio-time {
+                    font-size: 11px;
+                    color: #ffffff;
+                    font-family: 'Inter', sans-serif;
+                }
+                
+                .artwork1-progress-bar {
+                    width: 100%;
+                    height: 4px;
+                    background: rgba(0, 0, 0, 0.3);
+                    border-radius: 2px;
+                    overflow: hidden;
+                }
+                
+                .artwork1-progress-fill {
+                    height: 100%;
+                    background: #ffffff;
+                    border-radius: 2px;
+                    width: 0%;
+                    transition: width 0.1s ease;
+                }
+            `;
+            document.head.appendChild(style);
+            
+            // Create HTML structure
+            const progressContainer = document.createElement('div');
+            progressContainer.className = 'artwork1-audio-progress-container';
+            progressContainer.id = 'artwork1AudioProgress';
+            progressContainer.innerHTML = `
+                <div class="artwork1-audio-info">
+                    <div class="artwork1-audio-title">열간 압연 데이터 01: 네트워크 구조</div>
+                    <div class="artwork1-audio-time" id="artwork1AudioTime">0:00 / 0:00</div>
+                </div>
+                <div class="artwork1-progress-bar">
+                    <div class="artwork1-progress-fill" id="artwork1ProgressFill"></div>
+                </div>
+            `;
+            
+            document.body.appendChild(progressContainer);
+            console.log('[ARTWORK1] Audio progress bar created');
         }
     }
     
     // Register this class with the global scope
     window.Artwork1 = Artwork1;
-    
     } // End of if statement checking for existing class
     
