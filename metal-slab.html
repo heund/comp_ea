@@ -854,32 +854,29 @@
             /* Move control tabs from right side to bottom in portrait mode */
             .control-tab {
                 top: auto !important;
-                bottom: calc(env(safe-area-inset-bottom) + 0.5px) !important;
+                bottom: 0.5px !important; /* Remove safe area inset to avoid gap */
                 right: 50% !important;
                 left: auto !important;
                 transform: translateX(50%) translateX(-60px) !important; /* Position CONT on the left (60px left of center) */
                 width: 120px !important;
-                height: 50px !important;
+                height: 40px !important;
                 border-radius: 20px 20px 0 0 !important;
-                border-bottom: none !important;
-                border-top: 1px solid var(--glass-border) !important;
-                flex-direction: row !important;
+                writing-mode: horizontal-tb !important;
+                text-orientation: mixed !important;
             }
             
             .rolling-tab {
                 top: auto !important;
-                bottom: calc(env(safe-area-inset-bottom) + 0.5px) !important;
+                bottom: 0.5px !important; /* Remove safe area inset to avoid gap */
                 right: 50% !important;
                 left: auto !important;
                 transform: translateX(50%) translateX(60px) !important; /* Position ROLLING on the right (60px right of center) */
                 width: 120px !important;
-                height: 50px !important;
+                height: 40px !important;
                 border-radius: 20px 20px 0 0 !important;
-                border-bottom: none !important;
-                border-top: 1px solid var(--glass-border) !important;
-                border-right: 1px solid var(--glass-border) !important;
-                flex-direction: row !important;
-            }
+                writing-mode: horizontal-tb !important;
+                text-orientation: mixed !important;
+            }    
             
             /* Adjust tab icons for horizontal layout */
             .control-tab .tab-icon,
