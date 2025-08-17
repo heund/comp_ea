@@ -854,46 +854,58 @@
             /* Move control tabs from right side to bottom in portrait mode */
             .control-tab {
                 top: auto !important;
-                bottom: env(safe-area-inset-bottom) !important; /* Align with panel bottom position */
+                bottom: env(safe-area-inset-bottom) !important; /* Collapsed position */
                 right: 50% !important;
                 left: auto !important;
                 transform: translateX(50%) translateX(-60px) !important; /* Position CONT on the left (60px left of center) */
                 width: 120px !important;
-                height: calc(40px + env(safe-area-inset-bottom) + 10px) !important; /* Extended height for safe margin */
+                height: 40px !important; /* Fixed height for iOS */
                 border-radius: 20px 20px 0 0 !important;
                 writing-mode: horizontal-tb !important;
                 text-orientation: mixed !important;
                 box-sizing: border-box !important;
                 z-index: 1001 !important; /* Ensure buttons stay above panels */
-                padding: 10px 15px calc(env(safe-area-inset-bottom) + 10px) 15px !important; /* Proper padding */
+                padding: 10px 15px 10px 15px !important; /* Fixed padding for iOS */
                 display: flex !important;
                 align-items: center !important;
                 justify-content: center !important;
                 font-size: 11px !important;
                 font-weight: 600 !important;
                 line-height: 1 !important;
+                transition: bottom 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94) !important;
+            }
+            
+            /* Position CONT button at top of expanded panel */
+            .control-tab.expanded {
+                bottom: calc(60vh + env(safe-area-inset-bottom) - 533px) !important; /* Move down to reduce gap */
             }
             
             .rolling-tab {
                 top: auto !important;
-                bottom: env(safe-area-inset-bottom) !important; /* Align with panel bottom position */
+                bottom: env(safe-area-inset-bottom) !important; /* Collapsed position */
                 right: 50% !important;
                 left: auto !important;
                 transform: translateX(50%) translateX(60px) !important; /* Position ROLLING on the right (60px right of center) */
                 width: 120px !important;
-                height: calc(40px + env(safe-area-inset-bottom) + 10px) !important; /* Extended height for safe margin */
+                height: 40px !important; /* Fixed height for iOS */
                 border-radius: 20px 20px 0 0 !important;
                 writing-mode: horizontal-tb !important;
                 text-orientation: mixed !important;
                 box-sizing: border-box !important;
                 z-index: 1001 !important; /* Ensure buttons stay above panels */
-                padding: 10px 15px calc(env(safe-area-inset-bottom) + 10px) 15px !important; /* Proper padding */
+                padding: 10px 15px 10px 15px !important; /* Fixed padding for iOS */
                 display: flex !important;
                 align-items: center !important;
                 justify-content: center !important;
                 font-size: 11px !important;
                 font-weight: 600 !important;
                 line-height: 1 !important;
+                transition: bottom 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94) !important;
+            }
+            
+            /* Position ROLLING button at top of expanded panel */
+            .rolling-tab.expanded {
+                bottom: calc(60vh + env(safe-area-inset-bottom) - 533px) !important; /* Match CONT positioning exactly */
             }    
             
             /* Adjust tab icons for horizontal layout */
@@ -950,7 +962,7 @@
                 bottom: env(safe-area-inset-bottom) !important; /* Respect safe area */
                 right: 50% !important;
                 left: auto !important;
-                transform: translateX(50%) translateY(100%) !important;
+                transform: translateX(50%) translateY(calc(100% + 40px)) !important;
                 width: 100% !important;
                 max-width: 100% !important;
                 height: auto !important;
