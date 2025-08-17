@@ -854,59 +854,32 @@
             /* Move control tabs from right side to bottom in portrait mode */
             .control-tab {
                 top: auto !important;
-                bottom: env(safe-area-inset-bottom) !important; /* Collapsed position */
+                bottom: calc(env(safe-area-inset-bottom) + 0.5px) !important;
                 right: 50% !important;
                 left: auto !important;
                 transform: translateX(50%) translateX(-60px) !important; /* Position CONT on the left (60px left of center) */
                 width: 120px !important;
-                height: 40px !important; /* Fixed height for iOS */
+                height: 50px !important;
                 border-radius: 20px 20px 0 0 !important;
-                writing-mode: horizontal-tb !important;
-                text-orientation: mixed !important;
-                box-sizing: border-box !important;
-                z-index: 1001 !important; /* Ensure buttons stay above panels */
-                padding: 10px 15px 10px 15px !important; /* Fixed padding for iOS */
-                display: flex !important;
-                align-items: center !important;
-                justify-content: center !important;
-                font-size: 11px !important;
-                font-weight: 600 !important;
-                line-height: 1 !important;
-                transition: bottom 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94) !important;
-            }
-            
-            /* Position CONT button at top of expanded panel */
-            .control-tab.expanded {
-                bottom: calc(60vh + env(safe-area-inset-bottom) - 533px) !important; /* Move down to reduce gap */
+                border-bottom: none !important;
+                border-top: 1px solid var(--glass-border) !important;
+                flex-direction: row !important;
             }
             
             .rolling-tab {
                 top: auto !important;
-                bottom: env(safe-area-inset-bottom) !important; /* Collapsed position */
+                bottom: calc(env(safe-area-inset-bottom) + 0.5px) !important;
                 right: 50% !important;
                 left: auto !important;
                 transform: translateX(50%) translateX(60px) !important; /* Position ROLLING on the right (60px right of center) */
                 width: 120px !important;
-                height: 40px !important; /* Fixed height for iOS */
+                height: 50px !important;
                 border-radius: 20px 20px 0 0 !important;
-                writing-mode: horizontal-tb !important;
-                text-orientation: mixed !important;
-                box-sizing: border-box !important;
-                z-index: 1001 !important; /* Ensure buttons stay above panels */
-                padding: 10px 15px 10px 15px !important; /* Fixed padding for iOS */
-                display: flex !important;
-                align-items: center !important;
-                justify-content: center !important;
-                font-size: 11px !important;
-                font-weight: 600 !important;
-                line-height: 1 !important;
-                transition: bottom 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94) !important;
+                border-bottom: none !important;
+                border-top: 1px solid var(--glass-border) !important;
+                border-right: 1px solid var(--glass-border) !important;
+                flex-direction: row !important;
             }
-            
-            /* Position ROLLING button at top of expanded panel */
-            .rolling-tab.expanded {
-                bottom: calc(60vh + env(safe-area-inset-bottom) - 533px) !important; /* Match CONT positioning exactly */
-            }    
             
             /* Adjust tab icons for horizontal layout */
             .control-tab .tab-icon,
@@ -915,17 +888,6 @@
                 text-orientation: mixed !important;
                 margin-right: 8px !important;
                 margin-bottom: 0 !important;
-                display: inline-block !important;
-                vertical-align: middle !important;
-            }
-            
-            /* Fix arrow positioning to be inline with text */
-            .control-tab .tab-arrow,
-            .rolling-tab .tab-arrow {
-                display: inline-block !important;
-                vertical-align: middle !important;
-                margin-left: 8px !important;
-                margin-top: 0 !important;
             }
             
             /* Adjust arrows for bottom positioning */
@@ -959,19 +921,16 @@
             .control-panel,
             .rolling-panel {
                 top: auto !important;
-                bottom: env(safe-area-inset-bottom) !important; /* Respect safe area */
+                bottom: 0 !important;
                 right: 50% !important;
                 left: auto !important;
-                transform: translateX(50%) translateY(calc(100% + 40px)) !important;
-                width: 100% !important;
-                max-width: 100% !important;
-                height: auto !important;
-                max-height: 60vh !important;
-                border-radius: 0 !important;
-                padding: 20px !important;
-                padding-bottom: calc(20px + env(safe-area-inset-bottom)) !important; /* Add safe area padding */
-                margin: 0 !important;
-                box-sizing: border-box !important;
+                transform: translateX(50%) translateY(100%) !important;
+                width: 90vw !important;
+                max-width: 400px !important;
+                height: 320px !important;
+                max-height: none !important;
+                border-radius: 20px 20px 0 0 !important;
+                border-bottom: none !important;
             }
             
             .control-panel.expanded,
@@ -1911,62 +1870,10 @@
                 isMouseDown = false;
             });
             
-            // Mouse wheel zoom
             canvas.addEventListener('wheel', (event) => {
                 // Prevent default scrolling behavior
                 event.preventDefault();
-                handleZoom(event.deltaY);
-            });
-            
-            // Touch zoom support
-            let lastTouchDistance = 0;
-            let touchZoomActive = false;
-            
-            canvas.addEventListener('touchstart', (event) => {
-                if (event.touches.length === 2) {
-                    // Two finger touch - prepare for pinch zoom
-                    const touch1 = event.touches[0];
-                    const touch2 = event.touches[1];
-                    lastTouchDistance = Math.sqrt(
-                        Math.pow(touch2.clientX - touch1.clientX, 2) + 
-                        Math.pow(touch2.clientY - touch1.clientY, 2)
-                    );
-                    touchZoomActive = true;
-                    event.preventDefault();
-                }
-            });
-            
-            canvas.addEventListener('touchmove', (event) => {
-                if (event.touches.length === 2 && touchZoomActive) {
-                    // Calculate pinch zoom
-                    const touch1 = event.touches[0];
-                    const touch2 = event.touches[1];
-                    const currentDistance = Math.sqrt(
-                        Math.pow(touch2.clientX - touch1.clientX, 2) + 
-                        Math.pow(touch2.clientY - touch1.clientY, 2)
-                    );
-                    
-                    if (lastTouchDistance > 0) {
-                        const deltaDistance = currentDistance - lastTouchDistance;
-                        // Convert distance change to wheel-like delta
-                        const wheelDelta = -deltaDistance * 2; // Negative for zoom in when pinching out
-                        handleZoom(wheelDelta);
-                    }
-                    
-                    lastTouchDistance = currentDistance;
-                    event.preventDefault();
-                }
-            });
-            
-            canvas.addEventListener('touchend', (event) => {
-                if (event.touches.length < 2) {
-                    touchZoomActive = false;
-                    lastTouchDistance = 0;
-                }
-            });
-            
-            // Unified zoom handling function
-            function handleZoom(deltaY) {
+                
                 // Different zoom behavior based on animation mode
                 if (animationMode === 'slab') {
                     // Get current camera distance
@@ -1975,7 +1882,7 @@
                     // Calculate new distance with improved sensitivity
                     // Negative deltaY means zoom in, positive means zoom out
                     const zoomFactor = 0.05; // Reduced for smoother zooming
-                    const newDistance = Math.max(20, Math.min(200, distance + deltaY * zoomFactor));
+                    const newDistance = Math.max(20, Math.min(200, distance + event.deltaY * zoomFactor));
                     
                     // Apply the new distance while maintaining camera direction
                     const direction = camera.position.clone().normalize();
@@ -1990,7 +1897,7 @@
                     
                     // Calculate new Z position with limits for rolling view
                     // Default is 10, allow zoom in to 5 and out to 20
-                    const newZ = Math.max(5, Math.min(20, currentZ + deltaY * zoomFactor));
+                    const newZ = Math.max(5, Math.min(20, currentZ + event.deltaY * zoomFactor));
                     
                     // Update only the Z position
                     camera.position.z = newZ;
@@ -1998,7 +1905,7 @@
                 
                 // Ensure camera is looking at the center
                 camera.lookAt(0, 0, 0);
-            }
+            });
         }
         
         function setupParameterControls() {
