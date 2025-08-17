@@ -13,7 +13,6 @@
     
     <!-- Three.js for 3D visualization -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <!-- OrbitControls for camera interaction -->
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
     
     
@@ -1164,7 +1163,10 @@
     
     <script>
         // Three.js scene setup
-        let scene, camera, renderer, metalSlab, controls;
+        let scene, camera, renderer;
+        let metalSlab;
+        let slabGlowLines = [];
+        let orbitControls;
         let mouseX = 0, mouseY = 0;
         let isMouseDown = false;
         
@@ -1198,7 +1200,7 @@
         let rollingScene = null;
         let rollingRolls = [];
         let rollingMetal = null;
-        let slabGlowLines = []; // Global array for glow lines
+        // slabGlowLines is already declared above
         
         
         
@@ -1257,6 +1259,42 @@
                 renderer.shadowMap.enabled = true;
                 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
                 
+                // Initialize OrbitControls
+                orbitControls = new THREE.OrbitControls(camera, renderer.domElement);
+                orbitControls.enableDamping = true;
+                orbitControls.dampingFactor = 0.05;
+                orbitControls.screenSpacePanning = false;
+                orbitControls.minDistance = 20;
+                orbitControls.maxDistance = 200;
+                orbitControls.maxPolarAngle = Math.PI / 1.5;
+                orbitControls.enabled = false; // Initially disabled, will be enabled in slab mode
+                
+                // Add custom isDragging property and event listeners to track user interaction
+                orbitControls.isDragging = false;
+                
+                // Track when user starts interacting with controls
+                orbitControls.domElement.addEventListener('mousedown', function() {
+                    if (animationMode === 'slab' && orbitControls.enabled) {
+                        orbitControls.isDragging = true;
+                    }
+                });
+                
+                // Track when user stops interacting with controls
+                document.addEventListener('mouseup', function() {
+                    orbitControls.isDragging = false;
+                });
+                
+                // Also track touch events for mobile
+                orbitControls.domElement.addEventListener('touchstart', function() {
+                    if (animationMode === 'slab' && orbitControls.enabled) {
+                        orbitControls.isDragging = true;
+                    }
+                });
+                
+                document.addEventListener('touchend', function() {
+                    orbitControls.isDragging = false;
+                });
+                
                 // Enhanced lighting for better visibility
                 const ambientLight = new THREE.AmbientLight(0x404040, 0.8);
                 scene.add(ambientLight);
@@ -1274,11 +1312,8 @@
                 // Create metal slab
                 createMetalSlab();
                 
-                // Custom iPad touch controls implementation
-                setupCustomTouchControls();
-                
-                // Remove conflicting mouse controls to allow OrbitControls to work
-                // setupMouseControls();
+                // Mouse controls
+                setupMouseControls();
                 
                 // Start animation loop
                 animate();
@@ -1610,6 +1645,15 @@
             metalSlab = null;
             slabGlowLines = []; // Reset glow lines array
             
+            // Toggle orbital controls based on mode
+            if (orbitControls) {
+                orbitControls.enabled = (mode === 'slab');
+                if (mode === 'slab') {
+                    // Reset controls to default state when switching to slab mode
+                    orbitControls.reset();
+                }                
+            }
+            
             if (mode === 'slab') {
                 // Reset camera for default slab view
                 camera.position.set(80, 60, 80);
@@ -1683,95 +1727,47 @@
             document.getElementById('reductionInfo').textContent = `${reductionPercent}%`;
         }
         
-        function setupCustomTouchControls() {
+        function setupMouseControls() {
             const canvas = document.getElementById('metalSlabCanvas');
-            let touchStartX = 0, touchStartY = 0;
-            let isTouching = false;
-            let initialDistance = 0;
-            let initialCameraDistance = 0;
             
-            console.log('Setting up custom touch controls for iPad');
+            canvas.addEventListener('mousedown', (event) => {
+                isMouseDown = true;
+                mouseX = event.clientX;
+                mouseY = event.clientY;
+            });
             
-            // Prevent default touch behaviors
-            canvas.style.touchAction = 'none';
-            
-            canvas.addEventListener('touchstart', (event) => {
-                event.preventDefault();
-                isTouching = true;
+            canvas.addEventListener('mousemove', (event) => {
+                if (!isMouseDown) return;
                 
-                if (event.touches.length === 1) {
-                    // Single touch - rotation
-                    touchStartX = event.touches[0].clientX;
-                    touchStartY = event.touches[0].clientY;
-                    console.log('Touch start - single finger');
-                } else if (event.touches.length === 2) {
-                    // Two touches - zoom
-                    const touch1 = event.touches[0];
-                    const touch2 = event.touches[1];
-                    initialDistance = Math.sqrt(
-                        Math.pow(touch2.clientX - touch1.clientX, 2) + 
-                        Math.pow(touch2.clientY - touch1.clientY, 2)
-                    );
-                    initialCameraDistance = camera.position.length();
-                    console.log('Touch start - two fingers for zoom');
-                }
-            }, { passive: false });
-            
-            canvas.addEventListener('touchmove', (event) => {
-                event.preventDefault();
+                const deltaX = event.clientX - mouseX;
+                const deltaY = event.clientY - mouseY;
                 
-                if (!isTouching) return;
+                // Rotate camera around the slab
+                const spherical = new THREE.Spherical();
+                spherical.setFromVector3(camera.position);
                 
-                if (event.touches.length === 1) {
-                    // Single touch rotation
-                    const touch = event.touches[0];
-                    const deltaX = touch.clientX - touchStartX;
-                    const deltaY = touch.clientY - touchStartY;
-                    
-                    // Rotate camera around the slab
-                    const spherical = new THREE.Spherical();
-                    spherical.setFromVector3(camera.position);
-                    
-                    spherical.theta -= deltaX * 0.008; // Touch sensitivity
-                    spherical.phi += deltaY * 0.008;
-                    
-                    // Limit phi to prevent flipping
-                    spherical.phi = Math.max(0.1, Math.min(Math.PI - 0.1, spherical.phi));
-                    
-                    camera.position.setFromSpherical(spherical);
-                    camera.lookAt(0, 0, 0);
-                    
-                    touchStartX = touch.clientX;
-                    touchStartY = touch.clientY;
-                    
-                } else if (event.touches.length === 2) {
-                    // Two touch zoom
-                    const touch1 = event.touches[0];
-                    const touch2 = event.touches[1];
-                    const currentDistance = Math.sqrt(
-                        Math.pow(touch2.clientX - touch1.clientX, 2) + 
-                        Math.pow(touch2.clientY - touch1.clientY, 2)
-                    );
-                    
-                    const scale = currentDistance / initialDistance;
-                    const newDistance = Math.max(50, Math.min(300, initialCameraDistance / scale));
-                    
-                    camera.position.normalize().multiplyScalar(newDistance);
-                    camera.lookAt(0, 0, 0);
-                }
-            }, { passive: false });
+                spherical.theta -= deltaX * 0.01;
+                spherical.phi += deltaY * 0.01;
+                
+                // Limit phi to prevent flipping
+                spherical.phi = Math.max(0.1, Math.min(Math.PI - 0.1, spherical.phi));
+                
+                camera.position.setFromSpherical(spherical);
+                camera.lookAt(0, 0, 0);
+                
+                mouseX = event.clientX;
+                mouseY = event.clientY;
+            });
             
-            canvas.addEventListener('touchend', (event) => {
-                event.preventDefault();
-                isTouching = false;
-                console.log('Touch end');
-            }, { passive: false });
+            canvas.addEventListener('mouseup', () => {
+                isMouseDown = false;
+            });
             
-            canvas.addEventListener('touchcancel', (event) => {
-                event.preventDefault();
-                isTouching = false;
-                console.log('Touch cancel');
-            }, { passive: false });
+            canvas.addEventListener('wheel', (event) => {
+                const distance = camera.position.length();
+                const newDistance = Math.max(50, Math.min(200, distance + event.deltaY * 0.1));
+                camera.position.normalize().multiplyScalar(newDistance);
+            });
         }
         
         function setupParameterControls() {
@@ -1932,12 +1928,22 @@
             requestAnimationFrame(animate);
             
             if (animationMode === 'slab') {
-                // Default slab animation - much slower rotation
-                if (!isMouseDown && !isSliderActive) {
+                // Enable orbit controls in slab mode
+                if (orbitControls) {
+                    orbitControls.enabled = true;
+                    orbitControls.update();
+                }
+                
+                // Only auto-rotate when not interacting with controls
+                if (!isMouseDown && !isSliderActive && orbitControls && !orbitControls.isDragging && metalSlab) {
                     metalSlab.rotation.x += 0.001;  // Slowed down from 0.003
                     metalSlab.rotation.y += 0.002;  // Slowed down from 0.005
                 }
             } else if (animationMode === 'rolling') {
+                // Disable orbit controls in rolling mode
+                if (orbitControls) {
+                    orbitControls.enabled = false;
+                }
                 // Hot rolling animation - much slower speeds
                 const time = Date.now() * 0.0003; // Much slower floating animation (slowed from 0.001)
                 const floatAmount = Math.sin(time) * 0.15; // Reduced to 0.15 units to prevent slab overlap
@@ -1974,11 +1980,6 @@
                         metalSlab.updateTemperature(rollingParameters.temperature);
                     }
                 }
-            }
-            
-            // Update orbital controls
-            if (controls) {
-                controls.update();
             }
             
             renderer.render(scene, camera);
