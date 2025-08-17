@@ -1323,9 +1323,15 @@
                 musicStarted = true;
             }
             
-            // Initialize synth on first interaction
+            // Initialize synth on first interaction with explicit user gesture
             if (!audioContext) {
+                console.log('Initializing synth after user interaction');
                 initializeSynth();
+            } else if (audioContext.state === 'suspended') {
+                console.log('Resuming suspended audio context');
+                audioContext.resume().then(() => {
+                    console.log('Audio context resumed successfully');
+                });
             }
         }
         
@@ -1333,6 +1339,13 @@
         function initializeSynth() {
             try {
                 audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                
+                // Ensure audio context is running (required for GitHub Pages/HTTPS)
+                if (audioContext.state === 'suspended') {
+                    audioContext.resume().then(() => {
+                        console.log('Audio context resumed');
+                    });
+                }
                 
                 // Create synth components for a chord (3 oscillators)
                 synthOscillator = audioContext.createOscillator();
@@ -1387,20 +1400,37 @@
                 synthLFO.connect(synthLFOGain);
                 synthLFOGain.connect(synthFilter.frequency);
                 
-                // Start oscillators immediately for continuous play
-                synthOscillator.start();
-                synthOsc2.start();
-                synthOsc3.start();
-                synthLFO.start();
+                // Start oscillators with a small delay to ensure audio context is ready
+                setTimeout(() => {
+                    if (audioContext.state === 'running') {
+                        synthOscillator.start();
+                        synthOsc2.start();
+                        synthOsc3.start();
+                        synthLFO.start();
+                        
+                        synthIsPlaying = true;
+                        console.log('Continuous synth initialized and playing');
+                        console.log('Audio context state:', audioContext.state);
+                    } else {
+                        console.log('Audio context not running, state:', audioContext.state);
+                        // Try to resume the context
+                        audioContext.resume().then(() => {
+                            synthOscillator.start();
+                            synthOsc2.start();
+                            synthOsc3.start();
+                            synthLFO.start();
+                            
+                            synthIsPlaying = true;
+                            console.log('Audio context resumed, synth started');
+                        });
+                    }
+                }, 100);
                 
                 // Store additional oscillators for parameter updates
                 window.synthOsc2 = synthOsc2;
                 window.synthOsc3 = synthOsc3;
                 window.synthGain2 = synthGain2;
                 window.synthGain3 = synthGain3;
-                
-                synthIsPlaying = true;
-                console.log('Continuous synth initialized and playing');
             } catch (error) {
                 console.log('Synth initialization error:', error);
             }
@@ -1429,12 +1459,14 @@
             const filterFreq = 300 + (parameters.gap * 2700);
             synthFilter.frequency.linearRampToValueAtTime(filterFreq, currentTime + 0.2);
             
-            // Map fra (0-1) to LFO rate and filter resonance
-            const lfoRate = 0.2 + (parameters.fra * 2); // Slower, more musical LFO
-            const resonance = 1 + (parameters.fra * 8); // 1-9 Q factor
+            // Map fra (0-1) to LFO rate and filter resonance - MORE DRAMATIC
+            const lfoRate = 0.1 + (parameters.fra * 4); // 0.1-4.1 Hz - wider range
+            const resonance = 1 + (parameters.fra * 15); // 1-16 Q factor - much more intense
+            const lfoDepth = 10 + (parameters.fra * 90); // 10-100 Hz modulation depth
             
             synthLFO.frequency.linearRampToValueAtTime(lfoRate, currentTime + 0.2);
             synthFilter.Q.linearRampToValueAtTime(resonance, currentTime + 0.2);
+            synthLFOGain.gain.linearRampToValueAtTime(lfoDepth, currentTime + 0.2);
             
             console.log(`Synth chord: ${baseFreq.toFixed(1)}Hz, filter: ${filterFreq.toFixed(1)}Hz, Q: ${resonance.toFixed(1)}, LFO: ${lfoRate.toFixed(1)}Hz`);
         }
@@ -2042,6 +2074,56 @@
                 isMouseDown = false;
             });
             
+            // Touch zoom handling for mobile/iPad
+            let initialTouchDistance = 0;
+            let lastTouchDistance = 0;
+            
+            canvas.addEventListener('touchstart', (event) => {
+                if (event.touches.length === 2) {
+                    // Two finger touch for zoom
+                    const touch1 = event.touches[0];
+                    const touch2 = event.touches[1];
+                    initialTouchDistance = Math.sqrt(
+                        Math.pow(touch2.clientX - touch1.clientX, 2) + 
+                        Math.pow(touch2.clientY - touch1.clientY, 2)
+                    );
+                    lastTouchDistance = initialTouchDistance;
+                    event.preventDefault();
+                }
+            });
+            
+            canvas.addEventListener('touchmove', (event) => {
+                if (event.touches.length === 2) {
+                    // Calculate current distance between two fingers
+                    const touch1 = event.touches[0];
+                    const touch2 = event.touches[1];
+                    const currentTouchDistance = Math.sqrt(
+                        Math.pow(touch2.clientX - touch1.clientX, 2) + 
+                        Math.pow(touch2.clientY - touch1.clientY, 2)
+                    );
+                    
+                    // Calculate zoom delta
+                    const deltaDistance = currentTouchDistance - lastTouchDistance;
+                    const zoomDelta = -deltaDistance * 0.1; // Negative for natural zoom direction
+                    
+                    // Apply zoom based on animation mode
+                    if (animationMode === 'slab') {
+                        const distance = camera.position.length();
+                        const newDistance = Math.max(20, Math.min(200, distance + zoomDelta));
+                        const direction = camera.position.clone().normalize();
+                        camera.position.copy(direction.multiplyScalar(newDistance));
+                    } else if (animationMode === 'rolling') {
+                        const currentZ = camera.position.z;
+                        const newZ = Math.max(5, Math.min(20, currentZ + zoomDelta * 0.1));
+                        camera.position.z = newZ;
+                        camera.lookAt(0, 0, 0);
+                    }
+                    
+                    lastTouchDistance = currentTouchDistance;
+                    event.preventDefault();
+                }
+            });
+
             canvas.addEventListener('wheel', (event) => {
                 // Prevent default scrolling behavior
                 event.preventDefault();
@@ -2950,6 +3032,12 @@
             position: absolute !important;
             left: -9999px !important;
             top: -9999px !important;
+        }
+        
+        /* Hide any Bootstrap icons that might appear */
+        .bi-arrow-left, .bi-arrow-right {
+            display: none !important;
+            visibility: hidden !important;
         }
     </style>
     
