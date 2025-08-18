@@ -253,9 +253,9 @@
             ctx.fillStyle = '#FFFFFF';
             ctx.fillRect(0, 0, 512, 512);
             
-            // Black graphic in center
+            // Black graphic in center - use almost full canvas size
             ctx.fillStyle = '#000000';
-            drawShape(ctx, shape, 256, 256, 400);
+            drawShape(ctx, shape, 256, 256, 480);
             
             // Update preview
             const preview = document.getElementById(`marker-${index}`);
@@ -278,12 +278,10 @@
             
             switch(shape) {
                 case 'chunky-l':
-                    // Bold L-shape - scale up the entire shape
-                    const thickness = size/3;
-                    const scale = 0.9; // Use 90% of available space
-                    const scaledSize = size * scale;
-                    ctx.fillRect(-scaledSize/2, -scaledSize/2, thickness, scaledSize); // Vertical bar
-                    ctx.fillRect(-scaledSize/2, scaledSize/2-thickness, scaledSize, thickness); // Horizontal bar
+                    // Bold L-shape - fills entire space
+                    const thickness = 120;
+                    ctx.fillRect(-240, -240, thickness, 480); // Vertical bar - full height
+                    ctx.fillRect(-240, 120, 480, thickness); // Horizontal bar - full width at bottom
                     break;
                     
                 case 'chunky-t':
@@ -381,77 +379,49 @@
                     break;
                     
                 case 'network':
-                    // Network nodes pattern - black fill
-                    const nodes = [[0,0], [-70,-70], [70,-70], [-70,70], [70,70]];
-                    nodes.forEach(([nx, ny]) => {
-                        ctx.beginPath();
-                        ctx.arc(nx, ny, 25, 0, Math.PI * 2);
-                        ctx.fill();
-                    });
-                    // Connect lines - black stroke
-                    ctx.strokeStyle = '#000000';
-                    ctx.lineWidth = 12;
-                    nodes.forEach(([nx, ny]) => { 
-                        if (nx !== 0 || ny !== 0) {
-                            ctx.beginPath();
-                            ctx.moveTo(0, 0);
-                            ctx.lineTo(nx, ny);
-                            ctx.stroke();
-                        }
-                    });
+                    // Thick square with hole in middle
+                    ctx.fillRect(-180, -180, 360, 360); // Outer square
+                    ctx.fillStyle = '#FFFFFF';
+                    ctx.fillRect(-80, -80, 160, 160); // Inner white square (hole)
+                    ctx.fillStyle = '#000000';
                     break;
                     
                 case 'wave':
-                    // Wave pattern - black stroke
+                    // Simple zigzag pattern
                     ctx.strokeStyle = '#000000';
-                    ctx.lineWidth = 20;
-                    for(let i = 0; i < 3; i++) {
-                        ctx.beginPath();
-                        for(let x = -size/2; x <= size/2; x += 3) {
-                            const y = Math.sin(x * 0.015) * 40 + (i - 1) * 50;
-                            if(x === -size/2) ctx.moveTo(x, y);
-                            else ctx.lineTo(x, y);
-                        }
-                        ctx.stroke();
-                    }
+                    ctx.lineWidth = 60;
+                    ctx.beginPath();
+                    ctx.moveTo(-200, -100);
+                    ctx.lineTo(0, 100);
+                    ctx.lineTo(200, -100);
+                    ctx.stroke();
                     break;
                     
                 case 'grid':
-                    // Grid pattern - black stroke
+                    // Simple cross pattern
                     ctx.strokeStyle = '#000000';
-                    ctx.lineWidth = 15;
-                    for(let i = -1; i <= 1; i++) {
-                        ctx.beginPath();
-                        ctx.moveTo(i * 60, -size/2);
-                        ctx.lineTo(i * 60, size/2);
-                        ctx.stroke();
-                        
-                        ctx.beginPath();
-                        ctx.moveTo(-size/2, i * 60);
-                        ctx.lineTo(size/2, i * 60);
-                        ctx.stroke();
-                    }
+                    ctx.lineWidth = 80;
+                    ctx.beginPath();
+                    ctx.moveTo(-200, 0);
+                    ctx.lineTo(200, 0);
+                    ctx.moveTo(0, -200);
+                    ctx.lineTo(0, 200);
+                    ctx.stroke();
                     break;
                     
                 case 'thermal':
-                    // Thermal gradient pattern - black rings
-                    for(let i = 0; i < 3; i++) {
-                        ctx.strokeStyle = '#000000';
-                        ctx.lineWidth = 20;
-                        ctx.beginPath();
-                        ctx.arc(0, 0, (i + 1) * 40, 0, Math.PI * 2);
-                        ctx.stroke();
-                    }
+                    // Three horizontal thick bars
+                    ctx.fillRect(-160, -120, 320, 60); // Top bar
+                    ctx.fillRect(-160, -30, 320, 60);  // Middle bar
+                    ctx.fillRect(-160, 60, 320, 60);   // Bottom bar
                     break;
                     
                 case 'flow':
-                    // Large triangle - scale up to fill entire space
-                    const triScale = 0.9; // Use 90% of available space
-                    const triSize = size * triScale;
+                    // Large triangle - fills entire available space
                     ctx.beginPath();
-                    ctx.moveTo(0, -triSize/2);
-                    ctx.lineTo(-triSize/2, triSize/2);
-                    ctx.lineTo(triSize/2, triSize/2);
+                    ctx.moveTo(0, -240);
+                    ctx.lineTo(-240, 240);
+                    ctx.lineTo(240, 240);
                     ctx.closePath();
                     ctx.fill();
                     break;
