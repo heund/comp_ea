@@ -379,11 +379,11 @@
                     break;
                     
                 case 'network':
-                    // Thick square with hole in middle
-                    ctx.fillRect(-180, -180, 360, 360); // Outer square
-                    ctx.fillStyle = '#FFFFFF';
-                    ctx.fillRect(-80, -80, 160, 160); // Inner white square (hole)
-                    ctx.fillStyle = '#000000';
+                    // Half circle (semicircle) - rotated 90 degrees (right half)
+                    ctx.beginPath();
+                    ctx.arc(0, 0, 200, -Math.PI/2, Math.PI/2);
+                    ctx.closePath();
+                    ctx.fill();
                     break;
                     
                 case 'wave':
