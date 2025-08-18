@@ -560,18 +560,44 @@ if (typeof window.Artwork3 === 'undefined') {
          * Initialize wave canvas for audio wave visualization
          */
         initializeWaveCanvas() {
+            // First try to find existing canvas
             this.canvas = document.getElementById('waveCanvas');
+            
+            // If not found, create it dynamically
+            if (!this.canvas) {
+                console.log('waveCanvas not found, creating dynamically');
+                
+                // Create wave container if it doesn't exist
+                let waveContainer = document.getElementById('waveContainer');
+                if (!waveContainer) {
+                    waveContainer = document.createElement('div');
+                    waveContainer.id = 'waveContainer';
+                    waveContainer.className = 'wave-container';
+                    document.body.appendChild(waveContainer);
+                }
+                
+                // Create canvas
+                this.canvas = document.createElement('canvas');
+                this.canvas.id = 'waveCanvas';
+                this.canvas.width = 1920;
+                this.canvas.height = 1080;
+                waveContainer.appendChild(this.canvas);
+                
+                console.log('waveCanvas created dynamically');
+            }
+            
             if (this.canvas) {
                 this.ctx = this.canvas.getContext('2d');
                 
-                // Set canvas to full viewport size
-                this.canvas.width = window.innerWidth;
-                this.canvas.height = window.innerHeight;
+                // Set canvas size to match container
+                const container = this.canvas.parentElement;
+                this.canvas.width = container.clientWidth;
+                this.canvas.height = container.clientHeight;
                 
                 this.lastFrameTime = performance.now();
                 console.log('Wave canvas initialized:', this.canvas.width, 'x', this.canvas.height);
             } else {
-                console.error('waveCanvas element not found in DOM');
+                console.error('Failed to create waveCanvas element');
             }
         }
         

@@ -14,9 +14,11 @@ if (typeof window.Artwork4 === 'undefined') {
             // Default title
             this.title = options.title || '열간 압연 데이터 04: 쥜료 유동 패턴';
             
-            // Get global audio manager instance
+            // Get global managers instances
             this.globalAudioManager = window.globalAudioManager || window.GlobalAudioManager?.getInstance();
             this.audioId = 'artwork4';
+            this.globalDataPopupManager = window.globalDataPopupManager || window.GlobalDataPopupManager?.getInstance();
+            this.popupId = 'artwork4';
             
             // Voronoi diamond visualization properties
             this.voronoiShapes = [];
@@ -104,6 +106,18 @@ if (typeof window.Artwork4 === 'undefined') {
             this.animationFrame = null;
             this.time = 0;
             
+            // Custom orbital controls for iPad
+            this.isMouseDown = false;
+            this.isTouchDown = false;
+            this.lastMouseX = 0;
+            this.lastMouseY = 0;
+            this.cameraDistance = 25;
+            this.cameraTheta = Math.PI / 4; // 45 degrees for isometric view
+            this.cameraPhi = Math.PI / 3; // ~60 degrees elevation
+            this.targetTheta = Math.PI / 4;
+            this.targetPhi = Math.PI / 3;
+            this.targetDistance = 25;
+            
             // Audio for this artwork
             this.artworkAudio = null;
             this.isAudioPlaying = false;
@@ -138,6 +152,12 @@ if (typeof window.Artwork4 === 'undefined') {
             // Create audio progress bar
             this.createAudioProgressBar();
             
+            // Register with global data popup manager
+            if (this.globalDataPopupManager) {
+                this.globalDataPopupManager.registerPopup(this.popupId, this);
+                console.log('[ARTWORK4] Registered with Global Data Popup Manager');
+            }
+            
             // Apply dynamic camera positioning - positioned to face Voronoi shape directly
             const canvas = document.getElementById('visualizationCanvas');
             const container = canvas.parentElement;
@@ -145,7 +165,11 @@ if (typeof window.Artwork4 === 'undefined') {
             const scaleFactor = this.calculateScaleFactor(minDimension);
             const baseDistance = 25;
             const distance = baseDistance * scaleFactor;
-            this.camera.position.set(0, 0, distance);
+            
+            // Set initial position using isometric view like artwork2 (positioned to show the diamond properly)
+            this.targetDistance = distance;
+            this.cameraDistance = distance;
+            this.camera.position.set(distance * 0.6, distance * 0.4, distance * 0.6);
             this.camera.lookAt(0, 0, 0);
             
             this.isInitialized = true;
@@ -237,6 +261,129 @@ if (typeof window.Artwork4 === 'undefined') {
                     this.stopArtworkAudio();
                 });
             }
+            
+            // Set up custom orbital controls for iPad
+            this.setupCustomOrbitalControls();
+        }
+        
+        /**
+         * Set up custom orbital controls for iPad touch interaction
+         */
+        setupCustomOrbitalControls() {
+            const canvas = document.getElementById('visualizationCanvas');
+            if (!canvas) return;
+            
+            // Mouse events for desktop testing
+            canvas.addEventListener('mousedown', (event) => {
+                this.isMouseDown = true;
+                this.lastMouseX = event.clientX;
+                this.lastMouseY = event.clientY;
+                this.mouseDownTime = Date.now();
+                // Don't prevent default to allow click detection
+            });
+            
+            canvas.addEventListener('mousemove', (event) => {
+                if (!this.isMouseDown) return;
+                
+                const deltaX = event.clientX - this.lastMouseX;
+                const deltaY = event.clientY - this.lastMouseY;
+                
+                this.targetTheta -= deltaX * 0.01;
+                this.targetPhi += deltaY * 0.01;
+                this.targetPhi = Math.max(0.1, Math.min(Math.PI - 0.1, this.targetPhi));
+                
+                this.lastMouseX = event.clientX;
+                this.lastMouseY = event.clientY;
+                this.hasMoved = true;
+                event.preventDefault();
+            });
+            
+            canvas.addEventListener('mouseup', (event) => {
+                const clickDuration = Date.now() - this.mouseDownTime;
+                // If it's a quick click without much movement, treat as click for popup
+                if (clickDuration < 200 && !this.hasMoved) {
+                    // This will be handled by the separate click handler
+                }
+                this.isMouseDown = false;
+                this.hasMoved = false;
+            });
+            
+            // Touch events for iPad
+            canvas.addEventListener('touchstart', (event) => {
+                if (event.touches.length === 1) {
+                    this.isTouchDown = true;
+                    this.lastMouseX = event.touches[0].clientX;
+                    this.lastMouseY = event.touches[0].clientY;
+                    this.touchStartTime = Date.now();
+                    this.hasTouchMoved = false;
+                }
+                // Don't prevent default to allow click detection
+            });
+            
+            canvas.addEventListener('touchmove', (event) => {
+                if (!this.isTouchDown || event.touches.length !== 1) return;
+                
+                const deltaX = event.touches[0].clientX - this.lastMouseX;
+                const deltaY = event.touches[0].clientY - this.lastMouseY;
+                
+                this.targetTheta -= deltaX * 0.01;
+                this.targetPhi += deltaY * 0.01;
+                this.targetPhi = Math.max(0.1, Math.min(Math.PI - 0.1, this.targetPhi));
+                
+                this.lastMouseX = event.touches[0].clientX;
+                this.lastMouseY = event.touches[0].clientY;
+                this.hasTouchMoved = true;
+                event.preventDefault();
+            });
+            
+            canvas.addEventListener('touchend', (event) => {
+                const touchDuration = Date.now() - this.touchStartTime;
+                // If it's a quick tap without movement, treat as click for popup
+                if (touchDuration < 200 && !this.hasTouchMoved) {
+                    // Trigger click handler manually for touch
+                    this.handleCanvasClick(event.changedTouches[0]);
+                }
+                this.isTouchDown = false;
+                this.hasTouchMoved = false;
+            });
+            
+            // Pinch-to-zoom for iPad
+            let initialDistance = 0;
+            canvas.addEventListener('touchstart', (event) => {
+                if (event.touches.length === 2) {
+                    const touch1 = event.touches[0];
+                    const touch2 = event.touches[1];
+                    initialDistance = Math.sqrt(
+                        Math.pow(touch2.clientX - touch1.clientX, 2) +
+                        Math.pow(touch2.clientY - touch1.clientY, 2)
+                    );
+                }
+            });
+            
+            canvas.addEventListener('touchmove', (event) => {
+                if (event.touches.length === 2) {
+                    const touch1 = event.touches[0];
+                    const touch2 = event.touches[1];
+                    const currentDistance = Math.sqrt(
+                        Math.pow(touch2.clientX - touch1.clientX, 2) +
+                        Math.pow(touch2.clientY - touch1.clientY, 2)
+                    );
+                    
+                    if (initialDistance > 0) {
+                        const scale = currentDistance / initialDistance;
+                        this.targetDistance = Math.max(10, Math.min(100, this.targetDistance / scale));
+                        initialDistance = currentDistance;
+                    }
+                    event.preventDefault();
+                }
+            });
+            
+            // Mouse wheel for desktop zoom
+            canvas.addEventListener('wheel', (event) => {
+                this.targetDistance += event.deltaY * 0.01;
+                this.targetDistance = Math.max(10, Math.min(100, this.targetDistance));
+                event.preventDefault();
+            });
         }
         
         /**
@@ -327,26 +474,9 @@ if (typeof window.Artwork4 === 'undefined') {
                 
                 const dot = new THREE.Mesh(dotGeometry, dotMaterial);
                 
-                // Create canvas for data label - extra large for AR readability
-                const canvas = document.createElement('canvas');
-                const context = canvas.getContext('2d');
-                canvas.width = 400;
-                canvas.height = 200;
-                context.fillStyle = '#591500';
-                context.font = '72px Arial';
-                context.textAlign = 'center';
-                context.fillText(cellData.dataPoint.value.toString(), 200, 130);
-                
-                // Create sprite label - extra large scale
-                const texture = new THREE.CanvasTexture(canvas);
-                const labelMaterial = new THREE.SpriteMaterial({ map: texture, transparent: true });
-                const label = new THREE.Sprite(labelMaterial);
-                label.scale.set(4.0, 2.0, 1);
-                
-                // Group dot and label together
+                // Group just the dot (no label with numbers)
                 const group = new THREE.Group();
                 group.add(dot);
-                group.add(label);
                 
                 // Position at absolute world coordinates (not relative to shape)
                 group.position.set(
@@ -355,17 +485,12 @@ if (typeof window.Artwork4 === 'undefined') {
                     cellData.dataPoint.z
                 );
                 
-                // Position label well above dot to avoid overlap
-                label.position.set(0, 1.2, 0);
-                
                 // Store references for updates and link to parent shape
                 group.userData = {
-                    canvas: canvas,
-                    context: context,
-                    label: label,
                     parentShape: shape,
                     originalPosition: { ...cellData.dataPoint },
-                    baseValue: cellData.dataPoint.value
+                    baseValue: cellData.dataPoint.value,
+                    cellIndex: index
                 };
                 
                 // Add to scene directly (not as child of shape) for exact positioning
@@ -419,6 +544,9 @@ if (typeof window.Artwork4 === 'undefined') {
             const animate = () => {
                 if (!this.isActive) return; // Stop if module is deactivated
                 
+                // Update custom orbital controls
+                this.updateCustomOrbitalControls();
+                
                 // Rotate the placeholder orb slowly (even though it's invisible)
                 if (this.placeholderOrb) {
                     this.placeholderOrb.rotation.x += 0.01;
@@ -430,6 +558,26 @@ if (typeof window.Artwork4 === 'undefined') {
             };
             
             animate();
+        }
+        
+        /**
+         * Update custom orbital controls
+         */
+        updateCustomOrbitalControls() {
+            // Smooth interpolation for camera movement
+            const lerpFactor = 0.05;
+            this.cameraTheta += (this.targetTheta - this.cameraTheta) * lerpFactor;
+            this.cameraPhi += (this.targetPhi - this.cameraPhi) * lerpFactor;
+            this.cameraDistance += (this.targetDistance - this.cameraDistance) * lerpFactor;
+            
+            // Convert spherical coordinates to Cartesian - positioned to face front of diamond
+            const x = this.cameraDistance * Math.sin(this.cameraPhi) * Math.cos(this.cameraTheta);
+            const y = this.cameraDistance * Math.cos(this.cameraPhi);
+            const z = this.cameraDistance * Math.sin(this.cameraPhi) * Math.sin(this.cameraTheta);
+            
+            // Update camera position
+            this.camera.position.set(x, y, z);
+            this.camera.lookAt(0, 0, 0);
         }
         
         /**
@@ -459,11 +607,52 @@ if (typeof window.Artwork4 === 'undefined') {
             this.handleCanvasClick = (event) => {
                 if (!this.isActive) return;
                 
-                // Toggle data overlay or cycle through datasets
-                if (this.overlayVisible) {
-                    this.cycleToNextDataset();
+                console.log('[ARTWORK4] Canvas clicked');
+                
+                // Calculate mouse position for raycasting
+                const rect = canvas.getBoundingClientRect();
+                this.mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+                this.mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+                
+                console.log('[ARTWORK4] Mouse position:', this.mouse.x, this.mouse.y);
+                console.log('[ARTWORK4] Data points count:', this.dataPoints.length);
+                
+                // Raycast to detect clicks on dots
+                this.raycaster.setFromCamera(this.mouse, this.camera);
+                const intersects = this.raycaster.intersectObjects(this.dataPoints, true);
+                
+                console.log('[ARTWORK4] Intersects found:', intersects.length);
+                
+                if (intersects.length > 0) {
+                    // Get the clicked data point
+                    const clickedObject = intersects[0].object;
+                    const clickedPoint = clickedObject.parent || clickedObject;
+                    const cellIndex = clickedPoint.userData.cellIndex;
+                    
+                    console.log('[ARTWORK4] Clicked cell index:', cellIndex);
+                    console.log('[ARTWORK4] GlobalDataPopupManager available:', !!this.globalDataPopupManager);
+                    
+                    // Show data popup using global data popup manager
+                    if (this.globalDataPopupManager) {
+                        const popupData = {
+                            title: '응력 누적 분포',
+                            value: this.voronoiData[cellIndex].dataPoint.value,
+                            unit: 'MPa',
+                            description: `셀 ${cellIndex + 1} 응력 데이터`
+                        };
+                        console.log('[ARTWORK4] Showing popup with data:', popupData);
+                        this.globalDataPopupManager.showPopup(this.popupId, popupData);
+                    } else {
+                        console.warn('[ARTWORK4] GlobalDataPopupManager not available');
+                    }
                 } else {
-                    this.showDataOverlay();
+                    console.log('[ARTWORK4] No intersects - clicking empty space');
+                    // Click on empty space - toggle data overlay
+                    if (this.overlayVisible) {
+                        this.cycleToNextDataset();
+                    } else {
+                        this.showDataOverlay();
+                    }
                 }
             };
             
@@ -646,6 +835,12 @@ if (typeof window.Artwork4 === 'undefined') {
                     });
                     this.scene.remove(point);
                 });
+            }
+            
+            // Unregister from global data popup manager
+            if (this.globalDataPopupManager) {
+                this.globalDataPopupManager.unregisterPopup(this.popupId);
+                console.log('[ARTWORK4] Unregistered from Global Data Popup Manager');
             }
             
             // Clean up audio
