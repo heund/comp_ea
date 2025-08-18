@@ -14,11 +14,9 @@ if (typeof window.Artwork4 === 'undefined') {
             // Default title
             this.title = options.title || '열간 압연 데이터 04: 쥜료 유동 패턴';
             
-            // Get global managers instances
+            // Get global audio manager instance
             this.globalAudioManager = window.globalAudioManager || window.GlobalAudioManager?.getInstance();
             this.audioId = 'artwork4';
-            this.globalDataPopupManager = window.globalDataPopupManager || window.GlobalDataPopupManager?.getInstance();
-            this.popupId = 'artwork4';
             
             // Voronoi diamond visualization properties
             this.voronoiShapes = [];
@@ -152,12 +150,6 @@ if (typeof window.Artwork4 === 'undefined') {
             // Create audio progress bar
             this.createAudioProgressBar();
             
-            // Register with global data popup manager
-            if (this.globalDataPopupManager) {
-                this.globalDataPopupManager.registerPopup(this.popupId, this);
-                console.log('[ARTWORK4] Registered with Global Data Popup Manager');
-            }
-            
             // Apply dynamic camera positioning - positioned to face Voronoi shape directly
             const canvas = document.getElementById('visualizationCanvas');
             const container = canvas.parentElement;
@@ -278,8 +270,7 @@ if (typeof window.Artwork4 === 'undefined') {
                 this.isMouseDown = true;
                 this.lastMouseX = event.clientX;
                 this.lastMouseY = event.clientY;
-                this.mouseDownTime = Date.now();
-                // Don't prevent default to allow click detection
+                event.preventDefault();
             });
             
             canvas.addEventListener('mousemove', (event) => {
@@ -294,18 +285,11 @@ if (typeof window.Artwork4 === 'undefined') {
                 
                 this.lastMouseX = event.clientX;
                 this.lastMouseY = event.clientY;
-                this.hasMoved = true;
                 event.preventDefault();
             });
             
-            canvas.addEventListener('mouseup', (event) => {
-                const clickDuration = Date.now() - this.mouseDownTime;
-                // If it's a quick click without much movement, treat as click for popup
-                if (clickDuration < 200 && !this.hasMoved) {
-                    // This will be handled by the separate click handler
-                }
+            canvas.addEventListener('mouseup', () => {
                 this.isMouseDown = false;
-                this.hasMoved = false;
             });
             
             // Touch events for iPad
@@ -314,10 +298,8 @@ if (typeof window.Artwork4 === 'undefined') {
                     this.isTouchDown = true;
                     this.lastMouseX = event.touches[0].clientX;
                     this.lastMouseY = event.touches[0].clientY;
-                    this.touchStartTime = Date.now();
-                    this.hasTouchMoved = false;
                 }
-                // Don't prevent default to allow click detection
+                event.preventDefault();
             });
             
             canvas.addEventListener('touchmove', (event) => {
@@ -332,19 +314,11 @@ if (typeof window.Artwork4 === 'undefined') {
                 
                 this.lastMouseX = event.touches[0].clientX;
                 this.lastMouseY = event.touches[0].clientY;
-                this.hasTouchMoved = true;
                 event.preventDefault();
             });
             
-            canvas.addEventListener('touchend', (event) => {
-                const touchDuration = Date.now() - this.touchStartTime;
-                // If it's a quick tap without movement, treat as click for popup
-                if (touchDuration < 200 && !this.hasTouchMoved) {
-                    // Trigger click handler manually for touch
-                    this.handleCanvasClick(event.changedTouches[0]);
-                }
+            canvas.addEventListener('touchend', () => {
                 this.isTouchDown = false;
-                this.hasTouchMoved = false;
             });
             
             // Pinch-to-zoom for iPad
@@ -607,30 +581,19 @@ if (typeof window.Artwork4 === 'undefined') {
             this.handleCanvasClick = (event) => {
                 if (!this.isActive) return;
                 
-                console.log('[ARTWORK4] Canvas clicked');
-                
                 // Calculate mouse position for raycasting
                 const rect = canvas.getBoundingClientRect();
                 this.mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
                 this.mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
                 
-                console.log('[ARTWORK4] Mouse position:', this.mouse.x, this.mouse.y);
-                console.log('[ARTWORK4] Data points count:', this.dataPoints.length);
-                
                 // Raycast to detect clicks on dots
                 this.raycaster.setFromCamera(this.mouse, this.camera);
                 const intersects = this.raycaster.intersectObjects(this.dataPoints, true);
                 
-                console.log('[ARTWORK4] Intersects found:', intersects.length);
-                
                 if (intersects.length > 0) {
                     // Get the clicked data point
-                    const clickedObject = intersects[0].object;
-                    const clickedPoint = clickedObject.parent || clickedObject;
+                    const clickedPoint = intersects[0].object.parent;
                     const cellIndex = clickedPoint.userData.cellIndex;
-                    
-                    console.log('[ARTWORK4] Clicked cell index:', cellIndex);
-                    console.log('[ARTWORK4] GlobalDataPopupManager available:', !!this.globalDataPopupManager);
                     
                     // Show data popup using global data popup manager
                     if (this.globalDataPopupManager) {
@@ -640,13 +603,9 @@ if (typeof window.Artwork4 === 'undefined') {
                             unit: 'MPa',
                             description: `셀 ${cellIndex + 1} 응력 데이터`
                         };
-                        console.log('[ARTWORK4] Showing popup with data:', popupData);
                         this.globalDataPopupManager.showPopup(this.popupId, popupData);
-                    } else {
-                        console.warn('[ARTWORK4] GlobalDataPopupManager not available');
                     }
                 } else {
-                    console.log('[ARTWORK4] No intersects - clicking empty space');
                     // Click on empty space - toggle data overlay
                     if (this.overlayVisible) {
                         this.cycleToNextDataset();
@@ -835,12 +794,6 @@ if (typeof window.Artwork4 === 'undefined') {
                     });
                     this.scene.remove(point);
                 });
-            }
-            
-            // Unregister from global data popup manager
-            if (this.globalDataPopupManager) {
-                this.globalDataPopupManager.unregisterPopup(this.popupId);
-                console.log('[ARTWORK4] Unregistered from Global Data Popup Manager');
             }
             
             // Clean up audio

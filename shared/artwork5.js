@@ -419,6 +419,11 @@ if (typeof window.Artwork5 === 'undefined') {
         handleCanvasClick(event, canvas) {
             console.log('Canvas clicked for artwork5');
             
+            // Play click sound if available
+            if (typeof playClickSound === 'function') {
+                playClickSound();
+            }
+            
             // Toggle data overlay or cycle through datasets
             if (this.overlayVisible) {
                 this.cycleToNextDataset();
@@ -434,6 +439,11 @@ if (typeof window.Artwork5 === 'undefined') {
             console.log('Thermal container clicked for artwork5');
             
             if (!this.isActive) return;
+            
+            // Play click sound if available
+            if (typeof playClickSound === 'function') {
+                playClickSound();
+            }
             
             // Toggle data overlay or cycle through datasets
             if (this.overlayVisible) {
@@ -462,6 +472,11 @@ if (typeof window.Artwork5 === 'undefined') {
             
             this.handleCanvasClick = (event) => {
                 if (!this.isActive) return;
+                
+                // Play click sound if available
+                if (typeof playClickSound === 'function') {
+                    playClickSound();
+                }
                 
                 // Toggle data overlay or cycle through datasets
                 if (this.overlayVisible) {
