@@ -254,23 +254,25 @@ if (typeof window.Artwork4 === 'undefined') {
                 });
             }
             
-            // Set up custom orbital controls for iPad
-            this.setupCustomOrbitalControls();
+            // Set up simplified canvas interaction
+            this.setupCanvasInteraction();
         }
         
         /**
          * Set up custom orbital controls for iPad touch interaction
          */
-        setupCustomOrbitalControls() {
+        setupCanvasInteraction() {
             const canvas = document.getElementById('visualizationCanvas');
             if (!canvas) return;
             
-            // Mouse events for desktop testing
+            // Simplified interaction - only basic rotation on drag, no preventDefault to avoid UI conflicts
             canvas.addEventListener('mousedown', (event) => {
+                // Only handle if clicking directly on canvas, not on UI elements
+                if (event.target !== canvas) return;
+                
                 this.isMouseDown = true;
                 this.lastMouseX = event.clientX;
                 this.lastMouseY = event.clientY;
-                event.preventDefault();
             });
             
             canvas.addEventListener('mousemove', (event) => {
@@ -279,27 +281,26 @@ if (typeof window.Artwork4 === 'undefined') {
                 const deltaX = event.clientX - this.lastMouseX;
                 const deltaY = event.clientY - this.lastMouseY;
                 
-                this.targetTheta -= deltaX * 0.01;
-                this.targetPhi += deltaY * 0.01;
-                this.targetPhi = Math.max(0.1, Math.min(Math.PI - 0.1, this.targetPhi));
+                // Reduced sensitivity for smoother interaction
+                this.targetRotationY += deltaX * 0.005;
+                this.targetRotationX += deltaY * 0.005;
                 
                 this.lastMouseX = event.clientX;
                 this.lastMouseY = event.clientY;
-                event.preventDefault();
             });
             
-            canvas.addEventListener('mouseup', () => {
+            // Use document mouseup to catch mouse release outside canvas
+            document.addEventListener('mouseup', () => {
                 this.isMouseDown = false;
             });
             
-            // Touch events for iPad
+            // Simplified touch events - basic rotation only
             canvas.addEventListener('touchstart', (event) => {
-                if (event.touches.length === 1) {
+                if (event.touches.length === 1 && event.target === canvas) {
                     this.isTouchDown = true;
                     this.lastMouseX = event.touches[0].clientX;
                     this.lastMouseY = event.touches[0].clientY;
                 }
-                event.preventDefault();
             });
             
             canvas.addEventListener('touchmove', (event) => {
@@ -308,55 +309,16 @@ if (typeof window.Artwork4 === 'undefined') {
                 const deltaX = event.touches[0].clientX - this.lastMouseX;
                 const deltaY = event.touches[0].clientY - this.lastMouseY;
                 
-                this.targetTheta -= deltaX * 0.01;
-                this.targetPhi += deltaY * 0.01;
-                this.targetPhi = Math.max(0.1, Math.min(Math.PI - 0.1, this.targetPhi));
+                // Reduced sensitivity for touch
+                this.targetRotationY += deltaX * 0.003;
+                this.targetRotationX += deltaY * 0.003;
                 
                 this.lastMouseX = event.touches[0].clientX;
                 this.lastMouseY = event.touches[0].clientY;
-                event.preventDefault();
             });
             
-            canvas.addEventListener('touchend', () => {
+            document.addEventListener('touchend', () => {
                 this.isTouchDown = false;
-            });
-            
-            // Pinch-to-zoom for iPad
-            let initialDistance = 0;
-            canvas.addEventListener('touchstart', (event) => {
-                if (event.touches.length === 2) {
-                    const touch1 = event.touches[0];
-                    const touch2 = event.touches[1];
-                    initialDistance = Math.sqrt(
-                        Math.pow(touch2.clientX - touch1.clientX, 2) +
-                        Math.pow(touch2.clientY - touch1.clientY, 2)
-                    );
-                }
-            });
-            
-            canvas.addEventListener('touchmove', (event) => {
-                if (event.touches.length === 2) {
-                    const touch1 = event.touches[0];
-                    const touch2 = event.touches[1];
-                    const currentDistance = Math.sqrt(
-                        Math.pow(touch2.clientX - touch1.clientX, 2) +
-                        Math.pow(touch2.clientY - touch1.clientY, 2)
-                    );
-                    
-                    if (initialDistance > 0) {
-                        const scale = currentDistance / initialDistance;
-                        this.targetDistance = Math.max(10, Math.min(100, this.targetDistance / scale));
-                        initialDistance = currentDistance;
-                    }
-                    event.preventDefault();
-                }
-            });
-            
-            // Mouse wheel for desktop zoom
-            canvas.addEventListener('wheel', (event) => {
-                this.targetDistance += event.deltaY * 0.01;
-                this.targetDistance = Math.max(10, Math.min(100, this.targetDistance));
-                event.preventDefault();
             });
         }
         

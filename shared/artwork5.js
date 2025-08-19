@@ -131,8 +131,8 @@ if (typeof window.Artwork5 === 'undefined') {
             // Set up Three.js scene first
             this.setupScene();
             
-            // Initialize thermal visualization container
-            this.initializeThermalContainer();
+            // DO NOT initialize thermal container here - only when activated
+            // this.initializeThermalContainer();
             
             // Set up UI
             this.setupUI(this.title);
@@ -154,7 +154,7 @@ if (typeof window.Artwork5 === 'undefined') {
             this.createAudioProgressBar();
             
             this.title = '열간 압연 데이터 05: 온도 분포 및 열 전달 분석';
-            console.log('Artwork5 initialized successfully');
+            console.log('Artwork5 initialized successfully (thermal container will be created on activation)');
         }
         
         /**
@@ -817,6 +817,12 @@ if (typeof window.Artwork5 === 'undefined') {
          * Initialize thermal container for thermal visualization
          */
         initializeThermalContainer() {
+            // Only initialize if this module is active
+            if (!this.isActive) {
+                console.log('Artwork5 not active, skipping thermal container initialization');
+                return;
+            }
+            
             console.log('Starting thermal container initialization...');
             
             // First inject the CSS styles
@@ -871,6 +877,9 @@ if (typeof window.Artwork5 === 'undefined') {
                 const baseOpacity = 0.5 + Math.random() * 0.4;
                 layer.style.opacity = baseOpacity;
             });
+            
+            // DO NOT auto-play audio on activation - removed auto-play behavior
+            console.log('Thermal visualization activated without auto-playing audio');
         }
         
         /**

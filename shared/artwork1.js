@@ -668,13 +668,27 @@ if (typeof window.Artwork1 === 'undefined') {
                 cancelAnimationFrame(this.animationFrame);
                 this.animationFrame = null;
             }
+            
+            // Remove canvas event listeners that are causing persistent errors
+            const canvas = document.getElementById('visualizationCanvas');
+            if (canvas) {
+                // Clone and replace canvas to remove all event listeners
+                const newCanvas = canvas.cloneNode(true);
+                canvas.parentNode.replaceChild(newCanvas, canvas);
+                console.log('Canvas event listeners cleared for artwork1');
+            }
         }
         
         /**
          * Handle node click for data interaction
          */
         handleNodeClick(event, canvas) {
-            // Check if camera exists before proceeding
+            // Check if module is still active and camera exists before proceeding
+            if (!this.isActive) {
+                console.warn('Artwork1 not active, ignoring node click');
+                return;
+            }
+            
             if (!this.camera) {
                 console.warn('Camera not initialized for node click handling');
                 return;
