@@ -13,10 +13,11 @@
     
     <script>
         // Immediate redirect to metal-slab.html (the actual landing page)
-        // Use absolute path for GitHub Pages compatibility
+        // Handle both GitHub Pages and Vercel deployments
         if (window.location.hostname === 'heund.github.io') {
             window.location.replace('/comp_ea/metal-slab.html');
         } else {
+            // For Vercel and other deployments, use relative path
             window.location.replace('./metal-slab.html');
         }
     </script>
