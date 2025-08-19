@@ -850,32 +850,32 @@ if (typeof window.Artwork5 === 'undefined') {
          * Activate thermal visualization layers
          */
         activateThermalVisualization() {
-            if (!this.thermalContainer) {
-                console.log('Thermal container not available for activation');
-                return;
-            }
+            if (!this.thermalContainer) return;
             
-            console.log('Activating thermal visualization with', this.thermalLayers.length, 'layers');
+            console.log('[ARTWORK5] Activating thermal visualization');
             
             // Make thermal container visible
+            this.thermalContainer.style.display = 'block';
             this.thermalContainer.classList.add('active');
             this.thermalAnimationActive = true;
             
             // Apply dynamic scaling based on viewport
             this.updateThermalScale();
             
-            // Apply random subtle animations to each layer for more dynamic effect
-            this.thermalLayers.forEach((layer, index) => {
-                // Add subtle random animation variations
-                const animDuration = 5 + Math.random() * 3; // 5-8s
-                const animDelay = -Math.random() * 5; // Staggered start
-                
-                layer.style.animationDuration = `${animDuration}s`;
-                layer.style.animationDelay = `${animDelay}s`;
-                
-                // Slightly adjust opacity for more dynamic appearance
-                const baseOpacity = 0.5 + Math.random() * 0.4;
-                layer.style.opacity = baseOpacity;
+            // Show thermal layers with staggered animation
+            const layers = this.thermalContainer.querySelectorAll('.thermal-layer');
+            layers.forEach((layer, index) => {
+                setTimeout(() => {
+                    layer.classList.add('visible');
+                }, index * 200);
+            });
+            
+            // Show thermal data points
+            const dataPoints = this.thermalContainer.querySelectorAll('.thermal-data-point');
+            dataPoints.forEach((point, index) => {
+                setTimeout(() => {
+                    point.classList.add('visible');
+                }, 1000 + (index * 100));
             });
             
             // DO NOT auto-play audio on activation - removed auto-play behavior
@@ -888,8 +888,12 @@ if (typeof window.Artwork5 === 'undefined') {
         deactivateThermalVisualization() {
             if (!this.thermalContainer) return;
             
+            console.log('[ARTWORK5] Deactivating thermal visualization');
             this.thermalContainer.classList.remove('active');
             this.thermalAnimationActive = false;
+            
+            // Reset thermal container state to prevent reactivation
+            this.thermalContainer.style.display = 'none';
         }
         
         /**
@@ -922,7 +926,9 @@ if (typeof window.Artwork5 === 'undefined') {
             if (!this.isActive) return;
             
             // For artwork5, we only need to activate thermal visualization once
-            if (this.thermalContainer && !this.thermalAnimationActive) {
+            // Only activate if module is active AND thermal animation is not already active
+            if (this.isActive && this.thermalContainer && !this.thermalAnimationActive) {
+                console.log('[ARTWORK5] Animate method activating thermal visualization');
                 this.activateThermalVisualization();
             }
         }
@@ -1005,7 +1011,10 @@ if (typeof window.Artwork5 === 'undefined') {
         deactivate() {
             if (!this.isActive) return;
             
-            console.log('Deactivating Artwork5...');
+            console.log('[ARTWORK5] Deactivating Artwork5...');
+            
+            // Stop audio and reset button state
+            this.stopArtworkAudio();
             
             // Deactivate thermal visualization
             this.deactivateThermalVisualization();
@@ -1017,6 +1026,22 @@ if (typeof window.Artwork5 === 'undefined') {
             
             // Ensure data cycling is stopped
             this.stopDataCycling();
+            
+            // Reset thermal animation state completely
+            this.thermalAnimationActive = false;
+            
+            // Clear any pending timeouts that might reactivate thermal layers
+            if (this.thermalContainer) {
+                const layers = this.thermalContainer.querySelectorAll('.thermal-layer');
+                layers.forEach(layer => {
+                    layer.classList.remove('visible');
+                });
+                
+                const dataPoints = this.thermalContainer.querySelectorAll('.thermal-data-point');
+                dataPoints.forEach(point => {
+                    point.classList.remove('visible');
+                });
+            }
             
             super.deactivate();
             
@@ -1030,6 +1055,8 @@ if (typeof window.Artwork5 === 'undefined') {
             if (this.renderer) {
                 this.renderer.clear();
             }
+            
+            console.log('[ARTWORK5] Artwork5 deactivation complete');
         }
         
         

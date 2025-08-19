@@ -473,7 +473,10 @@ if (typeof window.Artwork2 === 'undefined') {
         deactivate() {
             super.deactivate();
             
-            console.log('Deactivating 연간압연 데이터 02: 압축 알고리즘 시각화 module');
+            console.log('Deactivating 열간압연 데이터 02: 압연 효율 분포 module');
+            
+            // Stop audio and reset button state
+            this.stopArtworkAudio();
             
             // Properly close data overlay if it's open
             if (this.overlayVisible) {
@@ -484,9 +487,9 @@ if (typeof window.Artwork2 === 'undefined') {
             this.stopDataCycling();
             
             // Stop animation loop
-            if (this.animationFrameId) {
-                cancelAnimationFrame(this.animationFrameId);
-                this.animationFrameId = null;
+            if (this.animationFrame) {
+                cancelAnimationFrame(this.animationFrame);
+                this.animationFrame = null;
             }
         }
         

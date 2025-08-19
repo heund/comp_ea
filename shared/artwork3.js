@@ -1120,6 +1120,9 @@ if (typeof window.Artwork3 === 'undefined') {
             
             console.log('Deactivating 열간 압연 데이터 03: 시계열 구간별 변형 제어값 module');
             
+            // Stop audio and reset button state
+            this.stopArtworkAudio();
+            
             // Hide wave container COMPLETELY
             const waveContainer = document.getElementById('waveContainer');
             if (waveContainer) {
