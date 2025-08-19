@@ -473,10 +473,7 @@ if (typeof window.Artwork2 === 'undefined') {
         deactivate() {
             super.deactivate();
             
-            console.log('Deactivating 열간압연 데이터 02: 압연 효율 분포 module');
-            
-            // Stop audio and reset button state
-            this.stopArtworkAudio();
+            console.log('Deactivating 연간압연 데이터 02: 압축 알고리즘 시각화 module');
             
             // Properly close data overlay if it's open
             if (this.overlayVisible) {
@@ -487,9 +484,9 @@ if (typeof window.Artwork2 === 'undefined') {
             this.stopDataCycling();
             
             // Stop animation loop
-            if (this.animationFrame) {
-                cancelAnimationFrame(this.animationFrame);
-                this.animationFrame = null;
+            if (this.animationFrameId) {
+                cancelAnimationFrame(this.animationFrameId);
+                this.animationFrameId = null;
             }
         }
         
@@ -1327,11 +1324,6 @@ if (typeof window.Artwork2 === 'undefined') {
                     
                     // Check if it's a compression sphere
                     if (object.userData && object.userData.isCompressionSphere) {
-                        // Play click sound if available
-                        if (typeof playClickSound === 'function') {
-                            playClickSound();
-                        }
-                        
                         try {
                             // If data overlay is already visible, cycle to next dataset
                             if (this.overlayVisible) {

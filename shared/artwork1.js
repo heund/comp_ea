@@ -655,9 +655,6 @@ if (typeof window.Artwork1 === 'undefined') {
             
             console.log('Deactivating 연간압연 데이터 01: 보정 알고리즘 구조 module');
             
-            // Stop audio and reset button state
-            this.stopArtworkAudio();
-            
             // Properly close data overlay if it's open
             if (this.overlayVisible) {
                 this.hideDataOverlay();

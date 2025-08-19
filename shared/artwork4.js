@@ -281,12 +281,9 @@ if (typeof window.Artwork4 === 'undefined') {
                 const deltaX = event.clientX - this.lastMouseX;
                 const deltaY = event.clientY - this.lastMouseY;
                 
-                // Update orbital control targets for rotation
-                this.targetTheta += deltaX * 0.005;
-                this.targetPhi += deltaY * 0.005;
-                
-                // Clamp phi to prevent camera flipping
-                this.targetPhi = Math.max(0.1, Math.min(Math.PI - 0.1, this.targetPhi));
+                // Reduced sensitivity for smoother interaction
+                this.targetRotationY += deltaX * 0.005;
+                this.targetRotationX += deltaY * 0.005;
                 
                 this.lastMouseX = event.clientX;
                 this.lastMouseY = event.clientY;
@@ -312,12 +309,9 @@ if (typeof window.Artwork4 === 'undefined') {
                 const deltaX = event.touches[0].clientX - this.lastMouseX;
                 const deltaY = event.touches[0].clientY - this.lastMouseY;
                 
-                // Update orbital control targets for touch rotation
-                this.targetTheta += deltaX * 0.003;
-                this.targetPhi += deltaY * 0.003;
-                
-                // Clamp phi to prevent camera flipping
-                this.targetPhi = Math.max(0.1, Math.min(Math.PI - 0.1, this.targetPhi));
+                // Reduced sensitivity for touch
+                this.targetRotationY += deltaX * 0.003;
+                this.targetRotationX += deltaY * 0.003;
                 
                 this.lastMouseX = event.touches[0].clientX;
                 this.lastMouseY = event.touches[0].clientY;
@@ -546,14 +540,11 @@ if (typeof window.Artwork4 === 'undefined') {
             const canvas = document.getElementById('visualizationCanvas');
             if (!canvas) return;
             
-            // Canvas click handler for data interaction
             this.handleCanvasClick = (event) => {
-                // Check if module is still active to prevent ghost interactions
                 if (!this.isActive) return;
                 
+                // Calculate mouse position for raycasting
                 const rect = canvas.getBoundingClientRect();
-                
-                // Convert mouse coordinates to normalized device coordinates
                 this.mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
                 this.mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
                 
@@ -568,22 +559,15 @@ if (typeof window.Artwork4 === 'undefined') {
                     
                     // Show data popup using global data popup manager
                     if (this.globalDataPopupManager) {
-                        const data = this.sampleData[cellIndex];
-                        if (data) {
-                            this.globalDataPopupManager.showPopup(data, event.clientX, event.clientY);
-                        }
-                    }
-                    
-                    // Play click sound if available
-                    if (typeof playClickSound === 'function') {
-                        playClickSound();
+                        const popupData = {
+                            title: '응력 누적 분포',
+                            value: this.voronoiData[cellIndex].dataPoint.value,
+                            unit: 'MPa',
+                            description: `셀 ${cellIndex + 1} 응력 데이터`
+                        };
+                        this.globalDataPopupManager.showPopup(this.popupId, popupData);
                     }
                 } else {
-                    // Play click sound for empty space clicks too
-                    if (typeof playClickSound === 'function') {
-                        playClickSound();
-                    }
-                    
                     // Click on empty space - toggle data overlay
                     if (this.overlayVisible) {
                         this.cycleToNextDataset();
@@ -593,8 +577,7 @@ if (typeof window.Artwork4 === 'undefined') {
                 }
             };
             
-            canvas.addEventListener('click', this.handleCanvasClick);
-            console.log('[ARTWORK4] Canvas click detection setup complete');
+            this.registerEventListener(canvas, 'click', this.handleCanvasClick);
         }
         
         /**
@@ -722,9 +705,6 @@ if (typeof window.Artwork4 === 'undefined') {
             
             console.log('[ARTWORK4] 🛑 Starting deactivation');
             
-            // Stop audio and reset button state
-            this.stopArtworkAudio();
-            
             // Hide data overlay and stop data cycling BEFORE calling super.deactivate()
             if (this.overlayVisible) {
                 this.hideDataOverlay();
@@ -732,13 +712,6 @@ if (typeof window.Artwork4 === 'undefined') {
             
             // Ensure data cycling is stopped
             this.stopDataCycling();
-            
-            // Remove canvas event listener to prevent memory leaks
-            const canvas = document.getElementById('visualizationCanvas');
-            if (canvas && this.handleCanvasClick) {
-                canvas.removeEventListener('click', this.handleCanvasClick);
-                console.log('[ARTWORK4] Canvas click event listener removed');
-            }
             
             super.deactivate();
             
@@ -1024,83 +997,71 @@ if (typeof window.Artwork4 === 'undefined') {
          * Create audio progress bar HTML and CSS
          */
         createAudioProgressBar() {
-            // Check if progress bar already exists to prevent duplicates
-            const existingProgressBar = document.getElementById('artwork4AudioProgress');
-            if (existingProgressBar) {
-                console.log('[ARTWORK4] Audio progress bar already exists, skipping creation');
-                return;
-            }
-            
             console.log('[ARTWORK4] Creating audio progress bar');
             
-            // Check if styles already exist to prevent duplicate CSS
-            const existingStyles = document.getElementById('artwork4-audio-styles');
-            if (!existingStyles) {
-                // Create CSS styles
-                const style = document.createElement('style');
-                style.id = 'artwork4-audio-styles';
-                style.textContent = `
-                    /* Audio Progress Bar for Artwork4 */
-                    .artwork4-audio-progress-container {
-                        position: fixed;
-                        bottom: 20px;
-                        left: 50%;
-                        transform: translateX(-50%);
-                        width: 300px;
-                        background: rgba(255, 255, 255, 0.1);
-                        backdrop-filter: blur(20px);
-                        border: 1px solid rgba(255, 255, 255, 0.2);
-                        border-radius: 12px;
-                        padding: 12px 16px;
-                        z-index: 1003;
-                        opacity: 0;
-                        visibility: hidden;
-                        transition: all 0.3s ease;
-                        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-                    }
-                    
-                    .artwork4-audio-progress-container.visible {
-                        opacity: 1;
-                        visibility: visible;
-                    }
-                    
-                    .artwork4-audio-info {
-                        display: flex;
-                        align-items: center;
-                        justify-content: space-between;
-                        margin-bottom: 8px;
-                    }
-                    
-                    .artwork4-audio-title {
-                        font-size: 12px;
-                        color: #ffffff;
-                        font-weight: 500;
-                    }
-                    
-                    .artwork4-audio-time {
-                        font-size: 11px;
-                        color: #ffffff;
-                        font-family: 'Inter', sans-serif;
-                    }
-                    
-                    .artwork4-progress-bar {
-                        width: 100%;
-                        height: 4px;
-                        background: rgba(0, 0, 0, 0.3);
-                        border-radius: 2px;
-                        overflow: hidden;
-                    }
-                    
-                    .artwork4-progress-fill {
-                        height: 100%;
-                        background: #ffffff;
-                        border-radius: 2px;
-                        width: 0%;
-                        transition: width 0.1s ease;
-                    }
-                `;
-                document.head.appendChild(style);
-            }
+            // Create CSS styles
+            const style = document.createElement('style');
+            style.textContent = `
+                /* Audio Progress Bar for Artwork4 */
+                .artwork4-audio-progress-container {
+                    position: fixed;
+                    bottom: 20px;
+                    left: 50%;
+                    transform: translateX(-50%);
+                    width: 300px;
+                    background: rgba(255, 255, 255, 0.1);
+                    backdrop-filter: blur(20px);
+                    border: 1px solid rgba(255, 255, 255, 0.2);
+                    border-radius: 12px;
+                    padding: 12px 16px;
+                    z-index: 1003;
+                    opacity: 0;
+                    visibility: hidden;
+                    transition: all 0.3s ease;
+                    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+                }
+                
+                .artwork4-audio-progress-container.visible {
+                    opacity: 1;
+                    visibility: visible;
+                }
+                
+                .artwork4-audio-info {
+                    display: flex;
+                    align-items: center;
+                    justify-content: space-between;
+                    margin-bottom: 8px;
+                }
+                
+                .artwork4-audio-title {
+                    font-size: 12px;
+                    color: #ffffff;
+                    font-weight: 500;
+                }
+                
+                .artwork4-audio-time {
+                    font-size: 11px;
+                    color: #ffffff;
+                    font-family: 'Inter', sans-serif;
+                }
+                
+                .artwork4-progress-bar {
+                    width: 100%;
+                    height: 4px;
+                    background: rgba(0, 0, 0, 0.3);
+                    border-radius: 2px;
+                    overflow: hidden;
+                }
+                
+                .artwork4-progress-fill {
+                    height: 100%;
+                    background: #ffffff;
+                    border-radius: 2px;
+                    width: 0%;
+                    transition: width 0.1s ease;
+                }
+            `;
+            document.head.appendChild(style);
             
             // Create HTML structure
             const progressContainer = document.createElement('div');

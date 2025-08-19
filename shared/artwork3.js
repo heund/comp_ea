@@ -661,7 +661,7 @@ if (typeof window.Artwork3 === 'undefined') {
                 totalRippleInfluence = Math.min(1.0, totalRippleInfluence);
                 
                 // Color palette with three-stage transitions
-                const centerR = 255, centerG = 80, centerB = 60;      // Coral-orange between orange and pink
+                const centerR = 255, centerG = 70, centerB = 50;      // Slightly more reddish orange
                 const midR = 246, midG = 101, midB = 93;               // #F6655D exact color mid
                 const edgeR = 100, edgeG = 149, edgeB = 180;           // Greyish blue edges
                 
@@ -1120,9 +1120,6 @@ if (typeof window.Artwork3 === 'undefined') {
             
             console.log('Deactivating 열간 압연 데이터 03: 시계열 구간별 변형 제어값 module');
             
-            // Stop audio and reset button state
-            this.stopArtworkAudio();
-            
             // Hide wave container COMPLETELY
             const waveContainer = document.getElementById('waveContainer');
             if (waveContainer) {
@@ -1265,11 +1262,6 @@ if (typeof window.Artwork3 === 'undefined') {
          * Handle canvas click for data overlay
          */
         handleCanvasClick(event, canvas) {
-            // Play click sound if available
-            if (typeof playClickSound === 'function') {
-                playClickSound();
-            }
-            
             // Toggle data overlay or cycle through datasets
             if (this.overlayVisible) {
                 this.cycleToNextDataset();
