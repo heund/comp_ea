@@ -1327,6 +1327,11 @@ if (typeof window.Artwork2 === 'undefined') {
                     
                     // Check if it's a compression sphere
                     if (object.userData && object.userData.isCompressionSphere) {
+                        // Play click sound if available
+                        if (typeof playClickSound === 'function') {
+                            playClickSound();
+                        }
+                        
                         try {
                             // If data overlay is already visible, cycle to next dataset
                             if (this.overlayVisible) {

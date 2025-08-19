@@ -417,11 +417,13 @@
                     break;
                     
                 case 'flow':
-                    // Large triangle - fills entire available space
+                    // Equilateral triangle - all sides equal length, sized to match other markers
+                    const radius = 200;
+                    const height = radius * Math.sqrt(3) / 2;
                     ctx.beginPath();
-                    ctx.moveTo(0, -240);
-                    ctx.lineTo(-240, 240);
-                    ctx.lineTo(240, 240);
+                    ctx.moveTo(0, -height);                    // Top point
+                    ctx.lineTo(-radius, height);               // Bottom left
+                    ctx.lineTo(radius, height);                // Bottom right
                     ctx.closePath();
                     ctx.fill();
                     break;

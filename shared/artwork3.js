@@ -1265,6 +1265,11 @@ if (typeof window.Artwork3 === 'undefined') {
          * Handle canvas click for data overlay
          */
         handleCanvasClick(event, canvas) {
+            // Play click sound if available
+            if (typeof playClickSound === 'function') {
+                playClickSound();
+            }
+            
             // Toggle data overlay or cycle through datasets
             if (this.overlayVisible) {
                 this.cycleToNextDataset();

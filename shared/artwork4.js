@@ -574,11 +574,16 @@ if (typeof window.Artwork4 === 'undefined') {
                         }
                     }
                     
-                    // Play click sound
-                    if (this.globalAudioManager) {
-                        this.globalAudioManager.playClickSound();
+                    // Play click sound if available
+                    if (typeof playClickSound === 'function') {
+                        playClickSound();
                     }
                 } else {
+                    // Play click sound for empty space clicks too
+                    if (typeof playClickSound === 'function') {
+                        playClickSound();
+                    }
+                    
                     // Click on empty space - toggle data overlay
                     if (this.overlayVisible) {
                         this.cycleToNextDataset();
