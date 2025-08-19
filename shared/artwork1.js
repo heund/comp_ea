@@ -936,9 +936,13 @@ if (typeof window.Artwork1 === 'undefined') {
         initializeArtworkAudio() {
             console.log('[ARTWORK1] Initializing artwork audio');
             
-            // Create audio element for artwork1.wav
+            // Create audio element for artwork1.wav with dynamic path
             this.artworkAudio = new Audio();
-            this.artworkAudio.src = 'https://heund.github.io/comp_ea/shared/sounds/artwork1.wav';
+            if (window.location.hostname === 'heund.github.io') {
+                this.artworkAudio.src = 'https://heund.github.io/comp_ea/shared/sounds/artwork1.wav';
+            } else {
+                this.artworkAudio.src = './shared/sounds/artwork1.wav';
+            }
             this.artworkAudio.loop = false;
             this.artworkAudio.volume = 0.7;
             

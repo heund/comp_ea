@@ -1546,7 +1546,12 @@ if (typeof window.Artwork3 === 'undefined') {
         initializeArtworkAudio() {
             console.log('[ARTWORK3] Initializing artwork audio');
             
-            this.artworkAudio = new Audio('https://heund.github.io/comp_ea/shared/sounds/artwork3.wav');
+            this.artworkAudio = new Audio();
+            if (window.location.hostname === 'heund.github.io') {
+                this.artworkAudio.src = 'https://heund.github.io/comp_ea/shared/sounds/artwork3.wav';
+            } else {
+                this.artworkAudio.src = './shared/sounds/artwork3.wav';
+            }
             this.artworkAudio.preload = 'auto';
             this.artworkAudio.loop = false;
 
